@@ -24,8 +24,8 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 # In[ ]:
 
 
-final_output_json='../../data/processed/final_annotations.json'
-image_directory = '../../data/images'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations.json'
+image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
 random_seed = 42
