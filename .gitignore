@@ -9,6 +9,5 @@ venv/
 .ipynb_checkpoints/
 
 # Ignore data files
-data
 DelftBikes/
 depricated/
