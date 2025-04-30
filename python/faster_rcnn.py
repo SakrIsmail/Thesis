@@ -174,7 +174,7 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {losses.item()}")
 
-torch.save(model.state_dict(), f"models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
+torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
 
 
 # In[ ]:
