@@ -174,7 +174,7 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {losses.item()}")
 
-torch.save(model.state_dict(), f"models/faster r-cnn/fasterrcnn_{num_epochs}_model.pth")
+torch.save(model.state_dict(), f"models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
 
 
 # In[ ]:
@@ -263,8 +263,6 @@ def part_level_evaluation_sklearn(results_per_image, part_to_idx, idx_to_part):
 
 
 results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
-
-print(results_per_image)
 
 accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1 = part_level_evaluation_sklearn(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
