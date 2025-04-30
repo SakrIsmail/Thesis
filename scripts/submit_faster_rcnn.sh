@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 
-# Load necessary modules
-#module load anaconda3
+
+module load cuDNN/cuda12.1/9.1.0.70
 
 eval "$(conda shell.bash hook)"
 
