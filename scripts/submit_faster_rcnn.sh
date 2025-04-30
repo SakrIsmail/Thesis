@@ -8,7 +8,8 @@
 #SBATCH --gres=gpu:1
 
 
-module load cuDNN/cuda12.1/9.1.0.70
+module load cuda/12.3
+module load cuDNN/cuda12.3/9.1.0.70
 
 eval "$(conda shell.bash hook)"
 
