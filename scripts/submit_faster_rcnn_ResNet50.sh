@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=faster_rcnn_ResNet50
-#SBATCH --output=outputs/faster_rcnn/output_faster_rcnn.log
-#SBATCH --error=outputs/faster_rcnn/error_faster_rcnn.log
+#SBATCH --output=outputs/faster_rcnn/output_faster_rcnn_ResNet50.log
+#SBATCH --error=outputs/faster_rcnn/error_faster_rcnn_ResNet50.log
 #SBATCH --time=00:15:00
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=4
