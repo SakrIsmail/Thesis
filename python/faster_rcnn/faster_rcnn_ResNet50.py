@@ -222,7 +222,7 @@ for epoch in range(num_epochs):
 if torch.cuda.is_available():
     nvmlShutdown()
 
-torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
+torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_ResNet50_{num_epochs}_model.pth")
 
 
 # In[ ]:

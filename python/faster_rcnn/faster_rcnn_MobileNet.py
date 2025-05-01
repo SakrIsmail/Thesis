@@ -155,7 +155,8 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+# optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -225,7 +226,7 @@ for epoch in range(num_epochs):
 if torch.cuda.is_available():
     nvmlShutdown()
 
-torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
+torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_{num_epochs}_model.pth")
 
 
 # In[ ]:
