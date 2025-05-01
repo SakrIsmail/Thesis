@@ -30,7 +30,7 @@ from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
 # In[ ]:
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations.json'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
 image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
@@ -39,7 +39,7 @@ random_seed = 42
 with open(final_output_json, 'r') as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations['images'].keys())[:500]
+image_filenames = list(annotations['images'].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
