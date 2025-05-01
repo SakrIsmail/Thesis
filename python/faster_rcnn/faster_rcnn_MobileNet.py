@@ -39,7 +39,7 @@ random_seed = 42
 with open(final_output_json, 'r') as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations['images'].keys())
+image_filenames = list(annotations['images'].keys())[:500]
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
