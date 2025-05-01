@@ -31,6 +31,7 @@ final_output_json='/var/scratch/sismail/data/processed/final_annotations_without
 image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
+valid_ratio = 0.1
 random_seed = 42
 
 with open(final_output_json, 'r') as f:
@@ -44,10 +45,17 @@ random.shuffle(image_filenames)
 num_test = int(len(image_filenames) * test_ratio)
 test_images = image_filenames[:num_test]
 train_images = image_filenames[num_test:]
+num_valid = int(len(train_images) * valid_ratio)
+valid_images = train_images[:num_valid]
 
 train_annotations = {
     'all_parts': annotations['all_parts'],
     'images': {img_name: annotations['images'][img_name] for img_name in train_images}
+}
+
+valid_annotations = {
+    'all_parts': annotations['all_parts'],
+    'images': {img_name: annotations['images'][img_name] for img_name in valid_images}
 }
 
 test_annotations = {
@@ -121,12 +129,21 @@ class BikePartsDetectionDataset(Dataset):
 transform = transforms.ToTensor()
 
 train_dataset = BikePartsDetectionDataset(train_annotations, image_directory, transform=transform)
+valid_dataset = BikePartsDetectionDataset(valid_annotations, image_directory, transform=transform)
 test_dataset = BikePartsDetectionDataset(test_annotations, image_directory, transform=transform)
 
 train_loader = DataLoader(
     train_dataset,
     batch_size=4,
     shuffle=True,
+    num_workers=4,
+    collate_fn=lambda batch: tuple(zip(*batch))
+)
+
+valid_loader = DataLoader(
+    valid_dataset,
+    batch_size=4,
+    shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
@@ -138,6 +155,7 @@ test_loader = DataLoader(
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
+
 
 
 # In[ ]:
@@ -158,7 +176,7 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 1
+num_epochs = 10
 for epoch in range(num_epochs):
     model.train()
 
@@ -318,7 +336,8 @@ def part_level_evaluation(results_per_image, part_to_idx, idx_to_part):
     return accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1
 
 
-results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
+results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+# results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
 accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1 = part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
