@@ -8,6 +8,10 @@ import os
 import json
 import random
 from tqdm import tqdm
+import time
+import psutil
+import gc
+from tabulate import tabulate
 import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
@@ -19,6 +23,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights, fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
+
 
 
 # In[ ]:
@@ -33,7 +39,7 @@ random_seed = 42
 with open(final_output_json, 'r') as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations['images'].keys())[:500]
+image_filenames = list(annotations['images'].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -150,29 +156,74 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 model.to(device)
 
 optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+
+if torch.cuda.is_available():
+    nvmlInit()
+    handle = nvmlDeviceGetHandleByIndex(0)
 
 num_epochs = 1
 for epoch in range(num_epochs):
     model.train()
 
+    batch_times = []
+    gpu_memories = []
+    cpu_memories = []
+
     with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
         for images, targets in tepoch:
+            start_time = time.time()
+
             images = [image.to(device) for image in images]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             optimizer.zero_grad()
-
             loss_dict = model(images, targets)
-
             losses = sum(loss for loss in loss_dict.values())
-
             losses.backward()
             optimizer.step()
 
-            tepoch.set_postfix(loss=losses.item())
+            end_time = time.time()
+            inference_time = end_time - start_time
+            batch_times.append(inference_time)
 
-    print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {losses.item()}")
+            if torch.cuda.is_available():
+                mem_info = nvmlDeviceGetMemoryInfo(handle)
+                gpu_mem_used = mem_info.used / (1024 ** 2)
+                gpu_memories.append(gpu_mem_used)
+            else:
+                gpu_mem_used = 0
+
+            cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
+            cpu_memories.append(cpu_mem_used)
+
+            tepoch.set_postfix({
+                "loss": f"{losses.item():.4f}",
+                "time (s)": f"{inference_time:.3f}",
+                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
+            })
+
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    avg_time = sum(batch_times) / len(batch_times)
+    avg_gpu_mem = sum(gpu_memories) / len(gpu_memories) if gpu_memories else 0
+    avg_cpu_mem = sum(cpu_memories) / len(cpu_memories)
+
+    table = [
+        ["Epoch", epoch + 1],
+        ["Final Loss", f"{losses.item():.4f}"],
+        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
+        ["Average GPU Memory Usage (MB)", f"{avg_gpu_mem:.2f}"],
+        ["Average CPU Memory Usage (MB)", f"{avg_cpu_mem:.2f}"],
+    ]
+
+    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
+
+
+if torch.cuda.is_available():
+    nvmlShutdown()
 
 torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_{num_epochs}_model.pth")
 
@@ -209,7 +260,7 @@ def evaluate_model(model, data_loader, part_to_idx, device):
     return results_per_image
 
 
-def part_level_evaluation_sklearn(results_per_image, part_to_idx, idx_to_part):
+def part_level_evaluation(results_per_image, part_to_idx, idx_to_part):
     part_indices = list(part_to_idx.values())
 
     part_true = {part: [] for part in part_indices}
@@ -231,40 +282,47 @@ def part_level_evaluation_sklearn(results_per_image, part_to_idx, idx_to_part):
     all_true_flat = []
     all_pred_flat = []
 
+    table_rows = []
+
     for part in part_indices:
         y_true = part_true[part]
         y_pred = part_pred[part]
 
-        accuracy[part] = accuracy_score(y_true, y_pred)
-        precision[part] = precision_score(y_true, y_pred, zero_division=0)
-        recall[part] = recall_score(y_true, y_pred, zero_division=0)
-        f1[part] = f1_score(y_true, y_pred, zero_division=0)
+        acc = accuracy_score(y_true, y_pred)
+        prec = precision_score(y_true, y_pred, zero_division=0)
+        rec = recall_score(y_true, y_pred, zero_division=0)
+        f1s = f1_score(y_true, y_pred, zero_division=0)
+
+        accuracy[part] = acc
+        precision[part] = prec
+        recall[part] = rec
+        f1[part] = f1s
 
         all_true_flat.extend(y_true)
         all_pred_flat.extend(y_pred)
 
-        print(f"Part: {idx_to_part[part]}")
-        print(f"  Accuracy: {accuracy[part]:.4f}")
-        print(f"  Precision: {precision[part]:.4f}")
-        print(f"  Recall: {recall[part]:.4f}")
-        print(f"  F1 Score: {f1[part]:.4f}\n")
+        table_rows.append([
+            idx_to_part[part], f"{acc:.4f}", f"{prec:.4f}", f"{rec:.4f}", f"{f1s:.4f}"
+        ])
+
+    print(tabulate(table_rows, headers=["Part", "Accuracy", "Precision", "Recall", "F1 Score"], tablefmt="fancy_grid"))
 
     overall_accuracy = accuracy_score(all_true_flat, all_pred_flat)
     overall_precision = precision_score(all_true_flat, all_pred_flat, zero_division=0)
     overall_recall = recall_score(all_true_flat, all_pred_flat, zero_division=0)
     overall_f1 = f1_score(all_true_flat, all_pred_flat, zero_division=0)
 
-    print(f"Overall Accuracy: {overall_accuracy:.4f}")
-    print(f"Overall Precision: {overall_precision:.4f}")
-    print(f"Overall Recall: {overall_recall:.4f}")
-    print(f"Overall F1 Score: {overall_f1:.4f}")
+    print("\nOverall Metrics:")
+    print(tabulate([[
+        f"{overall_accuracy:.4f}", f"{overall_precision:.4f}",
+        f"{overall_recall:.4f}", f"{overall_f1:.4f}"
+    ]], headers=["Accuracy", "Precision", "Recall", "F1 Score"], tablefmt="fancy_grid"))
 
     return accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1
 
 
 results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
-accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1 = part_level_evaluation_sklearn(
+accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1 = part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )
-
