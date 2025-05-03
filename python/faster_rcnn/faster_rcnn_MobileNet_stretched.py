@@ -72,7 +72,7 @@ test_annotations = {
 
 
 class BikePartsDetectionDataset(Dataset):
-    def __init__(self, annotations_dict, image_dir, transform=None, target_size=(640, 640)):
+    def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
         self.all_parts = annotations_dict['all_parts']
         self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
         self.idx_to_part = {idx + 1: part for idx, part in enumerate(self.all_parts)}
@@ -80,23 +80,37 @@ class BikePartsDetectionDataset(Dataset):
         self.image_filenames = list(self.image_data.keys())
         self.image_dir = image_dir
         self.transform = transform
+        self.augment = augment
         self.target_size = target_size
 
     def __len__(self):
-        return len(self.image_filenames)
+        return len(self.image_filenames) * (2 if self.augment else 1)
+
+    def apply_augmentation(self, image, boxes):
+        if random.random() < 0.5:
+            image = transforms.functional.hflip(image)
+            w = image.width
+            boxes = boxes.clone()
+            boxes[:, [0, 2]] = w - boxes[:, [2, 0]]
+
+        if random.random() < 0.8:
+            image = transforms.functional.adjust_brightness(image, brightness_factor=random.uniform(0.6, 1.4))
+        if random.random() < 0.8:
+            image = transforms.functional.adjust_contrast(image, contrast_factor=random.uniform(0.6, 1.4))
+        if random.random() < 0.5:
+            image = transforms.functional.adjust_saturation(image, saturation_factor=random.uniform(0.7, 1.3))
+
+        return image, boxes
 
     def __getitem__(self, idx):
-        img_filename = self.image_filenames[idx]
+        real_idx = idx % len(self.image_filenames)
+        do_augment = self.augment and (idx >= len(self.image_filenames))
+
+        img_filename = self.image_filenames[real_idx]
         img_path = os.path.join(self.image_dir, img_filename)
 
         image = Image.open(img_path).convert('RGB')
         orig_width, orig_height = image.size
-        target_width, target_height = self.target_size
-
-        scale_x = target_width / orig_width
-        scale_y = target_height / orig_height
-
-        image = transforms.functional.resize(image, size=(target_height, target_width))
 
         annotation = self.image_data[img_filename]
         available_parts_info = annotation['available_parts']
@@ -108,33 +122,39 @@ class BikePartsDetectionDataset(Dataset):
         for part_info in available_parts_info:
             part_name = part_info['part_name']
             bbox = part_info['absolute_bounding_box']
-
             xmin = bbox['left']
             ymin = bbox['top']
             xmax = xmin + bbox['width']
             ymax = ymin + bbox['height']
-
-            xmin *= scale_x
-            xmax *= scale_x
-            ymin *= scale_y
-            ymax *= scale_y
-
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(self.part_to_idx[part_name])
 
         boxes = torch.tensor(boxes, dtype=torch.float32)
         labels = torch.tensor(labels, dtype=torch.int64)
-        missing_labels = torch.tensor([self.part_to_idx[part] for part in missing_parts_names], dtype=torch.int64)
+
+        if do_augment:
+            image, boxes = self.apply_augmentation(image, boxes)
+
+        image = transforms.functional.resize(image, self.target_size)
+        new_width, new_height = self.target_size
+        scale_x = new_width / orig_width
+        scale_y = new_height / orig_height
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+
+        image = transforms.functional.to_tensor(image)
+
+        missing_labels = torch.tensor(
+            [self.part_to_idx[part] for part in missing_parts_names],
+            dtype=torch.int64
+        )
 
         target = {
             'boxes': boxes,
             'labels': labels,
             'missing_labels': missing_labels,
-            'image_id': torch.tensor([idx])
+            'image_id': torch.tensor([real_idx])
         }
-
-        if self.transform:
-            image = self.transform(image)
 
         return image, target
 
@@ -142,16 +162,27 @@ class BikePartsDetectionDataset(Dataset):
 
 # In[13]:
 
+train_dataset = BikePartsDetectionDataset(
+    annotations_dict=train_annotations,
+    image_dir=image_directory,
+    augment=True
+)
 
-transform = transforms.ToTensor()
+valid_dataset = BikePartsDetectionDataset(
+    annotations_dict=valid_annotations,
+    image_dir=image_directory,
+    augment=False
+)
 
-train_dataset = BikePartsDetectionDataset(train_annotations, image_directory, transform=transform)
-valid_dataset = BikePartsDetectionDataset(valid_annotations, image_directory, transform=transform)
-test_dataset = BikePartsDetectionDataset(test_annotations, image_directory, transform=transform)
+test_dataset = BikePartsDetectionDataset(
+    annotations_dict=test_annotations,
+    image_dir=image_directory,
+    augment=False
+)
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=16,
+    batch_size=4,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -159,7 +190,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=16,
+    batch_size=4,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -167,7 +198,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=16,
+    batch_size=4,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -240,15 +271,15 @@ for epoch in range(num_epochs):
                 torch.cuda.empty_cache()
 
     avg_time = sum(batch_times) / len(batch_times)
-    avg_gpu_mem = sum(gpu_memories) / len(gpu_memories) if gpu_memories else 0
-    avg_cpu_mem = sum(cpu_memories) / len(cpu_memories)
+    max_gpu_mem = max(gpu_memories)
+    max_cpu_mem = max(cpu_memories)
 
     table = [
         ["Epoch", epoch + 1],
         ["Final Loss", f"{losses.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{avg_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{avg_cpu_mem:.2f}"],
+        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
