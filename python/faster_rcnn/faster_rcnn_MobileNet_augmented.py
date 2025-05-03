@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import os
 import json
 import random
@@ -11,23 +5,37 @@ from tqdm import tqdm
 import time
 import psutil
 import gc
+import numpy as np
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-import seaborn as sns
 import torch
-import torchvision
-from torchvision.models.detection import FasterRCNN
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights, fasterrcnn_mobilenet_v3_large_fpn
+from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
+from codecarbon import EmissionsTracker
 
 
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.use_deterministic_algorithms(True)
 
-# In[ ]:
+set_seed(42)
+
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % (2**32)
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
@@ -65,10 +73,6 @@ test_annotations = {
     'all_parts': annotations['all_parts'],
     'images': {img_name: annotations['images'][img_name] for img_name in test_images}
 }
-
-
-
-# In[12]:
 
 
 class BikePartsDetectionDataset(Dataset):
@@ -159,9 +163,6 @@ class BikePartsDetectionDataset(Dataset):
         return image, target
 
 
-
-# In[13]:
-
 train_dataset = BikePartsDetectionDataset(
     annotations_dict=train_annotations,
     image_dir=image_directory,
@@ -182,7 +183,7 @@ test_dataset = BikePartsDetectionDataset(
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=8,
+    batch_size=32,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -190,7 +191,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=8,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -198,101 +199,11 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=8,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
-
-
-# In[ ]:
-
-
-model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
-
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-num_classes = len(train_dataset.all_parts) + 1
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-model.to(device)
-
-optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-
-if torch.cuda.is_available():
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
-
-num_epochs = 10
-for epoch in range(num_epochs):
-    model.train()
-
-    batch_times = []
-    gpu_memories = []
-    cpu_memories = []
-
-    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
-        for images, targets in tepoch:
-            start_time = time.time()
-
-            images = [image.to(device) for image in images]
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-            optimizer.zero_grad()
-            loss_dict = model(images, targets)
-            losses = sum(loss for loss in loss_dict.values())
-            losses.backward()
-            optimizer.step()
-
-            end_time = time.time()
-            inference_time = end_time - start_time
-            batch_times.append(inference_time)
-
-            if torch.cuda.is_available():
-                mem_info = nvmlDeviceGetMemoryInfo(handle)
-                gpu_mem_used = mem_info.used / (1024 ** 2)
-                gpu_memories.append(gpu_mem_used)
-            else:
-                gpu_mem_used = 0
-
-            cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-            cpu_memories.append(cpu_mem_used)
-
-            tepoch.set_postfix({
-                "loss": f"{losses.item():.4f}",
-                "time (s)": f"{inference_time:.3f}",
-                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-            })
-
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-    avg_time = sum(batch_times) / len(batch_times)
-    max_gpu_mem = max(gpu_memories)
-    max_cpu_mem = max(cpu_memories)
-
-    table = [
-        ["Epoch", epoch + 1],
-        ["Final Loss", f"{losses.item():.4f}"],
-        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
-    ]
-
-    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
-
-
-if torch.cuda.is_available():
-    nvmlShutdown()
-
-torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_stretched_{num_epochs}_model.pth")
-
-
-# In[ ]:
-
 
 def evaluate_model(model, data_loader, part_to_idx, device):
     model.eval()
@@ -323,70 +234,159 @@ def evaluate_model(model, data_loader, part_to_idx, device):
     return results_per_image
 
 
-def part_level_evaluation(results_per_image, part_to_idx, idx_to_part):
-    part_indices = list(part_to_idx.values())
+def part_level_evaluation(results, part_to_idx, idx_to_part):
+    parts = list(part_to_idx.values())
 
-    part_true = {part: [] for part in part_indices}
-    part_pred = {part: [] for part in part_indices}
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
 
-    for result in results_per_image:
-        true_missing = result['true_missing_parts']
-        predicted_missing = result['predicted_missing_parts']
+    micro_f1 = f1_score(Y_true, Y_pred, average='micro', zero_division=0)
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
 
-        for part in part_indices:
-            part_true[part].append(1 if part in true_missing else 0)
-            part_pred[part].append(1 if part in predicted_missing else 0)
+    FN = np.logical_and(Y_true==1, Y_pred==0).sum()
+    TP = np.logical_and(Y_true==1, Y_pred==1).sum()
+    FP = np.logical_and(Y_true==0, Y_pred==1).sum()
 
-    accuracy = {}
-    precision = {}
-    recall = {}
-    f1 = {}
+    N_images = len(results)
+    miss_rate = FN/(FN+TP) if (FN+TP)>0 else 0
+    fppi = FP/N_images
 
-    all_true_flat = []
-    all_pred_flat = []
+    overall_acc = accuracy_score(Y_true.flatten(), Y_pred.flatten())
+    overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_rec = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    print(f"Micro-F1: {micro_f1:.4f}, Macro-F1: {macro_f1:.4f}")
+    print(f"Miss Rate: {miss_rate:.4f}, FPPI: {fppi:.4f}")
+    print(f"Overall Acc: {overall_acc:.4f}, Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}")
+    
+    table=[]
+    for j,p in enumerate(parts):
+        acc = accuracy_score(Y_true[:,j], Y_pred[:,j])
+        prec = precision_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        rec = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        f1s = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
+    print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-    table_rows = []
 
-    for part in part_indices:
-        y_true = part_true[part]
-        y_pred = part_pred[part]
 
-        acc = accuracy_score(y_true, y_pred)
-        prec = precision_score(y_true, y_pred, zero_division=0)
-        rec = recall_score(y_true, y_pred, zero_division=0)
-        f1s = f1_score(y_true, y_pred, zero_division=0)
+model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
 
-        accuracy[part] = acc
-        precision[part] = prec
-        recall[part] = rec
-        f1[part] = f1s
+in_features = model.roi_heads.box_predictor.cls_score.in_features
+num_classes = len(train_dataset.all_parts) + 1
+model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-        all_true_flat.extend(y_true)
-        all_pred_flat.extend(y_pred)
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+model.to(device)
 
-        table_rows.append([
-            idx_to_part[part], f"{acc:.4f}", f"{prec:.4f}", f"{rec:.4f}", f"{f1s:.4f}"
-        ])
+optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
 
-    print(tabulate(table_rows, headers=["Part", "Accuracy", "Precision", "Recall", "F1 Score"], tablefmt="fancy_grid"))
+if torch.cuda.is_available():
+    nvmlInit()
+    handle = nvmlDeviceGetHandleByIndex(0)
 
-    overall_accuracy = accuracy_score(all_true_flat, all_pred_flat)
-    overall_precision = precision_score(all_true_flat, all_pred_flat, zero_division=0)
-    overall_recall = recall_score(all_true_flat, all_pred_flat, zero_division=0)
-    overall_f1 = f1_score(all_true_flat, all_pred_flat, zero_division=0)
+num_epochs = 20
+best_macro_f1 = 0
+epochs_without_improvement = 0
+patience = 3
+for epoch in range(num_epochs):
 
-    print("\nOverall Metrics:")
-    print(tabulate([[
-        f"{overall_accuracy:.4f}", f"{overall_precision:.4f}",
-        f"{overall_recall:.4f}", f"{overall_f1:.4f}"
-    ]], headers=["Accuracy", "Precision", "Recall", "F1 Score"], tablefmt="fancy_grid"))
+    with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
-    return accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1
+        model.train()
 
+        batch_times = []
+        gpu_memories = []
+        cpu_memories = []
+
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
+            for images, targets in tepoch:
+                start_time = time.time()
+
+                images = [image.to(device) for image in images]
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                optimizer.zero_grad()
+                loss_dict = model(images, targets)
+                losses = sum(loss for loss in loss_dict.values())
+                losses.backward()
+                optimizer.step()
+
+                end_time = time.time()
+                inference_time = end_time - start_time
+                batch_times.append(inference_time)
+
+                if torch.cuda.is_available():
+                    mem_info = nvmlDeviceGetMemoryInfo(handle)
+                    gpu_mem_used = mem_info.used / (1024 ** 2)
+                    gpu_memories.append(gpu_mem_used)
+                else:
+                    gpu_mem_used = 0
+
+                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
+                cpu_memories.append(cpu_mem_used)
+
+                tepoch.set_postfix({
+                    "loss": f"{losses.item():.4f}",
+                    "time (s)": f"{inference_time:.3f}",
+                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
+                })
+
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+
+    energy_consumption = tracker.final_emissions_data.energy_consumed
+    co2_emissions = tracker.final_emissions
+
+    avg_time = sum(batch_times) / len(batch_times)
+    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
+    max_cpu_mem = max(cpu_memories)
+
+    table = [
+        ["Epoch", epoch + 1],
+        ["Final Loss", f"{losses.item():.4f}"],
+        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
+        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
+        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
+    ]
+
+    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
+
+    print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
+    results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+
+    parts = list(train_dataset.part_to_idx.values())
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+    if macro_f1 > best_macro_f1:
+        best_macro_f1 = macro_f1
+        epochs_without_improvement = 0
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth")
+        print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
+    else:
+        epochs_without_improvement += 1
+        print(f"No improvement in macro-F1 for {epochs_without_improvement} epoch(s)")
+
+        if epochs_without_improvement >= patience:
+            print(f"Early stopping triggered (no improvement for {patience} epochs)")
+            break
+
+if torch.cuda.is_available():
+    nvmlShutdown()
+
+
+model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth", map_location=device))
+model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-# results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
-accuracy, precision, recall, f1, overall_accuracy, overall_precision, overall_recall, overall_f1 = part_level_evaluation(
+part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )

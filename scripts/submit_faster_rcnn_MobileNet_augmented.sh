@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=faster_rcnn_MobileNet_padded
-#SBATCH --output=outputs/faster_rcnn/output_faster_rcnn_MobileNet_padded.log
-#SBATCH --error=outputs/faster_rcnn/error_faster_rcnn_MobileNet_padded.log
-#SBATCH --time=04:00:00
+#SBATCH --job-name=faster_rcnn_MobileNet_augmented
+#SBATCH --output=outputs/faster_rcnn/output_faster_rcnn_MobileNet_augmented
+#SBATCH --error=outputs/faster_rcnn/error_faster_rcnn_MobileNet_augmented
+#SBATCH --time=06:00:00
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
@@ -17,6 +17,6 @@ eval "$(conda shell.bash hook)"
 conda activate /var/scratch/sismail/my_env
 
 # Run your Python script
-python python/faster_rcnn/faster_rcnn_MobileNet_padded.py
+python python/faster_rcnn/faster_rcnn_MobileNet_augmented.py 
 
 conda deactivate
