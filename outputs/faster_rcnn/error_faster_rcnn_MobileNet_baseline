@@ -1,0 +1,13 @@
+[codecarbon WARNING @ 23:02:47] Multiple instances of codecarbon are allowed to run at the same time.
+Epoch 1/1:   0%|          | 0/200 [00:00<?, ?batch/s]Epoch 1/1:   0%|          | 0/200 [00:03<?, ?batch/s]
+Traceback (most recent call last):
+  File "/home/sismail/Thesis/python/faster_rcnn/faster_rcnn_MobileNet_baseline.py", line 312, in <module>
+    losses.backward()
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/_tensor.py", line 521, in backward
+    torch.autograd.backward(
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/autograd/__init__.py", line 289, in backward
+    _engine_run_backward(
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/autograd/graph.py", line 768, in _engine_run_backward
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Deterministic behavior was enabled with either `torch.use_deterministic_algorithms(True)` or `at::Context::setDeterministicAlgorithms(true)`, but this operation is not deterministic because it uses CuBLAS and you have CUDA >= 10.2. To enable deterministic behavior in this case, you must set an environment variable before running your PyTorch application: CUBLAS_WORKSPACE_CONFIG=:4096:8 or CUBLAS_WORKSPACE_CONFIG=:16:8. For more information, go to https://docs.nvidia.com/cuda/cublas/index.html#results-reproducibility
