@@ -1,0 +1,9 @@
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |    1    |
+|          Final Loss           | 1.0516  |
+|   Average Batch Time (sec)    | 0.8605  |
+| Average GPU Memory Usage (MB) | 2171.45 |
+| Average CPU Memory Usage (MB) | 4204.72 |
++-------------------------------+---------+
