@@ -30,7 +30,7 @@ from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
 # In[ ]:
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations.json'
 image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
