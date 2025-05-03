@@ -30,7 +30,7 @@ from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
 # In[ ]:
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations.json'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
 image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
@@ -138,7 +138,7 @@ test_dataset = BikePartsDetectionDataset(test_annotations, image_directory, tran
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=4,
+    batch_size=8,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -146,7 +146,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=4,
+    batch_size=8,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -154,7 +154,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=4,
+    batch_size=8,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
