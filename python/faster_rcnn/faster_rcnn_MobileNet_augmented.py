@@ -276,7 +276,11 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+learning_rate = 1e-4
+weight_decay = 1e-4
+
+params = [p for p in model.parameters() if p.requires_grad]
+optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
 
 if torch.cuda.is_available():
     nvmlInit()

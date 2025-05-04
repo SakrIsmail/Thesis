@@ -17,6 +17,8 @@ from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
+from sklearn.model_selection import ParameterGrid
+
 
 
 def set_seed(seed: int = 42):
@@ -266,6 +268,7 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
+
 model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
 
 in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -275,118 +278,49 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
 
-learning_rate = 1e-4
-weight_decay = 1e-4
+param_grid = {
+    'learning_rate': [1e-4, 1e-5, 1e-6],
+    'weight_decay': [1e-4, 1e-5, 1e-6],
+}
 
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+grid = ParameterGrid(param_grid)
 
+best_model = None
+best_f1_score = 0
+best_params = None
 
-if torch.cuda.is_available():
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
+for params in grid:
+    print(f"Training with params: {params}")
+    
+    learning_rate = params['learning_rate']
+    weight_decay = params['weight_decay']
+    
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-num_epochs = 20
-best_macro_f1 = 0
-epochs_without_improvement = 0
-patience = 3
-for epoch in range(num_epochs):
-    with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-
+    num_epochs = 5
+    for epoch in range(num_epochs):
         model.train()
+        for images, targets in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}"):
+            images = [image.to(device) for image in images]
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        batch_times = []
-        gpu_memories = []
-        cpu_memories = []
+            optimizer.zero_grad()
+            loss_dict = model(images, targets)
+            losses = sum(loss for loss in loss_dict.values())
+            losses.backward()
+            optimizer.step()
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
-            for images, targets in tepoch:
-                start_time = time.time()
+        results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
-                images = [image.to(device) for image in images]
-                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        parts = list(train_dataset.part_to_idx.values())
+        Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
+        Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
 
-                optimizer.zero_grad()
-                loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                losses.backward()
-                optimizer.step()
+        micro_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), average='micro')
+        
+        if micro_f1 > best_f1_score:
+            best_f1_score = micro_f1
+            best_model = model
+            best_params = params
 
-                end_time = time.time()
-                inference_time = end_time - start_time
-                batch_times.append(inference_time)
-
-                if torch.cuda.is_available():
-                    mem_info = nvmlDeviceGetMemoryInfo(handle)
-                    gpu_mem_used = mem_info.used / (1024 ** 2)
-                    gpu_memories.append(gpu_mem_used)
-                else:
-                    gpu_mem_used = 0
-
-                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-                cpu_memories.append(cpu_mem_used)
-
-                tepoch.set_postfix({
-                    "loss": f"{losses.item():.4f}",
-                    "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-                })
-
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-
-    energy_consumption = tracker.final_emissions_data.energy_consumed
-    co2_emissions = tracker.final_emissions
-
-    avg_time = sum(batch_times) / len(batch_times)
-    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
-    max_cpu_mem = max(cpu_memories)
-
-    table = [
-        ["Epoch", epoch + 1],
-        ["Final Loss", f"{losses.item():.4f}"],
-        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
-        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
-        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
-    ]
-
-    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
-
-    print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
-    results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-
-    parts = list(train_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_adamW_model.pth")
-        print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
-    else:
-        epochs_without_improvement += 1
-        print(f"No improvement in macro-F1 for {epochs_without_improvement} epoch(s)")
-
-        if epochs_without_improvement >= patience:
-            print(f"Early stopping triggered (no improvement for {patience} epochs)")
-            break
-
-if torch.cuda.is_available():
-    nvmlShutdown()
-
-
-model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_adamW_model.pth", map_location=device))
-model.to(device)
-
-results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
+    print(f"Best F1 Score: {best_f1_score:.4f} with params: {best_params}")
