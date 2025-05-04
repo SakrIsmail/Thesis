@@ -391,3 +391,9 @@ results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_id
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )
+
+results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
+
+part_level_evaluation(
+    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
+)
