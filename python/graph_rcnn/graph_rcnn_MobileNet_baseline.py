@@ -7,14 +7,17 @@ import psutil
 import gc
 import numpy as np
 from tabulate import tabulate
-import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torch_geometric.nn import GATConv
+from torch_geometric.data import Data as GraphData
+from torch_geometric.utils import dense_to_sparse
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
@@ -265,15 +268,72 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
         table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
+class GNNHead(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_heads=4):
+        super().__init__()
+        self.gat1 = GATConv(in_channels, hidden_channels, heads=num_heads, concat=True)
+        self.relu = nn.ReLU()
+        self.gat2 = GATConv(hidden_channels * num_heads, out_channels, heads=1, concat=False)
 
+    def forward(self, x, edge_index):
+        x = self.gat1(x, edge_index)
+        x = self.relu(x)
+        x = self.gat2(x, edge_index)
+        return x
 
-model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
+class GraphRCNN(nn.Module):
+    def __init__(self, num_classes, hidden_channels=512):
+        super().__init__()
 
-in_features = model.roi_heads.box_predictor.cls_score.in_features
+        self.detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
+
+        in_features = self.detector.roi_heads.box_predictor.cls_score.in_features
+        self.detector.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+        self.gnn_head = GNNHead(in_channels=in_features, hidden_channels=hidden_channels, out_channels=num_classes)
+
+        self.num_classes = num_classes
+
+    def forward(self, images, targets=None):
+        if self.training:
+            return self.detector(images, targets)
+        else:
+            detections = self.detector(images)
+            all_outputs = []
+
+            for img_idx, det in enumerate(detections):
+                boxes = det["boxes"]
+                features = self._get_roi_features(images[img_idx].unsqueeze(0), boxes)
+
+                num_nodes = features.shape[0]
+                edge_index = self._build_fully_connected_edges(num_nodes).to(features.device)
+
+                gnn_logits = self.gnn_head(features, edge_index)
+
+                det["scores"] = torch.softmax(gnn_logits, dim=1).max(dim=1).values
+                det["labels"] = torch.argmax(gnn_logits, dim=1)
+                all_outputs.append(det)
+
+            return all_outputs
+
+    def _get_roi_features(self, image, boxes):
+        with torch.no_grad():
+            features = self.detector.backbone(image.tensors if hasattr(image, 'tensors') else image)
+
+        fpn_level = list(features.values())[0]
+        image_shapes = [img.shape[-2:] for img in image]
+        roi_pooled = self.detector.roi_heads.box_roi_pool(features, [boxes], image_shapes)
+        roi_features = self.detector.roi_heads.box_head(roi_pooled)
+        return roi_features
+
+    def _build_fully_connected_edges(self, num_nodes):
+        adj = torch.ones((num_nodes, num_nodes)) - torch.eye(num_nodes)
+        return dense_to_sparse(adj)[0]
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 num_classes = len(train_dataset.all_parts) + 1
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+model = GraphRCNN(num_classes=num_classes, hidden_channels=512)
 model.to(device)
 
 learning_rate = 1e-06
@@ -286,11 +346,12 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 20
+num_epochs = 1
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 3
 for epoch in range(num_epochs):
+
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
         model.train()
@@ -368,7 +429,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -378,11 +439,12 @@ for epoch in range(num_epochs):
             print(f"Early stopping triggered (no improvement for {patience} epochs)")
             break
 
+
 if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth", map_location=device))
 model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
