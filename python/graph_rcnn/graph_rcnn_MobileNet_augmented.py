@@ -166,7 +166,7 @@ class BikePartsDetectionDataset(Dataset):
 train_dataset = BikePartsDetectionDataset(
     annotations_dict=train_annotations,
     image_dir=image_directory,
-    augment=False
+    augment=True
 )
 
 valid_dataset = BikePartsDetectionDataset(
