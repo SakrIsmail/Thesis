@@ -266,7 +266,6 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
-
 model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
 
 in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -276,7 +275,12 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0005)
+learning_rate = 1e-4
+weight_decay = 1e-4
+
+params = [p for p in model.parameters() if p.requires_grad]
+optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -364,7 +368,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_adamW_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -378,7 +382,7 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_adamW_model.pth", map_location=device))
 model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
