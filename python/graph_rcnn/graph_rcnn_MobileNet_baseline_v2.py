@@ -283,7 +283,7 @@ class GNNHead(nn.Module):
         return x
 
 class GraphRCNN(nn.Module):
-    def __init__(self, num_classes, hidden_channels=512):
+    def __init__(self, num_classes, hidden_channels=512, k_neighbors=3):
         super().__init__()
 
         self.detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
@@ -294,6 +294,7 @@ class GraphRCNN(nn.Module):
         self.gnn_head = GNNHead(in_channels=in_features + 4, hidden_channels=hidden_channels, out_channels=num_classes)
 
         self.num_classes = num_classes
+        self.k_neighbors = k_neighbors
 
     def forward(self, images, targets=None):
         if self.training:
@@ -312,7 +313,7 @@ class GraphRCNN(nn.Module):
                 _, _, h, w = image_tensor.shape
 
                 features = self._get_roi_features(image_tensor, boxes, (h, w))
-                edge_index = self._build_iou_graph(boxes).to(features.device)
+                edge_index = self._build_knn_graph(boxes, k=self.k_neighbors).to(features.device)
 
                 gnn_logits = self.gnn_head(features, edge_index)
 
@@ -320,8 +321,7 @@ class GraphRCNN(nn.Module):
                 det["labels"] = torch.argmax(gnn_logits, dim=1)
                 all_outputs.append(det)
 
-        return all_outputs
-
+            return all_outputs
 
     def _get_roi_features(self, image, boxes, image_shape):
         with torch.no_grad():
@@ -344,16 +344,18 @@ class GraphRCNN(nn.Module):
         enhanced_feats = torch.cat([roi_features, xywh], dim=1)
         return enhanced_feats
 
+    def _build_knn_graph(self, boxes, k=3):
+        if boxes.shape[0] < 2:
+            return torch.empty((2, 0), dtype=torch.long, device=boxes.device)
 
-    def _build_iou_graph(self, boxes, iou_threshold=0.2):
-        iou = box_iou(boxes, boxes)
-        edge_index = (iou > iou_threshold).nonzero(as_tuple=False).t()
+        centers = (boxes[:, :2] + boxes[:, 2:]) / 2
+        dist = torch.cdist(centers, centers)
 
-        mask = edge_index[0] != edge_index[1]
-        edge_index = edge_index[:, mask]
+        knn = dist.topk(k + 1, largest=False).indices[:, 1:]
+        source_nodes = torch.arange(boxes.shape[0]).unsqueeze(1).expand(-1, k).flatten()
+        target_nodes = knn.flatten()
 
-        if edge_index.numel() == 0 and boxes.shape[0] > 1:
-            edge_index = torch.combinations(torch.arange(boxes.shape[0]), r=2).t()
+        edge_index = torch.stack([source_nodes, target_nodes], dim=0)
         return edge_index
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
