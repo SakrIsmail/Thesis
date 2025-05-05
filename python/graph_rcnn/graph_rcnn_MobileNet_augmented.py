@@ -336,8 +336,8 @@ num_classes = len(train_dataset.all_parts) + 1
 model = GraphRCNN(num_classes=num_classes, hidden_channels=512)
 model.to(device)
 
-learning_rate = 1e-06
-weight_decay = 1e-05
+learning_rate = 1e-4
+weight_decay = 1e-4
 
 params = [p for p in model.parameters() if p.requires_grad]
 optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
