@@ -289,7 +289,7 @@ if torch.cuda.is_available():
 num_epochs = 20
 best_macro_f1 = 0
 epochs_without_improvement = 0
-patience = 3
+patience = 5
 for epoch in range(num_epochs):
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:

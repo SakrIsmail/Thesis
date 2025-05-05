@@ -11,6 +11,7 @@ from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
 import torch.nn as nn
+from torchvision.ops import box_iou
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
@@ -290,7 +291,7 @@ class GraphRCNN(nn.Module):
         in_features = self.detector.roi_heads.box_predictor.cls_score.in_features
         self.detector.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-        self.gnn_head = GNNHead(in_channels=in_features, hidden_channels=hidden_channels, out_channels=num_classes)
+        self.gnn_head = GNNHead(in_channels=in_features + 4, hidden_channels=hidden_channels, out_channels=num_classes)
 
         self.num_classes = num_classes
 
@@ -303,10 +304,15 @@ class GraphRCNN(nn.Module):
 
             for img_idx, det in enumerate(detections):
                 boxes = det["boxes"]
-                features = self._get_roi_features(images[img_idx].unsqueeze(0), boxes)
+                if boxes.shape[0] == 0:
+                    all_outputs.append(det)
+                    continue
 
-                num_nodes = features.shape[0]
-                edge_index = self._build_fully_connected_edges(num_nodes).to(features.device)
+                image_tensor = images[img_idx].unsqueeze(0)
+                _, _, h, w = image_tensor.shape
+
+                features = self._get_roi_features(image_tensor, boxes, (h, w))
+                edge_index = self._build_iou_graph(boxes).to(features.device)
 
                 gnn_logits = self.gnn_head(features, edge_index)
 
@@ -314,21 +320,41 @@ class GraphRCNN(nn.Module):
                 det["labels"] = torch.argmax(gnn_logits, dim=1)
                 all_outputs.append(det)
 
-            return all_outputs
+        return all_outputs
 
-    def _get_roi_features(self, image, boxes):
+
+    def _get_roi_features(self, image, boxes, image_shape):
         with torch.no_grad():
-            features = self.detector.backbone(image.tensors if hasattr(image, 'tensors') else image)
+            features = self.detector.backbone(image)
 
-        fpn_level = list(features.values())[0]
-        image_shapes = [img.shape[-2:] for img in image]
-        roi_pooled = self.detector.roi_heads.box_roi_pool(features, [boxes], image_shapes)
+        roi_pooled = self.detector.roi_heads.box_roi_pool(features, [boxes], [image_shape])
         roi_features = self.detector.roi_heads.box_head(roi_pooled)
-        return roi_features
 
-    def _build_fully_connected_edges(self, num_nodes):
-        adj = torch.ones((num_nodes, num_nodes)) - torch.eye(num_nodes)
-        return dense_to_sparse(adj)[0]
+        h, w = image_shape
+        norm_boxes = boxes.clone()
+        norm_boxes[:, [0, 2]] /= w
+        norm_boxes[:, [1, 3]] /= h
+
+        xywh = torch.zeros_like(norm_boxes)
+        xywh[:, 0] = norm_boxes[:, 0]
+        xywh[:, 1] = norm_boxes[:, 1]
+        xywh[:, 2] = norm_boxes[:, 2] - norm_boxes[:, 0]
+        xywh[:, 3] = norm_boxes[:, 3] - norm_boxes[:, 1]
+
+        enhanced_feats = torch.cat([roi_features, xywh], dim=1)
+        return enhanced_feats
+
+
+    def _build_iou_graph(self, boxes, iou_threshold=0.2):
+        iou = box_iou(boxes, boxes)
+        edge_index = (iou > iou_threshold).nonzero(as_tuple=False).t()
+
+        mask = edge_index[0] != edge_index[1]
+        edge_index = edge_index[:, mask]
+
+        if edge_index.numel() == 0 and boxes.shape[0] > 1:
+            edge_index = torch.combinations(torch.arange(boxes.shape[0]), r=2).t()
+        return edge_index
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -429,7 +455,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -444,7 +470,7 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
