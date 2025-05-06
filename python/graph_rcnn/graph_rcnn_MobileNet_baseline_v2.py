@@ -352,7 +352,8 @@ class GraphRCNN(nn.Module):
         dist = torch.cdist(centers, centers)
 
         knn = dist.topk(k + 1, largest=False).indices[:, 1:]
-        source_nodes = torch.arange(boxes.shape[0]).unsqueeze(1).expand(-1, k).flatten()
+        device = boxes.device
+        source_nodes = torch.arange(boxes.shape[0], device=device).unsqueeze(1).expand(-1, k).flatten()
         target_nodes = knn.flatten()
 
         edge_index = torch.stack([source_nodes, target_nodes], dim=0)
@@ -374,7 +375,7 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 20
+num_epochs = 1
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
