@@ -1,0 +1,13 @@
++-------------------------------+------------+
+|            Metric             |   Value    |
++-------------------------------+------------+
+|             Epoch             |     1      |
+|          Final Loss           |   1.0897   |
+|   Average Batch Time (sec)    |   0.4092   |
+| Average GPU Memory Usage (MB) |  8453.19   |
+| Average CPU Memory Usage (MB) |  5000.55   |
+|   Energy Consumption (kWh)    | 0.0125 kWh |
+|      CO₂ Emissions (kg)       | 0.0033 kg  |
++-------------------------------+------------+
+
+Evaluating on validation set after Epoch 1...
