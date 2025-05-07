@@ -269,117 +269,184 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
         table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-class GNNHead(nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, num_heads=4):
-        super().__init__()
-        self.gat1 = GATConv(in_channels, hidden_channels, heads=num_heads, concat=True)
-        self.relu = nn.ReLU()
-        self.gat2 = GATConv(hidden_channels * num_heads, out_channels, heads=1, concat=False)
+detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
+in_feats = detector.roi_heads.box_predictor.cls_score.in_features
 
+detector.roi_heads.box_predictor = FastRCNNPredictor(in_feats, len(train_dataset.all_parts)+1)
+
+class RelationProposalNetwork(nn.Module):
+    def __init__(self, in_c, hidden_c=256):
+        super().__init__()
+        self.fc1 = nn.Linear(in_c*2 + 4, hidden_c)
+        self.fc2 = nn.Linear(hidden_c, 1)
+    def forward(self, feats, boxes):
+        N, C = feats.size()
+        f1 = feats.unsqueeze(1).expand(-1, N, -1)
+        f2 = feats.unsqueeze(0).expand(N, -1, -1)
+        b1 = boxes.unsqueeze(1).expand(-1, N, -1)
+        b2 = boxes.unsqueeze(0).expand(N, -1, -1)
+        geom = torch.abs(b1 - b2)
+        x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
+        return torch.sigmoid(self.fc2(x)).squeeze(-1)
+
+class AttentionalGCN(nn.Module):
+    def __init__(self, in_c, hid_c, out_c, heads=4):
+        super().__init__()
+        self.gat1 = GATConv(in_c, hid_c, heads=heads)
+        self.gat2 = GATConv(hid_c*heads, out_c, heads=1)
     def forward(self, x, edge_index):
-        x = self.gat1(x, edge_index)
-        x = self.relu(x)
-        x = self.gat2(x, edge_index)
-        return x
+        x = torch.relu(self.gat1(x, edge_index))
+        return self.gat2(x, edge_index)
 
 class GraphRCNN(nn.Module):
-    def __init__(self, num_classes, hidden_channels=512, k_neighbors=3):
+    def __init__(self, detector, num_classes, k=3):
         super().__init__()
-
-        self.detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
-
-        in_features = self.detector.roi_heads.box_predictor.cls_score.in_features
-        self.detector.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-        self.gnn_head = GNNHead(in_channels=in_features + 4, hidden_channels=hidden_channels, out_channels=num_classes)
-
-        self.num_classes = num_classes
-        self.k_neighbors = k_neighbors
+        self.detector = detector
+        self.repn = RelationProposalNetwork(in_feats)
+        self.agcn = AttentionalGCN(in_feats + 4, 256, num_classes)
+        self.k = k
 
     def forward(self, images, targets=None):
         if self.training:
-            return self.detector(images, targets)
-        else:
-            detections = self.detector(images)
-            all_outputs = []
+            loss_dict = self.detector(images, targets)
 
-            for img_idx, det in enumerate(detections):
-                boxes = det["boxes"]
-                if boxes.shape[0] == 0:
-                    all_outputs.append(det)
-                    continue
+            total_loss = sum(loss for loss in loss_dict.values())
 
-                image_tensor = images[img_idx].unsqueeze(0)
-                _, _, h, w = image_tensor.shape
+            rpn_loss = self.compute_rpn_loss(images, targets)
+            gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
 
-                features = self._get_roi_features(image_tensor, boxes, (h, w))
-                edge_index = self._build_knn_graph(boxes, k=self.k_neighbors).to(features.device)
+            loss_dict.update({
+                "rpn_loss": rpn_loss,
+                "gcn_loss": gcn_loss,
+                "repnet_loss": repnet_loss
+            })
+            total_loss = rpn_loss + gcn_loss + repnet_loss
 
-                gnn_logits = self.gnn_head(features, edge_index)
+            return total_loss, loss_dict
 
-                det["scores"] = torch.softmax(gnn_logits, dim=1).max(dim=1).values
-                det["labels"] = torch.argmax(gnn_logits, dim=1)
-                all_outputs.append(det)
+        dets = self.detector(images)
+        outs = []
+        for img, det in zip(images, dets):
+            boxes = det['boxes']
+            if boxes.numel() == 0:
+                outs.append(det)
+                continue
 
-            return all_outputs
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel = self.repn(feats, boxes)
+            edge_idx = self._make_edge_index(rel)
+            geom = self._box_geom(boxes, img.shape[-2:])
+            node_feats = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(node_feats, edge_idx)
+            det['labels'] = torch.argmax(logits, 1)
+            det['scores'] = torch.softmax(logits, 1).max(1).values
+            outs.append(det)
 
-    def _get_roi_features(self, image, boxes, image_shape):
+        return outs
+
+    def _get_roi_feats(self, img, boxes):
+        fmap = self.detector.backbone(img)
+        roi = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
+        return self.detector.roi_heads.box_head(roi)
+
+    def _make_edge_index(self, scores):
+        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
+        src = idx.flatten()
+        dst = torch.arange(scores.size(0), device=scores.device).unsqueeze(1).expand(-1, self.k).flatten()
+        return torch.stack([dst, src], 0)
+
+    def _box_geom(self, boxes, shape):
+        h, w = shape
+        nb = boxes.clone()
+        nb[:, [0, 2]] /= w
+        nb[:, [1, 3]] /= h
+        return torch.stack([nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], 1)
+
+    def compute_rpn_loss(self, images, targets):
+        images_transformed, targets_transformed = self.detector.transform(images, targets)
+
+        features = self.detector.backbone(images_transformed.tensors)
+
+        proposals, rpn_losses = self.detector.rpn(images_transformed, features, targets_transformed)
+
+        rpn_loss = sum(rpn_losses.values())
+
+        return rpn_loss
+
+
+    def compute_gcn_loss(self, images, targets):
+        gcn_preds = []
+        gcn_labels = []
+        total_repnet_loss = 0.0
+
+        for img, target in zip(images, targets):
+            boxes = target['boxes']
+            labels = target['labels']
+
+            if boxes.numel() == 0:
+                continue
+
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel = self.repn(feats, boxes)
+            edge_idx = self._make_edge_index(rel)
+
+            geom = self._box_geom(boxes, img.shape[-2:])
+            node_feats = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(node_feats, edge_idx)
+
+            gcn_preds.append(logits)
+            gcn_labels.append(labels)
+
+            repnet_loss = self.compute_repnet_loss(feats, boxes)
+            total_repnet_loss += repnet_loss
+
+        if not gcn_preds:
+            return torch.tensor(0.0, device=images[0].device), torch.tensor(0.0, device=images[0].device)
+
+        gcn_preds = torch.cat(gcn_preds)
+        gcn_labels = torch.cat(gcn_labels)
+        gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
+
+        return gcn_loss, total_repnet_loss
+
+    
+    def compute_repnet_loss(self, feats, boxes):
+        N = boxes.size(0)
+        if N < 2:
+            return torch.tensor(0.0, device=feats.device)
+
+        rel_scores = self.repn(feats, boxes)
+
         with torch.no_grad():
-            features = self.detector.backbone(image)
+            iou = box_iou(boxes, boxes)
+            target_rel = (iou > 0.1).float()
 
-        roi_pooled = self.detector.roi_heads.box_roi_pool(features, [boxes], [image_shape])
-        roi_features = self.detector.roi_heads.box_head(roi_pooled)
+            target_rel.fill_diagonal_(0)
 
-        h, w = image_shape
-        norm_boxes = boxes.clone()
-        norm_boxes[:, [0, 2]] /= w
-        norm_boxes[:, [1, 3]] /= h
+        loss = nn.functional.binary_cross_entropy(rel_scores, target_rel)
+        return loss
 
-        xywh = torch.zeros_like(norm_boxes)
-        xywh[:, 0] = norm_boxes[:, 0]
-        xywh[:, 1] = norm_boxes[:, 1]
-        xywh[:, 2] = norm_boxes[:, 2] - norm_boxes[:, 0]
-        xywh[:, 3] = norm_boxes[:, 3] - norm_boxes[:, 1]
-
-        enhanced_feats = torch.cat([roi_features, xywh], dim=1)
-        return enhanced_feats
-
-    def _build_knn_graph(self, boxes, k=3):
-        if boxes.shape[0] < 2:
-            return torch.empty((2, 0), dtype=torch.long, device=boxes.device)
-
-        centers = (boxes[:, :2] + boxes[:, 2:]) / 2
-        dist = torch.cdist(centers, centers)
-
-        knn = dist.topk(k + 1, largest=False).indices[:, 1:]
-        device = boxes.device
-        source_nodes = torch.arange(boxes.shape[0], device=device).unsqueeze(1).expand(-1, k).flatten()
-        target_nodes = knn.flatten()
-
-        edge_index = torch.stack([source_nodes, target_nodes], dim=0)
-        return edge_index
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-num_classes = len(train_dataset.all_parts) + 1
-model = GraphRCNN(num_classes=num_classes, hidden_channels=512)
-model.to(device)
-
-learning_rate = 1e-4
-weight_decay = 1e-4
-
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 20
-best_macro_f1 = 0
-epochs_without_improvement = 0
-patience = 5
+num_epochs = 40
+freeze_epoch = 20
+
 for epoch in range(num_epochs):
+
+    if epoch == freeze_epoch:       
+        for param in model.detector.backbone.parameters():
+            param.requires_grad = False
+        
+        for param in model.detector.roi_heads.parameters():
+            param.requires_grad = False
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
@@ -389,17 +456,18 @@ for epoch in range(num_epochs):
         gpu_memories = []
         cpu_memories = []
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch + 1}/{num_epochs}") as tepoch:
             for images, targets in tepoch:
                 start_time = time.time()
 
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+                total_loss, loss_dict = model(images, targets)
+                # losses = sum(loss for loss in loss_dict.values())
+
                 optimizer.zero_grad()
-                loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                losses.backward()
+                total_loss.backward()
                 optimizer.step()
 
                 end_time = time.time()
@@ -417,7 +485,7 @@ for epoch in range(num_epochs):
                 cpu_memories.append(cpu_mem_used)
 
                 tepoch.set_postfix({
-                    "loss": f"{losses.item():.4f}",
+                    "loss": f"{total_loss.item():.4f}",
                     "time (s)": f"{inference_time:.3f}",
                     "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                     "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
@@ -426,7 +494,6 @@ for epoch in range(num_epochs):
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
@@ -437,7 +504,7 @@ for epoch in range(num_epochs):
 
     table = [
         ["Epoch", epoch + 1],
-        ["Final Loss", f"{losses.item():.4f}"],
+        ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
         ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
@@ -447,26 +514,7 @@ for epoch in range(num_epochs):
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
-    print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
-    results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-
-    parts = list(train_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
-        print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
-    else:
-        epochs_without_improvement += 1
-        print(f"No improvement in macro-F1 for {epochs_without_improvement} epoch(s)")
-
-        if epochs_without_improvement >= patience:
-            print(f"Early stopping triggered (no improvement for {patience} epochs)")
-            break
+torch.save(model.state_dict(), "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
 
 
 if torch.cuda.is_available():

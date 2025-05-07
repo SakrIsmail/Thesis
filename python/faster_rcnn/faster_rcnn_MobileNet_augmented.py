@@ -287,9 +287,7 @@ if torch.cuda.is_available():
     handle = nvmlDeviceGetHandleByIndex(0)
 
 num_epochs = 20
-best_macro_f1 = 0
-epochs_without_improvement = 0
-patience = 5
+
 for epoch in range(num_epochs):
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
@@ -358,26 +356,8 @@ for epoch in range(num_epochs):
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
-    print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
-    results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth")
 
-    parts = list(train_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth")
-        print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
-    else:
-        epochs_without_improvement += 1
-        print(f"No improvement in macro-F1 for {epochs_without_improvement} epoch(s)")
-
-        if epochs_without_improvement >= patience:
-            print(f"Early stopping triggered (no improvement for {patience} epochs)")
-            break
 
 if torch.cuda.is_available():
     nvmlShutdown()
