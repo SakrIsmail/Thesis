@@ -21,6 +21,9 @@ from torch_geometric.data import Data as GraphData
 from torch_geometric.utils import dense_to_sparse
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 
 def set_seed(seed: int = 42):
@@ -438,6 +441,12 @@ if torch.cuda.is_available():
 
 num_epochs = 40
 freeze_epoch = 20
+gnn_losses = []
+rpn_losses = []
+repn_losses = []
+epoch_f1_scores = []
+epoch_accuracies = []
+
 
 for epoch in range(num_epochs):
 
@@ -451,7 +460,11 @@ for epoch in range(num_epochs):
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
         model.train()
-
+        epoch_loss = 0
+        num_batches = 0
+        epoch_gnn_loss = 0
+        epoch_rpn_loss = 0
+        epoch_repn_loss = 0
         batch_times = []
         gpu_memories = []
         cpu_memories = []
@@ -465,6 +478,14 @@ for epoch in range(num_epochs):
 
                 total_loss, loss_dict = model(images, targets)
                 # losses = sum(loss for loss in loss_dict.values())
+                gnn_loss = loss_dict.get('gnn_loss', 0)  # Replace with correct key for GNN loss
+                rpn_loss = loss_dict.get('rpn_loss', 0)  # Replace with correct key for RPN loss
+                repn_loss = loss_dict.get('repn_loss', 0) 
+
+                 # Update the losses for tracking
+                epoch_gnn_loss += gnn_loss.item()
+                epoch_rpn_loss += rpn_loss.item()
+                epoch_repn_loss += repn_loss.item()
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -502,6 +523,14 @@ for epoch in range(num_epochs):
     max_gpu_mem = max(gpu_memories) if gpu_memories else 0
     max_cpu_mem = max(cpu_memories)
 
+    avg_gnn_loss = epoch_gnn_loss / num_batches
+    avg_rpn_loss = epoch_rpn_loss / num_batches
+    avg_repn_loss = epoch_repn_loss / num_batches
+
+    gnn_losses.append(avg_gnn_loss)
+    rpn_losses.append(avg_rpn_loss)
+    repn_losses.append(avg_repn_loss)
+
     table = [
         ["Epoch", epoch + 1],
         ["Final Loss", f"{total_loss.item():.4f}"],
@@ -520,8 +549,37 @@ torch.save(model.state_dict(), "/var/scratch/sismail/models/graph_rcnn/graphrcnn
 if torch.cuda.is_available():
     nvmlShutdown()
 
+# Plotting the losses and evaluation metrics after training
+plt.figure(figsize=(12, 6))
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
+# Plot Individual Losses
+plt.subplot(1, 2, 1)
+plt.plot(range(num_epochs), gnn_losses, label='GNN Loss', color='blue')
+plt.plot(range(num_epochs), rpn_losses, label='RPN Loss', color='green')
+plt.plot(range(num_epochs), repn_losses, label='RePN Loss', color='red')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Loss Components over Epochs')
+plt.legend()
+plt.grid(True)
+
+# Plot F1 Score and Accuracy
+plt.subplot(1, 2, 2)
+plt.plot(range(num_epochs), epoch_f1_scores, label='F1 Score', color='orange')
+plt.plot(range(num_epochs), epoch_accuracies, label='Accuracy', color='purple')
+plt.xlabel('Epochs')
+plt.ylabel('Score')
+plt.title('F1 Score and Accuracy over Epochs')
+plt.legend()
+plt.grid(True)
+
+# Save the figure to a file in the output directory
+plt.tight_layout()
+plt.savefig(f"visualisations/training_plots.png")  # Save as a PNG file
+plt.close()
+
+
+model.load_state_dict(torch.load("models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
