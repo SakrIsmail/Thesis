@@ -406,8 +406,8 @@ class GraphRCNN(nn.Module):
         if not gcn_preds:
             return torch.tensor(0.0, device=images[0].device), torch.tensor(0.0, device=images[0].device)
 
-        gcn_preds.append(logits.detach())
-        gcn_labels.append(gcn_labels.detach())
+        gcn_preds = torch.cat(gcn_preds)
+        gcn_labels = torch.cat(gcn_labels)
         gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
 
         return gcn_loss, total_repnet_loss
