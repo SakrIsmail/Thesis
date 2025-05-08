@@ -187,7 +187,7 @@ test_dataset = BikePartsDetectionDataset(
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -195,7 +195,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -203,7 +203,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -579,7 +579,7 @@ plt.savefig(f"visualisations/training_plots.png")  # Save as a PNG file
 plt.close()
 
 
-model.load_state_dict(torch.load("models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
