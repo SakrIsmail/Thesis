@@ -300,10 +300,10 @@ for epoch in range(num_epochs):
 
         with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
             for images, targets in tepoch:
-                start_time = time.time()
-
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                start_time = time.time()
 
                 optimizer.zero_grad()
                 loss_dict = model(images, targets)
@@ -332,8 +332,9 @@ for epoch in range(num_epochs):
                     "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                 })
 
+                del loss_dict, images, targets
                 gc.collect()
-                if torch.cuda.is_available():
+                if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
 
 

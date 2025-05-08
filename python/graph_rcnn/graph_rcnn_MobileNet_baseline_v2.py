@@ -19,7 +19,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch_geometric.nn import GATConv
 from torch_geometric.data import Data as GraphData
 from torch_geometric.utils import dense_to_sparse
-from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
+from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -429,15 +429,21 @@ class GraphRCNN(nn.Module):
         loss = nn.functional.binary_cross_entropy(rel_scores, target_rel)
         return loss
 
+if torch.cuda.is_available():
+    nvmlInit()
+    n_gpus = nvmlDeviceGetCount()
+    gpu_handles = [nvmlDeviceGetHandleByIndex(i) for i in range(n_gpus)]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-if torch.cuda.is_available():
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
+if torch.cuda.device_count() > 1:
+    print(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
+    model = nn.DataParallel(model)
+
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 num_epochs = 100
 freeze_epoch = 20
@@ -448,13 +454,12 @@ patience = 5
 for epoch in range(num_epochs):
 
     if epoch == freeze_epoch:       
-        for param in model.detector.backbone.parameters():
+        for param in model.module.detector.backbone.parameters() if isinstance(model, nn.DataParallel) else model.detector.backbone.parameters():
             param.requires_grad = False
-        
-        for param in model.detector.roi_heads.parameters():
+        for param in model.module.detector.roi_heads.parameters() if isinstance(model, nn.DataParallel) else model.detector.roi_heads.parameters():
             param.requires_grad = False
 
-    with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+    with EmissionsTracker(tracking_mode="process", gpu_ids=[0,1], measure_power_secs=1, log_level="critical", save_to_file=False) as tracker:
 
         model.train()
         batch_times = []
@@ -463,41 +468,43 @@ for epoch in range(num_epochs):
 
         with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch + 1}/{num_epochs}") as tepoch:
             for images, targets in tepoch:
-                start_time = time.time()
-
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-                total_loss, loss_dict = model(images, targets)
-                # losses = sum(loss for loss in loss_dict.values())
+                if torch.cuda.is_available(): 
+                    torch.cuda.synchronize()
+                start_time = time.time()
 
+                total_loss, loss_dict = model(images, targets)
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
 
+                if torch.cuda.is_available(): 
+                    torch.cuda.synchronize()
                 end_time = time.time()
+
                 inference_time = end_time - start_time
                 batch_times.append(inference_time)
 
                 if torch.cuda.is_available():
-                    mem_info = nvmlDeviceGetMemoryInfo(handle)
-                    gpu_mem_used = mem_info.used / (1024 ** 2)
-                    gpu_memories.append(gpu_mem_used)
+                    total_gpu = sum(nvmlDeviceGetMemoryInfo(h).used for h in gpu_handles) / (1024**2)
                 else:
-                    gpu_mem_used = 0
+                    total_gpu = 0.0
+                gpu_memories.append(total_gpu)
 
-                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-                cpu_memories.append(cpu_mem_used)
+                total_cpu = psutil.virtual_memory().used / (1024**2)
+                cpu_memories.append(total_cpu)
 
                 tepoch.set_postfix({
                     "loss": f"{total_loss.item():.4f}",
                     "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-                })
+                    "GPU Mem (MB)": f"{total_gpu:.0f}",
+                    "CPU Mem (MB)": f"{total_cpu:.0f}"})
 
+                del loss_dict, images, targets
                 gc.collect()
-                if torch.cuda.is_available():
+                if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
@@ -511,13 +518,19 @@ for epoch in range(num_epochs):
         ["Epoch", epoch + 1],
         ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Max GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Max CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
         ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
         ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
+
+    if torch.cuda.is_available():
+        nvmlShutdown()
+    
+    if epoch < freeze_epoch:
+        continue
 
     print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
     results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
@@ -541,8 +554,7 @@ for epoch in range(num_epochs):
             break
 
 
-if torch.cuda.is_available():
-    nvmlShutdown()
+
 
 model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
