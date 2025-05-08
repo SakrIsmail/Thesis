@@ -6,7 +6,7 @@
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-
+#SBATCH --exclusive
 
 module load cuda12.3/toolkit/12.3
 module load cuDNN/cuda12.3/9.1.0.70
