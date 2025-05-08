@@ -16,7 +16,7 @@ module load cuDNN/cuda12.3/9.1.0.70
 eval "$(conda shell.bash hook)"
 
 # Activate your conda environment
-conda activate /var/scratch/$USER/my_env
+conda activate /var/scratch/sismail/my_env
 
 # Run your Python script
 python python/graph_rcnn/graph_rcnn_MobileNet_baseline_v2.py 

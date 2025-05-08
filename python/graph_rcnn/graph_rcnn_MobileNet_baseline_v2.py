@@ -451,6 +451,9 @@ best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
 
+loss_names = None
+epoch_loss_history = {}
+
 for epoch in range(num_epochs):
 
     if epoch == freeze_epoch:       
@@ -462,6 +465,8 @@ for epoch in range(num_epochs):
     with EmissionsTracker(tracking_mode="process", gpu_ids=[0,1], measure_power_secs=1, log_level="critical", save_to_file=False) as tracker:
 
         model.train()
+        last_loss_dict = None
+        last_total_loss = None
         batch_times = []
         gpu_memories = []
         cpu_memories = []
@@ -479,6 +484,9 @@ for epoch in range(num_epochs):
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
+
+                last_total_loss = total_loss.item()
+                last_loss_dict = {k: v.item() for k, v in loss_dict.items()}
 
                 if torch.cuda.is_available(): 
                     torch.cuda.synchronize()
@@ -506,6 +514,15 @@ for epoch in range(num_epochs):
                 gc.collect()
                 if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
+
+        if loss_names is None:
+            loss_names = list(last_loss_dict.keys())
+            for name in loss_names + ["total_loss"]:
+                epoch_loss_history[name] = []
+
+        epoch_loss_history["total_loss"].append(last_total_loss)
+        for name in loss_names:
+            epoch_loss_history[name].append(last_loss_dict[name])
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
@@ -543,7 +560,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -553,7 +570,22 @@ for epoch in range(num_epochs):
             print(f"Early stopping triggered (no improvement for {patience} epochs)")
             break
 
+plot_dir = '/Thesis/visualisations/'
+os.makedirs(plot_dir, exist_ok=True)
+plot_path = os.path.join(plot_dir, 'graphrcnn_epoch_losses.png')
 
+plt.figure(figsize=(8,5))
+for loss_name, values in epoch_loss_history.items():
+    plt.plot(range(1, len(values)+1), values, label=loss_name)
+plt.xlabel('Epoch')
+plt.ylabel('Loss (final batch)')
+plt.title('GraphRCNN Final-Batch Loss Components per Epoch')
+plt.legend()
+plt.grid(True)
+# save to file
+plt.savefig(plot_path)
+print(f"Saved loss plot to {plot_path}")
+plt.show()
 
 
 model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
