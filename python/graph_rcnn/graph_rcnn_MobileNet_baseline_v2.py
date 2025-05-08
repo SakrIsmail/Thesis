@@ -483,9 +483,9 @@ for epoch in range(num_epochs):
                 repn_loss = loss_dict.get('repn_loss', 0) 
 
                  # Update the losses for tracking
-                epoch_gnn_loss += gnn_loss.item()
-                epoch_rpn_loss += rpn_loss.item()
-                epoch_repn_loss += repn_loss.item()
+                epoch_gnn_loss += gnn_loss
+                epoch_rpn_loss += rpn_loss
+                epoch_repn_loss += repn_loss
 
                 optimizer.zero_grad()
                 total_loss.backward()
