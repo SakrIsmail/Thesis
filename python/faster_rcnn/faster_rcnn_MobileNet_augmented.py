@@ -252,9 +252,14 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
     overall_rec = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
     overall_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
-    print(f"Micro-F1: {micro_f1:.4f}, Macro-F1: {macro_f1:.4f}")
-    print(f"Miss Rate: {miss_rate:.4f}, FPPI: {fppi:.4f}")
-    print(f"Overall Acc: {overall_acc:.4f}, Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}")
+    print(f"[METRIC] Micro-F1: {micro_f1:.4f}")
+    print(f"[METRIC] Macro-F1: {macro_f1:.4f}")
+    print(f"[METRIC] Miss Rate: {miss_rate:.4f}")
+    print(f"[METRIC] FPPI: {fppi:.4f}")
+    print(f"[METRIC] Overall Acc: {overall_acc:.4f}")
+    print(f"[METRIC] Precision: {overall_prec:.4f}")
+    print(f"[METRIC] Recall: {overall_rec:.4f}")
+    print(f"[METRIC] F1: {overall_f1:.4f}")
     
     table=[]
     for j,p in enumerate(parts):
@@ -263,6 +268,8 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
         rec = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
         f1s = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
         table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
+
+    print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
