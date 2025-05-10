@@ -330,7 +330,8 @@ class GraphRCNN(nn.Module):
                 "gcn_loss": gcn_loss,
                 "repnet_loss": repnet_loss
             })
-            total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+            total_loss += rpn_loss + gcn_loss + repnet_loss
+            # total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
 
             return total_loss, loss_dict
 
@@ -440,30 +441,34 @@ class GraphRCNN(nn.Module):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
-# optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 detector_params = list(model.detector.backbone.parameters()) \
                 + list(model.detector.rpn.parameters()) \
                 + list(model.detector.roi_heads.parameters())
 graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 
-optimizer = torch.optim.AdamW([
-    { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
-    { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
-])
+# optimizer = torch.optim.AdamW([
+#     { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
+#     { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
+# ])
+optimizer = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+for p in graph_params:
+    p.requires_grad = False
+
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
 num_epochs = 50
-freeze_epoch = 21
+freeze_epoch = 20
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
 
 loss_names = None
 epoch_loss_history = {}
+
 
 for epoch in range(num_epochs):
 
@@ -476,14 +481,11 @@ for epoch in range(num_epochs):
             results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
         )
 
-        for param in model.detector.backbone.parameters():
-            param.requires_grad = False
-        
-        for param in model.detector.roi_heads.parameters():
-            param.requires_grad = False
-
-        for param in model.detector.rpn.parameters():
-            param.requires_grad = False
+        for p in detector_params:
+            p.requires_grad = False
+        # unfreeze graph params
+        for p in graph_params:
+            p.requires_grad = True
 
         graph_params = list(model.repn.parameters()) + list(model.agcn.parameters())
         optimizer = torch.optim.AdamW(graph_params, lr=5e-5, weight_decay=1e-4)
