@@ -355,8 +355,8 @@ for epoch in range(num_epochs):
         ["Epoch", epoch + 1],
         ["Final Loss", f"{losses.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
         ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
         ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
     ]

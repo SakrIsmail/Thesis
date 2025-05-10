@@ -330,7 +330,7 @@ class GraphRCNN(nn.Module):
                 "gcn_loss": gcn_loss,
                 "repnet_loss": repnet_loss
             })
-            total_loss += rpn_loss + gcn_loss + repnet_loss
+            total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
 
             return total_loss, loss_dict
 
@@ -440,7 +440,17 @@ class GraphRCNN(nn.Module):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+# optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+
+detector_params = list(model.detector.backbone.parameters()) \
+                + list(model.detector.rpn.parameters()) \
+                + list(model.detector.roi_heads.parameters())
+graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
+
+optimizer = torch.optim.AdamW([
+    { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
+    { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
+])
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -550,8 +560,8 @@ for epoch in range(num_epochs):
         ["Epoch", epoch + 1],
         ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Average GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Average CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
         ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
         ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
     ]
