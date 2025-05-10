@@ -330,7 +330,7 @@ class GraphRCNN(nn.Module):
                 "gcn_loss": gcn_loss,
                 "repnet_loss": repnet_loss
             })
-            total_loss = rpn_loss + gcn_loss + repnet_loss
+            total_loss += rpn_loss + gcn_loss + repnet_loss
 
             return total_loss, loss_dict
 
@@ -446,8 +446,8 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 100
-freeze_epoch = 20
+num_epochs = 50
+freeze_epoch = 21
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
@@ -457,12 +457,28 @@ epoch_loss_history = {}
 
 for epoch in range(num_epochs):
 
-    if epoch == freeze_epoch:       
+    if epoch == freeze_epoch:
+        model.eval()
+
+        results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+
+        part_level_evaluation(
+            results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
+        )
+
         for param in model.detector.backbone.parameters():
             param.requires_grad = False
         
         for param in model.detector.roi_heads.parameters():
             param.requires_grad = False
+
+        for param in model.detector.rpn.parameters():
+            param.requires_grad = False
+
+        graph_params = list(model.repn.parameters()) + list(model.agcn.parameters())
+        optimizer = torch.optim.AdamW(graph_params, lr=5e-5, weight_decay=1e-4)
+
+        model.train()
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
@@ -542,6 +558,9 @@ for epoch in range(num_epochs):
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
+    if epoch < freeze_epoch:
+        continue
+
     print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
     results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
@@ -563,7 +582,7 @@ for epoch in range(num_epochs):
             print(f"Early stopping triggered (no improvement for {patience} epochs)")
             break
 
-plot_dir = '/Thesis/visualisations/'
+plot_dir = '/home/sismail/Thesis/visualisations/'
 os.makedirs(plot_dir, exist_ok=True)
 plot_path = os.path.join(plot_dir, 'graphrcnn_epoch_losses.png')
 
@@ -587,6 +606,8 @@ if torch.cuda.is_available():
 
 model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
+
+model.eval()
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 

@@ -374,6 +374,8 @@ if torch.cuda.is_available():
 model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth", map_location=device))
 model.to(device)
 
+model.eval()
+
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
 part_level_evaluation(
