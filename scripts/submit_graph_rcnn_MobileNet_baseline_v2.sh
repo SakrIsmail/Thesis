@@ -2,11 +2,11 @@
 #SBATCH --job-name=graph_rcnn_MobileNet_baseline_v2
 #SBATCH --output=outputs/graph_rcnn/output_graph_rcnn_MobileNet_baseline_v2
 #SBATCH --error=outputs/graph_rcnn/error_graph_rcnn_MobileNet_baseline_v2
-#SBATCH --time=16:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 
 
 

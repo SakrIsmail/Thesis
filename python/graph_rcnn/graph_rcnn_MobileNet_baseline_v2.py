@@ -187,7 +187,7 @@ test_dataset = BikePartsDetectionDataset(
 
 train_loader = DataLoader(
     train_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -195,7 +195,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -203,7 +203,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=32,
+    batch_size=16,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -259,9 +259,14 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
     overall_rec = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
     overall_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
-    print(f"Micro-F1: {micro_f1:.4f}, Macro-F1: {macro_f1:.4f}")
-    print(f"Miss Rate: {miss_rate:.4f}, FPPI: {fppi:.4f}")
-    print(f"Overall Acc: {overall_acc:.4f}, Precision: {overall_prec:.4f}, Recall: {overall_rec:.4f}, F1: {overall_f1:.4f}")
+    print(f"[METRIC] Micro-F1: {micro_f1:.4f}")
+    print(f"[METRIC] Macro-F1: {macro_f1:.4f}")
+    print(f"[METRIC] Miss Rate: {miss_rate:.4f}")
+    print(f"[METRIC] FPPI: {fppi:.4f}")
+    print(f"[METRIC] Overall Acc: {overall_acc:.4f}")
+    print(f"[METRIC] Precision: {overall_prec:.4f}")
+    print(f"[METRIC] Recall: {overall_rec:.4f}")
+    print(f"[METRIC] F1: {overall_f1:.4f}")
     
     table=[]
     for j,p in enumerate(parts):
@@ -270,6 +275,8 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
         rec = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
         f1s = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
         table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
+
+    print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
@@ -445,6 +452,9 @@ best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
 
+loss_names = None
+epoch_loss_history = {}
+
 for epoch in range(num_epochs):
 
     if epoch == freeze_epoch:       
@@ -463,10 +473,10 @@ for epoch in range(num_epochs):
 
         with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch + 1}/{num_epochs}") as tepoch:
             for images, targets in tepoch:
-                start_time = time.time()
-
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                start_time = time.time()
 
                 total_loss, loss_dict = model(images, targets)
                 # losses = sum(loss for loss in loss_dict.values())
@@ -474,6 +484,9 @@ for epoch in range(num_epochs):
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
+
+                last_total_loss = total_loss.item()
+                last_loss_dict = {k: v.item() for k, v in loss_dict.items()}
 
                 end_time = time.time()
                 inference_time = end_time - start_time
@@ -496,9 +509,19 @@ for epoch in range(num_epochs):
                     "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                 })
 
+                del loss_dict, images, targets
                 gc.collect()
-                if torch.cuda.is_available():
+                if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
+
+        if loss_names is None:
+            loss_names = list(last_loss_dict.keys())
+            for name in loss_names + ["total_loss"]:
+                epoch_loss_history[name] = []
+
+        epoch_loss_history["total_loss"].append(last_total_loss)
+        for name in loss_names:
+            epoch_loss_history[name].append(last_loss_dict[name])
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
@@ -540,9 +563,27 @@ for epoch in range(num_epochs):
             print(f"Early stopping triggered (no improvement for {patience} epochs)")
             break
 
+plot_dir = '/Thesis/visualisations/'
+os.makedirs(plot_dir, exist_ok=True)
+plot_path = os.path.join(plot_dir, 'graphrcnn_epoch_losses.png')
+
+plt.figure(figsize=(8,5))
+for loss_name, values in epoch_loss_history.items():
+    plt.plot(range(1, len(values)+1), values, label=loss_name)
+plt.xlabel('Epoch')
+plt.ylabel('Loss (final batch)')
+plt.title('GraphRCNN Final-Batch Loss Components per Epoch')
+plt.legend()
+plt.grid(True)
+# save to file
+plt.savefig(plot_path)
+print(f"Saved loss plot to {plot_path}")
+plt.show()
 
 if torch.cuda.is_available():
     nvmlShutdown()
+
+
 
 model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
