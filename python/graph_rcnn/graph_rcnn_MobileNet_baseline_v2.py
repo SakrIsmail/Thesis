@@ -190,7 +190,7 @@ test_dataset = BikePartsDetectionDataset(
 train_loader = DataLoader(
     train_dataset,
     worker_init_fn=seed_worker,
-    batch_size=16,
+    batch_size=32,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -198,7 +198,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=16,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -206,7 +206,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=16,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -310,6 +310,7 @@ class AttentionalGCN(nn.Module):
     def forward(self, x, edge_index):
         x = torch.relu(self.gat1(x, edge_index))
         return self.gat2(x, edge_index)
+    
 
 class GraphRCNN(nn.Module):
     def __init__(self, detector, num_classes, k=3):
@@ -331,18 +332,22 @@ class GraphRCNN(nn.Module):
             rpn_loss = self.compute_rpn_loss(images, targets)
             gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
 
-            loss_dict.update({
-                "rpn_loss": rpn_loss,
-                "gcn_loss": gcn_loss,
-                "repnet_loss": repnet_loss
-            })
             # total_loss += rpn_loss + gcn_loss + repnet_loss
             # total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+            
 
             w_gcn = 0.5 * (gcn_loss   * torch.exp(-self.log_sigma_gcn)
                           + self.log_sigma_gcn)
             w_rep = 0.5 * (repnet_loss* torch.exp(-self.log_sigma_repnet)
                           + self.log_sigma_repnet)
+            
+            loss_dict.update({
+                "rpn_loss": rpn_loss,
+                "gcn_loss": gcn_loss,
+                "repnet_loss": repnet_loss,
+                "w_gcn": w_gcn,
+                "w_rep": w_rep
+            })
             
             total_loss += rpn_loss + w_gcn + w_rep
 
@@ -450,6 +455,14 @@ class GraphRCNN(nn.Module):
         loss = nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
         return loss
 
+def get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs):
+    if epoch < freeze_epoch:
+        return 0.0
+    elif epoch < freeze_epoch + warmup_epochs:
+        return (epoch - freeze_epoch + 1) / warmup_epochs
+    else:
+        return 1.0
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -467,6 +480,12 @@ optimizer = torch.optim.AdamW([
 
 scaler = GradScaler()
 
+detector_loss_keys = [
+    "loss_classifier",
+    "loss_box_reg",
+    "loss_objectness",
+    "loss_rpn_box_reg",
+]
 
 # opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 # opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
@@ -474,8 +493,8 @@ scaler = GradScaler()
 
 
 
-# for p in graph_params:
-#     p.requires_grad = False
+for p in graph_params:
+    p.requires_grad = False
 
 
 if torch.cuda.is_available():
@@ -493,6 +512,7 @@ epoch_loss_history = {}
 
 
 for epoch in range(num_epochs):
+    gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch=freeze_epoch, warmup_epochs=5)
 
     if epoch == freeze_epoch:
         model.eval()
@@ -506,8 +526,8 @@ for epoch in range(num_epochs):
         model.train()
         for p in detector_params:
             p.requires_grad = False
-        # for p in graph_params:
-        #     p.requires_grad = True
+        for p in graph_params:
+            p.requires_grad = True
 
         # optimizer = opt_graph
 
@@ -529,6 +549,18 @@ for epoch in range(num_epochs):
                 optimizer.zero_grad()
                 with autocast(device_type='cuda'):
                     total_loss, loss_dict = model(images, targets)
+                    # if epoch < freeze_epoch:
+                    #     loss_dict = model.detector(images, targets)
+                    #     total_loss = sum(loss_dict.values())
+                    # else:
+                    #     total_loss, loss_dict = model(images, targets)
+
+                det_total   = sum(loss_dict[k] for k in detector_loss_keys)  # sum of all detector terms
+                rpn_loss    = loss_dict['rpn_loss']
+                w_gcn       = loss_dict['w_gcn']
+                w_rep       = loss_dict['w_rep']
+
+                total_loss = det_total + rpn_loss + gcn_weight * (w_gcn + w_rep)
 
                 scaler.scale(total_loss).backward()
                 scaler.unscale_(optimizer)
