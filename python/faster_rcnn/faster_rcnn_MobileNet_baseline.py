@@ -180,6 +180,7 @@ test_dataset = BikePartsDetectionDataset(
 
 train_loader = DataLoader(
     train_dataset,
+    worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
     num_workers=4,

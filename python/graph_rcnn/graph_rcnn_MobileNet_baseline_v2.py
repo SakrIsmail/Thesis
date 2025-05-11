@@ -187,6 +187,7 @@ test_dataset = BikePartsDetectionDataset(
 
 train_loader = DataLoader(
     train_dataset,
+    worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
     num_workers=4,
@@ -330,8 +331,8 @@ class GraphRCNN(nn.Module):
                 "gcn_loss": gcn_loss,
                 "repnet_loss": repnet_loss
             })
-            total_loss += rpn_loss + gcn_loss + repnet_loss
-            # total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+            # total_loss += rpn_loss + gcn_loss + repnet_loss
+            total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
 
             return total_loss, loss_dict
 
@@ -451,7 +452,11 @@ graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 #     { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
 #     { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
 # ])
-optimizer = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+
+opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
+optimizer = opt_det
+
 for p in graph_params:
     p.requires_grad = False
 
@@ -487,8 +492,7 @@ for epoch in range(num_epochs):
         for p in graph_params:
             p.requires_grad = True
 
-        graph_params = list(model.repn.parameters()) + list(model.agcn.parameters())
-        optimizer = torch.optim.AdamW(graph_params, lr=5e-5, weight_decay=1e-4)
+        optimizer = opt_graph
 
         model.train()
 
@@ -506,7 +510,11 @@ for epoch in range(num_epochs):
 
                 start_time = time.time()
 
-                total_loss, loss_dict = model(images, targets)
+                if epoch < freeze_epoch:
+                    loss_dict = model.detector(images, targets)
+                    total_loss = sum(loss_dict.values())
+                else:
+                    total_loss, loss_dict = model(images, targets)
                 # losses = sum(loss for loss in loss_dict.values())
 
                 optimizer.zero_grad()
@@ -572,7 +580,8 @@ for epoch in range(num_epochs):
 
     if epoch < freeze_epoch:
         continue
-
+    
+    model.eval()
     print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
     results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
@@ -594,6 +603,9 @@ for epoch in range(num_epochs):
             print(f"Early stopping triggered (no improvement for {patience} epochs)")
             break
 
+if torch.cuda.is_available():
+    nvmlShutdown()
+
 plot_dir = '/home/sismail/Thesis/visualisations/'
 os.makedirs(plot_dir, exist_ok=True)
 plot_path = os.path.join(plot_dir, 'graphrcnn_epoch_losses.png')
@@ -610,9 +622,6 @@ plt.grid(True)
 plt.savefig(plot_path)
 print(f"Saved loss plot to {plot_path}")
 plt.show()
-
-if torch.cuda.is_available():
-    nvmlShutdown()
 
 
 
