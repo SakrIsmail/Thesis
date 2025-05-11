@@ -11,6 +11,8 @@ from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
 import torch.nn as nn
+from torch.nn.utils import clip_grad_norm_
+from torch.amp import GradScaler, autocast
 from torchvision.ops import box_iou
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -317,6 +319,9 @@ class GraphRCNN(nn.Module):
         self.agcn = AttentionalGCN(in_feats + 4, 256, num_classes)
         self.k = k
 
+        self.log_sigma_gcn    = nn.Parameter(torch.zeros(()))
+        self.log_sigma_repnet = nn.Parameter(torch.zeros(()))
+
     def forward(self, images, targets=None):
         if self.training:
             loss_dict = self.detector(images, targets)
@@ -332,7 +337,14 @@ class GraphRCNN(nn.Module):
                 "repnet_loss": repnet_loss
             })
             # total_loss += rpn_loss + gcn_loss + repnet_loss
-            total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+            # total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+
+            w_gcn = 0.5 * (gcn_loss   * torch.exp(-self.log_sigma_gcn)
+                          + self.log_sigma_gcn)
+            w_rep = 0.5 * (repnet_loss* torch.exp(-self.log_sigma_repnet)
+                          + self.log_sigma_repnet)
+            
+            total_loss += rpn_loss + w_gcn + w_rep
 
             return total_loss, loss_dict
 
@@ -448,17 +460,22 @@ detector_params = list(model.detector.backbone.parameters()) \
                 + list(model.detector.roi_heads.parameters())
 graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 
-# optimizer = torch.optim.AdamW([
-#     { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
-#     { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
-# ])
+optimizer = torch.optim.AdamW([
+    { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
+    { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
+])
 
-opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
-opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
-optimizer = opt_det
+scaler = GradScaler()
 
-for p in graph_params:
-    p.requires_grad = False
+
+# opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+# opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
+# optimizer = opt_det
+
+
+
+# for p in graph_params:
+#     p.requires_grad = False
 
 
 if torch.cuda.is_available():
@@ -480,21 +497,20 @@ for epoch in range(num_epochs):
     if epoch == freeze_epoch:
         model.eval()
 
-        results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+        results_per_image = evaluate_model(model.detector, valid_loader, train_dataset.part_to_idx, device)
 
         part_level_evaluation(
             results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
         )
 
+        model.train()
         for p in detector_params:
             p.requires_grad = False
-        # unfreeze graph params
-        for p in graph_params:
-            p.requires_grad = True
+        # for p in graph_params:
+        #     p.requires_grad = True
 
-        optimizer = opt_graph
+        # optimizer = opt_graph
 
-        model.train()
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
@@ -510,16 +526,15 @@ for epoch in range(num_epochs):
 
                 start_time = time.time()
 
-                if epoch < freeze_epoch:
-                    loss_dict = model.detector(images, targets)
-                    total_loss = sum(loss_dict.values())
-                else:
-                    total_loss, loss_dict = model(images, targets)
-                # losses = sum(loss for loss in loss_dict.values())
-
                 optimizer.zero_grad()
-                total_loss.backward()
-                optimizer.step()
+                with autocast():
+                    total_loss, loss_dict = model(images, targets)
+
+                scaler.scale(total_loss).backward()
+                scaler.unscale_(optimizer)
+                clip_grad_norm_([p for p in model.parameters() if p.requires_grad], max_norm=1.0)
+                scaler.step(optimizer)
+                scaler.update()
 
                 last_total_loss = total_loss.item()
                 last_loss_dict = {k: v.item() for k, v in loss_dict.items()}
