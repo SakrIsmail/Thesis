@@ -300,7 +300,7 @@ class RelationProposalNetwork(nn.Module):
         b2 = boxes.unsqueeze(0).expand(N, -1, -1)
         geom = torch.abs(b1 - b2)
         x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
-        return torch.sigmoid(self.fc2(x)).squeeze(-1)
+        return self.fc2(x).squeeze(-1)
 
 class AttentionalGCN(nn.Module):
     def __init__(self, in_c, hid_c, out_c, heads=4):
@@ -447,7 +447,7 @@ class GraphRCNN(nn.Module):
 
             target_rel.fill_diagonal_(0)
 
-        loss = nn.functional.binary_cross_entropy(rel_scores, target_rel)
+        loss = nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
         return loss
 
 
