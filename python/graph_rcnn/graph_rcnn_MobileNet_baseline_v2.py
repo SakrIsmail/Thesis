@@ -190,7 +190,7 @@ test_dataset = BikePartsDetectionDataset(
 train_loader = DataLoader(
     train_dataset,
     worker_init_fn=seed_worker,
-    batch_size=16,
+    batch_size=32,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -198,7 +198,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=16,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
@@ -206,7 +206,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=16,
+    batch_size=32,
     shuffle=False,
     num_workers=4,
     collate_fn=lambda batch: tuple(zip(*batch))
