@@ -538,7 +538,7 @@ for epoch in range(num_epochs):
 
                     opt_det.zero_grad()
                     loss_dict = model(images, targets)
-                    total_loss = sum(loss for loss in loss_dict.values())
+                    total_loss = sum(loss_dict.values())
                     total_loss.backward()
                     opt_det.step()
 
