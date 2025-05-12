@@ -564,20 +564,20 @@ for epoch in range(num_epochs):
                     if torch.cuda.is_available(): 
                         torch.cuda.empty_cache()
 
-            avg_time = np.mean(batch_times)
-            max_gpu = max(gpu_memories)
-            max_cpu = max(cpu_memories)
-            energy = tracker.final_emissions_data.energy_consumed
-            co2 = tracker.final_emissions
-            print(tabulate([
-                ['Epoch', epoch+1],
-                ['Detector Loss', f"{total_loss.item():.4f}"],
-                ['Avg Batch Time (s)', f"{avg_time:.3f}"],
-                ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
-                ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
-                ['Energy (kWh)', f"{energy:.4f}"],
-                ['CO2 (kg)', f"{co2:.4f}"]
-            ], headers=['Metric','Value'], tablefmt='pretty'))
+        avg_time = np.mean(batch_times)
+        max_gpu = max(gpu_memories)
+        max_cpu = max(cpu_memories)
+        energy = tracker.final_emissions_data.energy_consumed
+        co2 = tracker.final_emissions
+        print(tabulate([
+            ['Epoch', epoch+1],
+            ['Detector Loss', f"{total_loss.item():.4f}"],
+            ['Avg Batch Time (s)', f"{avg_time:.3f}"],
+            ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
+            ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
+            ['Energy (kWh)', f"{energy:.4f}"],
+            ['CO2 (kg)', f"{co2:.4f}"]
+        ], headers=['Metric','Value'], tablefmt='pretty'))
 
         continue
 
@@ -597,7 +597,7 @@ for epoch in range(num_epochs):
             p.requires_grad = True
 
         print(f"\n=== Teacher Forcing GNN at Epoch {epoch} ===")
-        with EmissionsTracker(log_level="critical", save_to_file=False) as ttracker:
+        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
             batch_times, gpu_memories, cpu_memories = [], [], []
             for t_ep in range(10):
                 running = 0.0
@@ -640,20 +640,21 @@ for epoch in range(num_epochs):
                         })
                         running += total_loss.item()
 
-                avg_time = np.mean(batch_times)
-                max_gpu = max(gpu_memories)
-                max_cpu = max(cpu_memories)
-                energy = ttracker.final_emissions_data.energy_consumed
-                co2 = ttracker.final_emissions
-                print(tabulate([
-                    ['Teacher Epoch', t_ep+1],
-                    ['Avg Loss', f"{running/len(train_loader):.4f}"],
-                    ['Avg Time (s)', f"{avg_time:.3f}"],
-                    ['Max GPU MB', f"{max_gpu:.0f}"],
-                    ['Max CPU MB', f"{max_cpu:.0f}"],
-                    ['Energy kWh', f"{energy:.4f}"],
-                    ['CO2 kg', f"{co2:.4f}"]
-                ], headers=['Metric','Value'], tablefmt='pretty'))
+        avg_time = np.mean(batch_times)
+        max_gpu = max(gpu_memories)
+        max_cpu = max(cpu_memories)
+        energy = tracker.final_emissions_data.energy_consumed
+        co2 = tracker.final_emissions
+        
+        print(tabulate([
+            ['Teacher Epoch', t_ep+1],
+            ['Avg Loss', f"{running/len(train_loader):.4f}"],
+            ['Avg Time (s)', f"{avg_time:.3f}"],
+            ['Max GPU MB', f"{max_gpu:.0f}"],
+            ['Max CPU MB', f"{max_cpu:.0f}"],
+            ['Energy kWh', f"{energy:.4f}"],
+            ['CO2 kg', f"{co2:.4f}"]
+        ], headers=['Metric','Value'], tablefmt='pretty'))
 
 
     gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs)
