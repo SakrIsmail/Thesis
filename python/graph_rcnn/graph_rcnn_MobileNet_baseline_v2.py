@@ -535,14 +535,13 @@ for epoch in range(num_epochs):
                     targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
                     start_time = time.time()
+
                     opt_det.zero_grad()
-                    loss_dict = model.detector(images, targets)
-                    total_loss = sum(loss_dict.values())
-                    scaler.scale(total_loss).backward()
-                    scaler.unscale_(opt_det)
-                    clip_grad_norm_(detector_params, max_norm=1.0)
-                    scaler.step(opt_det)
-                    scaler.update()
+                    loss_dict = model(images, targets)
+                    total_loss = sum(loss for loss in loss_dict.values())
+                    total_loss.backward()
+                    opt_det.step()
+
                     end_time = time.time()
                     inference_time = end_time - start_time
 
@@ -559,6 +558,11 @@ for epoch in range(num_epochs):
                     "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
                     "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
                     })
+
+                    del loss_dict, images, targets
+                    gc.collect()
+                    if torch.cuda.is_available(): 
+                        torch.cuda.empty_cache()
 
             avg_time = np.mean(batch_times)
             max_gpu = max(gpu_memories)

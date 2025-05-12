@@ -315,8 +315,8 @@ for epoch in range(num_epochs):
 
                 optimizer.zero_grad()
                 loss_dict = model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                losses.backward()
+                total_loss = sum(loss for loss in loss_dict.values())
+                total_loss.backward()
                 optimizer.step()
 
                 end_time = time.time()
@@ -334,7 +334,7 @@ for epoch in range(num_epochs):
                 cpu_memories.append(cpu_mem_used)
 
                 tepoch.set_postfix({
-                    "loss": f"{losses.item():.4f}",
+                    "loss": f"{total_loss.item():.4f}",
                     "time (s)": f"{inference_time:.3f}",
                     "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                     "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
@@ -355,7 +355,7 @@ for epoch in range(num_epochs):
 
     table = [
         ["Epoch", epoch + 1],
-        ["Final Loss", f"{losses.item():.4f}"],
+        ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
         ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
