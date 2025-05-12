@@ -54,7 +54,7 @@ random_seed = 42
 with open(final_output_json, 'r') as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations['images'].keys())[:20]
+image_filenames = list(annotations['images'].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -590,9 +590,9 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 1
-freeze_epoch = 0
-warmup_epochs  = 1
+num_epochs = 50
+freeze_epoch = 20
+warmup_epochs  = 10
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
