@@ -44,8 +44,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/sismail/data/images'
+final_output_json='/var/scratch/$USER/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/$USER/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -454,6 +454,28 @@ class GraphRCNN(nn.Module):
 
         loss = nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
         return loss
+    
+    def compute_gcn_loss_gt(self, feats_list, boxes_list, labels_list):
+        gcn_preds, gcn_labels = [], []
+        total_repnet = 0.0
+        for feats, boxes, labels in zip(feats_list, boxes_list, labels_list):
+            if boxes.size(0) < 2:
+                continue
+            rel = self.repn(feats, boxes)
+            edge_idx = self._make_edge_index(rel)
+            geom = self._box_geom(boxes, boxes.shape[-1:])
+            node_feats = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(node_feats, edge_idx)
+            gcn_preds.append(logits)
+            gcn_labels.append(labels)
+            total_repnet += self.compute_repnet_loss(feats, boxes)
+        if not gcn_preds:
+            device = boxes_list[0].device
+            return torch.tensor(0., device=device), torch.tensor(0., device=device)
+        gcn_preds = torch.cat(gcn_preds)
+        gcn_labels = torch.cat(gcn_labels)
+        gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
+        return gcn_loss, total_repnet
 
 def get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs):
     if epoch < freeze_epoch:
@@ -462,7 +484,6 @@ def get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs):
         return (epoch - freeze_epoch + 1) / warmup_epochs
     else:
         return 1.0
-
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -473,22 +494,16 @@ detector_params = list(model.detector.backbone.parameters()) \
                 + list(model.detector.roi_heads.parameters())
 graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 
-optimizer = torch.optim.AdamW([
-    { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
-    { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
-])
+# optimizer = torch.optim.AdamW([
+#     { 'params': detector_params, 'lr': 1e-4          , 'weight_decay': 1e-4 },
+#     { 'params': graph_params   , 'lr': 5e-5          , 'weight_decay': 1e-4 },
+# ])
 
 scaler = GradScaler()
 
-detector_loss_keys = [
-    "loss_classifier",
-    "loss_box_reg",
-    "loss_objectness",
-    "loss_rpn_box_reg",
-]
 
-# opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
-# opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
+opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+opt_graph = torch.optim.AdamW(graph_params,   lr=5e-5, weight_decay=1e-4)
 # optimizer = opt_det
 
 
@@ -503,19 +518,67 @@ if torch.cuda.is_available():
 
 num_epochs = 50
 freeze_epoch = 20
+warmup_epochs  = 10
 best_macro_f1 = 0
 epochs_without_improvement = 0
 patience = 5
 
-loss_names = None
-epoch_loss_history = {}
-
 
 for epoch in range(num_epochs):
-    gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch=freeze_epoch, warmup_epochs=5)
+    if epoch < freeze_epoch:
+        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+            model.detector.train()
+            batch_times, gpu_memories, cpu_memories = [], [], []
+            with tqdm(train_loader, unit="batch", desc=f"Detector Epoch {epoch+1}/{freeze_epoch}") as tepoch:
+                for images, targets in tepoch:
+                    images = [img.to(device) for img in images]
+                    targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                    start_time = time.time()
+                    opt_det.zero_grad()
+                    loss_dict = model.detector(images, targets)
+                    total_loss = sum(loss_dict.values())
+                    scaler.scale(total_loss).backward()
+                    scaler.unscale_(opt_det)
+                    clip_grad_norm_(detector_params, max_norm=1.0)
+                    scaler.step(opt_det)
+                    scaler.update()
+                    end_time = time.time()
+                    inference_time = end_time - start_time
+
+                    batch_times.append(inference_time)
+                    if torch.cuda.is_available():
+                        mem = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                        gpu_memories.append(mem)
+                    cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+
+
+                    tepoch.set_postfix({
+                    "loss": f"{total_loss.item():.4f}",
+                    "time (s)": f"{inference_time:.3f}",
+                    "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
+                    "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
+                    })
+
+            avg_time = np.mean(batch_times)
+            max_gpu = max(gpu_memories)
+            max_cpu = max(cpu_memories)
+            energy = tracker.final_emissions_data.energy_consumed
+            co2 = tracker.final_emissions
+            print(tabulate([
+                ['Epoch', epoch+1],
+                ['Detector Loss', f"{total_loss.item():.4f}"],
+                ['Avg Batch Time (s)', f"{avg_time:.3f}"],
+                ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
+                ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
+                ['Energy (kWh)', f"{energy:.4f}"],
+                ['CO2 (kg)', f"{co2:.4f}"]
+            ], headers=['Metric','Value'], tablefmt='pretty'))
+
+        continue
 
     if epoch == freeze_epoch:
-        model.eval()
+        model.detector.eval()
 
         results_per_image = evaluate_model(model.detector, valid_loader, train_dataset.part_to_idx, device)
 
@@ -529,101 +592,141 @@ for epoch in range(num_epochs):
         for p in graph_params:
             p.requires_grad = True
 
-        # optimizer = opt_graph
+        print(f"\n=== Teacher Forcing GNN at Epoch {epoch} ===")
+        with EmissionsTracker(log_level="critical", save_to_file=False) as ttracker:
+            batch_times, gpu_memories, cpu_memories = [], [], []
+            for t_ep in range(10):
+                running = 0.0
+                with tqdm(train_loader, unit="batch", desc=f"[Teacher] {t_ep+1}/10") as tepoch:
+                    for images, targets in tepoch:
+                        images = [img.to(device) for img in images]
+                        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+                        feats_list, boxes_list, labels_list = [], [], []
+                        for img, tgt in zip(images, targets):
+                            fmap = model.detector.backbone(img.unsqueeze(0))
+                            roi = model.detector.roi_heads.box_roi_pool(
+                                fmap, [tgt['boxes'].to(device)], [img.shape[-2:]]
+                            )
+                            feats = model.detector.roi_heads.box_head(roi).squeeze(0)
+                            feats_list.append(feats)
+                            boxes_list.append(tgt['boxes'])
+                            labels_list.append(tgt['labels'])
+
+                        start_time = time.time()
+                        gcn_loss, repnet_loss = model.compute_gcn_loss_gt(feats_list, boxes_list, labels_list)
+                        total_loss = 0.1 * gcn_loss + 0.1 * repnet_loss
+                        opt_graph.zero_grad()
+                        total_loss.backward()
+                        opt_graph.step()
+                        end_time = time.time()
+
+                        inference_time = end_time - start_time
+
+                        batch_times.append(inference_time)
+                        if torch.cuda.is_available():
+                            mem = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                            gpu_memories.append(mem)
+                        cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+
+                        tepoch.set_postfix({
+                        "loss": f"{total_loss.item():.4f}",
+                        "time (s)": f"{inference_time:.3f}",
+                        "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
+                        "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
+                        })
+                        running += total_loss.item()
+
+                avg_time = np.mean(batch_times)
+                max_gpu = max(gpu_memories)
+                max_cpu = max(cpu_memories)
+                energy = ttracker.final_emissions_data.energy_consumed
+                co2 = ttracker.final_emissions
+                print(tabulate([
+                    ['Teacher Epoch', t_ep+1],
+                    ['Avg Loss', f"{running/len(train_loader):.4f}"],
+                    ['Avg Time (s)', f"{avg_time:.3f}"],
+                    ['Max GPU MB', f"{max_gpu:.0f}"],
+                    ['Max CPU MB', f"{max_cpu:.0f}"],
+                    ['Energy kWh', f"{energy:.4f}"],
+                    ['CO2 kg', f"{co2:.4f}"]
+                ], headers=['Metric','Value'], tablefmt='pretty'))
 
 
+    gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs)
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-
         model.train()
-        batch_times = []
-        gpu_memories = []
-        cpu_memories = []
+        batch_times, gpu_memories, cpu_memories = [], [], []
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch + 1}/{num_epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch",
+                desc=f"GNN Epoch {epoch+1-freeze_epoch}/{num_epochs-freeze_epoch}") as tepoch:
             for images, targets in tepoch:
-                images = [image.to(device) for image in images]
+                images = [img.to(device) for img in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+                with torch.no_grad():
+                    dets = model.detector(images)
+                
+                feats_list, boxes_list, labels_list = [], [], []
+                for img, det, tgt in zip(images, dets, targets):
+                    boxes = det['boxes'].to(device)
+                    if boxes.numel() == 0:
+                        continue
+
+                    fmap = model.detector.backbone(img.unsqueeze(0))
+                    roi  = model.detector.roi_heads.box_roi_pool(
+                            fmap, [boxes], [img.shape[-2:]]
+                        )
+                    feats = model.detector.roi_heads.box_head(roi).squeeze(0)
+
+                    feats_list.append(feats)
+                    boxes_list.append(boxes)
+                    labels_list.append(tgt['labels'].to(device))
+
                 start_time = time.time()
-
-                optimizer.zero_grad()
+                opt_graph.zero_grad()
                 with autocast(device_type='cuda'):
-                    total_loss, loss_dict = model(images, targets)
-                    # if epoch < freeze_epoch:
-                    #     loss_dict = model.detector(images, targets)
-                    #     total_loss = sum(loss_dict.values())
-                    # else:
-                    #     total_loss, loss_dict = model(images, targets)
+                    gcn_loss, repnet_loss = model.compute_gcn_loss_gt(
+                        feats_list, boxes_list, labels_list
+                    )
+                    loss = gcn_weight * (gcn_loss + repnet_loss)
 
-                det_total   = sum(loss_dict[k] for k in detector_loss_keys)  # sum of all detector terms
-                rpn_loss    = loss_dict['rpn_loss']
-                w_gcn       = loss_dict['w_gcn']
-                w_rep       = loss_dict['w_rep']
-
-                total_loss = det_total + rpn_loss + gcn_weight * (w_gcn + w_rep)
-
-                scaler.scale(total_loss).backward()
-                scaler.unscale_(optimizer)
-                clip_grad_norm_([p for p in model.parameters() if p.requires_grad], max_norm=1.0)
-                scaler.step(optimizer)
+                scaler.scale(loss).backward()
+                scaler.unscale_(opt_graph)
+                clip_grad_norm_(graph_params, max_norm=1.0)
+                scaler.step(opt_graph)
                 scaler.update()
-
-                last_total_loss = total_loss.item()
-                last_loss_dict = {k: v.item() for k, v in loss_dict.items()}
-
                 end_time = time.time()
+
                 inference_time = end_time - start_time
                 batch_times.append(inference_time)
-
                 if torch.cuda.is_available():
-                    mem_info = nvmlDeviceGetMemoryInfo(handle)
-                    gpu_mem_used = mem_info.used / (1024 ** 2)
-                    gpu_memories.append(gpu_mem_used)
-                else:
-                    gpu_mem_used = 0
-
-                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-                cpu_memories.append(cpu_mem_used)
+                    mem = nvmlDeviceGetMemoryInfo(handle).used / (1024 ** 2)
+                    gpu_memories.append(mem)
+                cpu_memories.append(psutil.virtual_memory().used / (1024 ** 2))
 
                 tepoch.set_postfix({
-                    "loss": f"{total_loss.item():.4f}",
-                    "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
+                "loss": f"{loss.item():.4f}",
+                "time (s)": f"{inference_time:.3f}",
+                "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
+                "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
                 })
 
-                del loss_dict, images, targets
-                gc.collect()
-                if torch.cuda.is_available(): 
-                    torch.cuda.empty_cache()
 
-        if loss_names is None:
-            loss_names = list(last_loss_dict.keys())
-            for name in loss_names + ["total_loss"]:
-                epoch_loss_history[name] = []
+    avg_time = np.mean(batch_times)
+    max_gpu = max(gpu_memories)
+    max_cpu = max(cpu_memories)
+    energy = tracker.final_emissions_data.energy_consumed
+    co2 = tracker.final_emissions
+    print(tabulate([
+        ['Epoch', epoch+1],
+        ['GNN Loss', f"{loss.item():.4f}"],
+        ['Avg Batch Time (s)', f"{avg_time:.3f}"],
+        ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
+        ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
+        ['Energy (kWh)', f"{energy:.4f}"],
+        ['CO2 (kg)', f"{co2:.4f}"]
+    ], headers=['Metric','Value'], tablefmt='pretty'))
 
-        epoch_loss_history["total_loss"].append(last_total_loss)
-        for name in loss_names:
-            epoch_loss_history[name].append(last_loss_dict[name])
-
-    energy_consumption = tracker.final_emissions_data.energy_consumed
-    co2_emissions = tracker.final_emissions
-
-    avg_time = sum(batch_times) / len(batch_times)
-    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
-    max_cpu_mem = max(cpu_memories)
-
-    table = [
-        ["Epoch", epoch + 1],
-        ["Final Loss", f"{total_loss.item():.4f}"],
-        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
-        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
-        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
-    ]
-
-    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
     if epoch < freeze_epoch:
         continue
@@ -640,7 +743,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -653,26 +756,10 @@ for epoch in range(num_epochs):
 if torch.cuda.is_available():
     nvmlShutdown()
 
-plot_dir = '/home/sismail/Thesis/visualisations/'
-os.makedirs(plot_dir, exist_ok=True)
-plot_path = os.path.join(plot_dir, 'graphrcnn_epoch_losses.png')
-
-plt.figure(figsize=(8,5))
-for loss_name, values in epoch_loss_history.items():
-    plt.plot(range(1, len(values)+1), values, label=loss_name)
-plt.xlabel('Epoch')
-plt.ylabel('Loss (final batch)')
-plt.title('GraphRCNN Final-Batch Loss Components per Epoch')
-plt.legend()
-plt.grid(True)
-# save to file
-plt.savefig(plot_path)
-print(f"Saved loss plot to {plot_path}")
-plt.show()
 
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 model.eval()
