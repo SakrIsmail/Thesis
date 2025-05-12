@@ -44,8 +44,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/$USER/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/$USER/data/images'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -743,7 +743,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -759,7 +759,7 @@ if torch.cuda.is_available():
 
 
 
-model.load_state_dict(torch.load("/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 model.eval()
