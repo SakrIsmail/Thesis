@@ -455,15 +455,16 @@ class GraphRCNN(nn.Module):
         loss = nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
         return loss
     
-    def compute_gcn_loss_gt(self, feats_list, boxes_list, labels_list):
+    def compute_gcn_loss_gt(self, feats_list, boxes_list, labels_list, image_shapes):
         gcn_preds, gcn_labels = [], []
         total_repnet = 0.0
-        for feats, boxes, labels in zip(feats_list, boxes_list, labels_list):
+        for feats, boxes, labels, (h, w) in zip(feats_list, boxes_list, labels_list, image_shapes):
+
             if boxes.size(0) < 2:
                 continue
             rel = self.repn(feats, boxes)
             edge_idx = self._make_edge_index(rel)
-            geom = self._box_geom(boxes, boxes.shape[-1:])
+            geom = self._box_geom(boxes, (h, w))
             node_feats = torch.cat([feats, geom], dim=1)
             logits = self.agcn(node_feats, edge_idx)
             gcn_preds.append(logits)
@@ -474,6 +475,7 @@ class GraphRCNN(nn.Module):
             return torch.tensor(0., device=device), torch.tensor(0., device=device)
         gcn_preds = torch.cat(gcn_preds)
         gcn_labels = torch.cat(gcn_labels)
+
         gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
         return gcn_loss, total_repnet
 
@@ -547,16 +549,20 @@ for epoch in range(num_epochs):
 
                     batch_times.append(inference_time)
                     if torch.cuda.is_available():
-                        mem = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
-                        gpu_memories.append(mem)
-                    cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+                        gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                        gpu_memories.append(gpu_mem_used)
+                    else:
+                        gpu_mem_used = 0
+                    
+                    cpu_mem_used = psutil.virtual_memory().used / 1024**2
+                    cpu_memories.append(cpu_mem_used)
 
 
                     tepoch.set_postfix({
                     "loss": f"{total_loss.item():.4f}",
                     "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
-                    "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
+                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                     })
 
                     del loss_dict, images, targets
@@ -565,7 +571,7 @@ for epoch in range(num_epochs):
                         torch.cuda.empty_cache()
 
         avg_time = np.mean(batch_times)
-        max_gpu = max(gpu_memories)
+        max_gpu = max(gpu_memories) if gpu_memories else 0
         max_cpu = max(cpu_memories)
         energy = tracker.final_emissions_data.energy_consumed
         co2 = tracker.final_emissions
@@ -605,7 +611,7 @@ for epoch in range(num_epochs):
                     for images, targets in tepoch:
                         images = [img.to(device) for img in images]
                         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-                        feats_list, boxes_list, labels_list = [], [], []
+                        feats_list, boxes_list, labels_list, image_shapes = [], [], [], []
                         for img, tgt in zip(images, targets):
                             fmap = model.detector.backbone(img.unsqueeze(0))
                             roi = model.detector.roi_heads.box_roi_pool(
@@ -615,9 +621,10 @@ for epoch in range(num_epochs):
                             feats_list.append(feats)
                             boxes_list.append(tgt['boxes'])
                             labels_list.append(tgt['labels'])
-
+                            image_shapes.append(img.shape[-2:])
                         start_time = time.time()
-                        gcn_loss, repnet_loss = model.compute_gcn_loss_gt(feats_list, boxes_list, labels_list)
+                        
+                        gcn_loss, repnet_loss = model.compute_gcn_loss_gt(feats_list, boxes_list, labels_list, image_shapes)
                         total_loss = 0.1 * gcn_loss + 0.1 * repnet_loss
                         opt_graph.zero_grad()
                         total_loss.backward()
@@ -628,20 +635,25 @@ for epoch in range(num_epochs):
 
                         batch_times.append(inference_time)
                         if torch.cuda.is_available():
-                            mem = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
-                            gpu_memories.append(mem)
-                        cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+                            gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                            gpu_memories.append(gpu_mem_used)
+                        else:
+                            gpu_mem_used = 0
+                        
+                        cpu_mem_used = psutil.virtual_memory().used / 1024**2
+                        cpu_memories.append(cpu_mem_used)
+
 
                         tepoch.set_postfix({
                         "loss": f"{total_loss.item():.4f}",
                         "time (s)": f"{inference_time:.3f}",
-                        "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
-                        "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
+                        "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                        "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                         })
                         running += total_loss.item()
 
         avg_time = np.mean(batch_times)
-        max_gpu = max(gpu_memories)
+        max_gpu = max(gpu_memories) if gpu_memories else 0
         max_cpu = max(cpu_memories)
         energy = tracker.final_emissions_data.energy_consumed
         co2 = tracker.final_emissions
@@ -669,9 +681,10 @@ for epoch in range(num_epochs):
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
                 with torch.no_grad():
+                    model.detector.eval()
                     dets = model.detector(images)
                 
-                feats_list, boxes_list, labels_list = [], [], []
+                feats_list, boxes_list, labels_list, image_shapes = [], [], [], []
                 for img, det, tgt in zip(images, dets, targets):
                     boxes = det['boxes'].to(device)
                     if boxes.numel() == 0:
@@ -685,14 +698,13 @@ for epoch in range(num_epochs):
 
                     feats_list.append(feats)
                     boxes_list.append(boxes)
-                    labels_list.append(tgt['labels'].to(device))
+                    labels_list.append(det['labels'].to(device))
+                    image_shapes.append(img.shape[-2:])
 
                 start_time = time.time()
                 opt_graph.zero_grad()
                 with autocast(device_type='cuda'):
-                    gcn_loss, repnet_loss = model.compute_gcn_loss_gt(
-                        feats_list, boxes_list, labels_list
-                    )
+                    gcn_loss, repnet_loss = model.compute_gcn_loss_gt(feats_list, boxes_list, labels_list, image_shapes)
                     loss = gcn_weight * (gcn_loss + repnet_loss)
 
                 scaler.scale(loss).backward()
@@ -705,20 +717,25 @@ for epoch in range(num_epochs):
                 inference_time = end_time - start_time
                 batch_times.append(inference_time)
                 if torch.cuda.is_available():
-                    mem = nvmlDeviceGetMemoryInfo(handle).used / (1024 ** 2)
-                    gpu_memories.append(mem)
-                cpu_memories.append(psutil.virtual_memory().used / (1024 ** 2))
+                    gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                    gpu_memories.append(gpu_mem_used)
+                else:
+                    gpu_mem_used = 0
+                
+                cpu_mem_used = psutil.virtual_memory().used / 1024**2
+                cpu_memories.append(cpu_mem_used)
+
 
                 tepoch.set_postfix({
-                "loss": f"{loss.item():.4f}",
+                "loss": f"{total_loss.item():.4f}",
                 "time (s)": f"{inference_time:.3f}",
-                "GPU Mem (MB)": f"{gpu_memories[-1]:.0f}",
-                "CPU Mem (MB)": f"{cpu_memories[-1]:.0f}"
+                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                 })
 
 
     avg_time = np.mean(batch_times)
-    max_gpu = max(gpu_memories)
+    max_gpu = max(gpu_memories) if gpu_memories else 0
     max_cpu = max(cpu_memories)
     energy = tracker.final_emissions_data.energy_consumed
     co2 = tracker.final_emissions
