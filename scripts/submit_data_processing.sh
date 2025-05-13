@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=faster_rcnn_MobileNet_augmented
+#SBATCH --job-name=data_processing
 #SBATCH --output=outputs/output_data_processed
 #SBATCH --error=outputs/output_data_processed
 #SBATCH --time=06:00:00

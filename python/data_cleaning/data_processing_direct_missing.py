@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 json_file = '/var/scratch/sismail/data/raw/train_annotations.json'
 image_directory = '/var/scratch/sismail/data/images'
-output_json_file = '/var/scratch/sismail/data/raw/cleaned_annotations_direct_missing.json'
 final_output_json = '/var/scratch/sismail/data/processed/final_direct_missing.json'
 
 with open(json_file, 'r') as f:
