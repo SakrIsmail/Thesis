@@ -603,11 +603,12 @@ for epoch in range(num_epochs):
             p.requires_grad = True
 
         print(f"\n=== Teacher Forcing GNN at Epoch {epoch} ===")
-        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+        
+        for t_ep in range(15):
             batch_times, gpu_memories, cpu_memories = [], [], []
-            for t_ep in range(10):
+            with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
                 running = 0.0
-                with tqdm(train_loader, unit="batch", desc=f"[Teacher] {t_ep+1}/10") as tepoch:
+                with tqdm(train_loader, unit="batch", desc=f"[Teacher] {t_ep+1}/15") as tepoch:
                     for images, targets in tepoch:
                         images = [img.to(device) for img in images]
                         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -652,21 +653,21 @@ for epoch in range(num_epochs):
                         })
                         running += total_loss.item()
 
-        avg_time = np.mean(batch_times)
-        max_gpu = max(gpu_memories) if gpu_memories else 0
-        max_cpu = max(cpu_memories)
-        energy = tracker.final_emissions_data.energy_consumed
-        co2 = tracker.final_emissions
-        
-        print(tabulate([
-            ['Teacher Epoch', t_ep+1],
-            ['Avg Loss', f"{running/len(train_loader):.4f}"],
-            ['Avg Time (s)', f"{avg_time:.3f}"],
-            ['Max GPU MB', f"{max_gpu:.0f}"],
-            ['Max CPU MB', f"{max_cpu:.0f}"],
-            ['Energy kWh', f"{energy:.4f}"],
-            ['CO2 kg', f"{co2:.4f}"]
-        ], headers=['Metric','Value'], tablefmt='pretty'))
+            avg_time = np.mean(batch_times)
+            max_gpu = max(gpu_memories) if gpu_memories else 0
+            max_cpu = max(cpu_memories)
+            energy = tracker.final_emissions_data.energy_consumed
+            co2 = tracker.final_emissions
+            
+            print(tabulate([
+                ['Teacher Epoch', t_ep+1],
+                ['Avg Loss', f"{running/len(train_loader):.4f}"],
+                ['Avg Time (s)', f"{avg_time:.3f}"],
+                ['Max GPU MB', f"{max_gpu:.0f}"],
+                ['Max CPU MB', f"{max_cpu:.0f}"],
+                ['Energy kWh', f"{energy:.4f}"],
+                ['CO2 kg', f"{co2:.4f}"]
+            ], headers=['Metric','Value'], tablefmt='pretty'))
 
 
     gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs)
