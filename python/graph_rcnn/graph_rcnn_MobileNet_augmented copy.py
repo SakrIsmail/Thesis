@@ -16,7 +16,6 @@ from torch.amp import GradScaler, autocast
 from torchvision.ops import box_iou
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from torchvision.ops import nms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch_geometric.nn import GATConv
@@ -25,8 +24,6 @@ from torch_geometric.utils import dense_to_sparse
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from torchvision.transforms.functional import to_pil_image
 import seaborn as sns
 
 
@@ -215,86 +212,6 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-def visualize_graphrcnn_step(model,
-                             img_tensor: torch.Tensor,
-                             target: dict,
-                             idx_to_part: dict,
-                             device: torch.device,
-                             save_path: str):
-    """
-    Run one image through the detector & GCN, plot:
-      [ DETECTOR boxes ] | [ RELATION GRAPH ] | [ GCN-REFINED labels ]
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    model.eval()
-
-    img = img_tensor.to(device).unsqueeze(0)
-    with torch.no_grad():
-        # 1) Detector only
-        det = model.detector(img)[0]
-        boxes0  = det['boxes'].cpu()
-        labels0 = det['labels'].cpu()
-
-        # 2) Build graph on RoIs
-        feats = model._get_roi_feats(img, det['boxes'].to(device)).squeeze(0).cpu()
-        edge_index = model._make_edge_index(model.repn(feats.to(device), det['boxes'].to(device))).cpu()
-
-        # 3) GCN
-        geom = model._box_geom(det['boxes'].cpu(), img_tensor.shape[-2:])
-        node_feats = torch.cat([feats, geom], dim=1).to(device)
-        logits = model.agcn(node_feats, edge_index.to(device))
-        labels1 = logits.argmax(1).cpu()
-        boxes1  = det['boxes'][labels1 != 0].cpu()  # drop background if you like
-
-    # Setup canvas
-    fig, axes = plt.subplots(1, 3, figsize=(18,6))
-    pil = to_pil_image(img_tensor.cpu())
-    for ax in axes:
-        ax.imshow(pil)
-        ax.axis('off')
-
-    # A) detector boxes
-    axes[0].set_title("1) Detector")
-    for b,l in zip(boxes0, labels0):
-        x0,y0,x1,y1 = b
-        rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
-                                 linewidth=2, edgecolor='blue', facecolor='none')
-        axes[0].add_patch(rect)
-        axes[0].text(x0, y0, idx_to_part[l.item()],
-                     color='white', fontsize=9,
-                     bbox=dict(facecolor='blue', alpha=0.5))
-
-    # B) relation graph on RoIs
-    axes[1].set_title("2) Relation Graph")
-    # draw nodes at box centers, edges
-    centers = [( (b[0]+b[2])/2, (b[1]+b[3])/2 ) for b in boxes0]
-    for (i,(x,y)) in enumerate(centers):
-        axes[1].plot(x,y,'ro')
-        axes[1].text(x,y, str(i), color='yellow', fontsize=10)
-    # edges
-    src, dst = edge_index
-    for s,d in zip(src, dst):
-        x1,y1 = centers[s]
-        x2,y2 = centers[d]
-        axes[1].annotate("",
-                        xy=(x2,y2), xytext=(x1,y1),
-                        arrowprops=dict(arrowstyle="-", color="white", linewidth=1))
-
-    # C) GCN boxes
-    axes[2].set_title("3) GCN-Refined")
-    for b,l in zip(boxes1, labels1[labels1!=0]):
-        x0,y0,x1,y1 = b
-        rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
-                                 linewidth=2, edgecolor='green', facecolor='none')
-        axes[2].add_patch(rect)
-        axes[2].text(x0, y0, idx_to_part[l.item()],
-                     color='white', fontsize=9,
-                     bbox=dict(facecolor='green', alpha=0.5))
-
-    plt.tight_layout()
-    plt.savefig(save_path, bbox_inches='tight')
-    plt.close(fig)
-
 def evaluate_model(model, data_loader, part_to_idx, device):
     model.eval()
 
@@ -370,13 +287,11 @@ in_feats = detector.roi_heads.box_predictor.cls_score.in_features
 
 detector.roi_heads.box_predictor = FastRCNNPredictor(in_feats, len(train_dataset.all_parts)+1)
 
-
 class RelationProposalNetwork(nn.Module):
     def __init__(self, in_c, hidden_c=256):
         super().__init__()
         self.fc1 = nn.Linear(in_c*2 + 4, hidden_c)
         self.fc2 = nn.Linear(hidden_c, 1)
-
     def forward(self, feats, boxes):
         N, C = feats.size()
         f1 = feats.unsqueeze(1).expand(-1, N, -1)
@@ -392,25 +307,75 @@ class AttentionalGCN(nn.Module):
         super().__init__()
         self.gat1 = GATConv(in_c, hid_c, heads=heads)
         self.gat2 = GATConv(hid_c*heads, out_c, heads=1)
-
     def forward(self, x, edge_index):
         x = torch.relu(self.gat1(x, edge_index))
         return self.gat2(x, edge_index)
+    
 
 class GraphRCNN(nn.Module):
     def __init__(self, detector, num_classes, k=3):
         super().__init__()
         self.detector = detector
-        in_feats = detector.roi_heads.box_predictor.cls_score.in_features
         self.repn = RelationProposalNetwork(in_feats)
         self.agcn = AttentionalGCN(in_feats + 4, 256, num_classes)
         self.k = k
+
         self.log_sigma_gcn    = nn.Parameter(torch.zeros(()))
         self.log_sigma_repnet = nn.Parameter(torch.zeros(()))
 
+    def forward(self, images, targets=None):
+        if self.training:
+            loss_dict = self.detector(images, targets)
+
+            total_loss = sum(loss for loss in loss_dict.values())
+
+            rpn_loss = self.compute_rpn_loss(images, targets)
+            gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
+
+            # total_loss += rpn_loss + gcn_loss + repnet_loss
+            # total_loss += rpn_loss + 0.5 * gcn_loss + 0.1 * repnet_loss
+            
+
+            w_gcn = 0.5 * (gcn_loss   * torch.exp(-self.log_sigma_gcn)
+                          + self.log_sigma_gcn)
+            w_rep = 0.5 * (repnet_loss* torch.exp(-self.log_sigma_repnet)
+                          + self.log_sigma_repnet)
+            
+            loss_dict.update({
+                "rpn_loss": rpn_loss,
+                "gcn_loss": gcn_loss,
+                "repnet_loss": repnet_loss,
+                "w_gcn": w_gcn,
+                "w_rep": w_rep
+            })
+            
+            total_loss += rpn_loss + w_gcn + w_rep
+
+            return total_loss, loss_dict
+
+        dets = self.detector(images)
+        outs = []
+        for img, det in zip(images, dets):
+            boxes = det['boxes']
+            if boxes.numel() == 0:
+                outs.append(det)
+                continue
+
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel = self.repn(feats, boxes)
+            edge_idx = self._make_edge_index(rel)
+            geom = self._box_geom(boxes, img.shape[-2:])
+            node_feats = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(node_feats, edge_idx)
+            det['labels'] = torch.argmax(logits, 1)
+            det['scores'] = torch.softmax(logits, 1).max(1).values
+            outs.append(det)
+
+        return outs
+
     def _get_roi_feats(self, img, boxes):
         fmap = self.detector.backbone(img)
-        roi  = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
+        roi = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
         return self.detector.roi_heads.box_head(roi)
 
     def _make_edge_index(self, scores):
@@ -422,75 +387,73 @@ class GraphRCNN(nn.Module):
     def _box_geom(self, boxes, shape):
         h, w = shape
         nb = boxes.clone()
-        nb[:, [0,2]] /= w
-        nb[:, [1,3]] /= h
-        return torch.stack([nb[:,0], nb[:,1], nb[:,2]-nb[:,0], nb[:,3]-nb[:,1]], dim=1)
+        nb[:, [0, 2]] /= w
+        nb[:, [1, 3]] /= h
+        return torch.stack([nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], 1)
 
-    def forward(self, images, targets=None):
-        if self.training:
-            loss_dict = self.detector(images, targets)
-            total_loss = sum(loss_dict.values())
-            rpn_loss = self.compute_rpn_loss(images, targets)
-            gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
-            w_gcn = 0.5 * (gcn_loss * torch.exp(-self.log_sigma_gcn) + self.log_sigma_gcn)
-            w_rep = 0.5 * (repnet_loss * torch.exp(-self.log_sigma_repnet) + self.log_sigma_repnet)
-            loss_dict.update({"rpn_loss": rpn_loss, "gcn_loss": gcn_loss, "repnet_loss": repnet_loss, "w_gcn": w_gcn, "w_rep": w_rep})
-            total_loss += rpn_loss + w_gcn + w_rep
-            return total_loss, loss_dict
+    def compute_rpn_loss(self, images, targets):
+        images_transformed, targets_transformed = self.detector.transform(images, targets)
 
-        dets = self.detector(images)
-        outs = []
-        for img, det in zip(images, dets):
-            boxes  = det['boxes']
+        features = self.detector.backbone(images_transformed.tensors)
+
+        proposals, rpn_losses = self.detector.rpn(images_transformed, features, targets_transformed)
+
+        rpn_loss = sum(rpn_losses.values())
+
+        return rpn_loss
+
+
+    def compute_gcn_loss(self, images, targets):
+        gcn_preds = []
+        gcn_labels = []
+        total_repnet_loss = 0.0
+
+        for img, target in zip(images, targets):
+            boxes = target['boxes']
+            labels = target['labels']
+
             if boxes.numel() == 0:
-                outs.append(det)
                 continue
 
-            feats      = self._get_roi_feats(img.unsqueeze(0), boxes)
-            rel_scores = self.repn(feats, boxes)
-            edge_idx   = self._make_edge_index(rel_scores)
-            geom       = self._box_geom(boxes, img.shape[-2:])
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel = self.repn(feats, boxes)
+            edge_idx = self._make_edge_index(rel)
+
+            geom = self._box_geom(boxes, img.shape[-2:])
             node_feats = torch.cat([feats, geom], dim=1)
-            logits     = self.agcn(node_feats, edge_idx)
-            scores_all = torch.softmax(logits, dim=1)
+            logits = self.agcn(node_feats, edge_idx)
 
-            scores, labels = scores_all.max(dim=1)
+            gcn_preds.append(logits)
+            gcn_labels.append(labels)
 
-            keep      = (labels != 0) & (scores > 0.3)
-            boxes     = boxes[keep]
-            scores    = scores[keep]
-            labels    = labels[keep]
+            repnet_loss = self.compute_repnet_loss(feats, boxes)
+            total_repnet_loss += repnet_loss
 
-            if boxes.numel() == 0:
-                outs.append({'boxes': boxes, 'scores': scores, 'labels': labels})
-                continue
+        if not gcn_preds:
+            return torch.tensor(0.0, device=images[0].device), torch.tensor(0.0, device=images[0].device)
 
-            # 3) do NMS
-            keep_idx  = nms(boxes, scores, iou_threshold=0.5)
-            boxes_n   = boxes[keep_idx]
-            scores_n  = scores[keep_idx]
-            labels_n  = labels[keep_idx]
+        gcn_preds = torch.cat(gcn_preds)
+        gcn_labels = torch.cat(gcn_labels)
+        gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
 
-            # 4) enforce one box per label
-            final_boxes  = []
-            final_scores = []
-            final_labels = []
-            for c in labels_n.unique():
-                mask = labels_n == c
-                c_scores = scores_n[mask]
-                c_boxes  = boxes_n[mask]
-                best     = c_scores.argmax()
-                final_boxes .append(c_boxes [best])
-                final_scores.append(c_scores[best])
-                final_labels.append(c)
+        return gcn_loss, total_repnet_loss
 
-            outs.append({
-                'boxes':  torch.stack(final_boxes),
-                'scores': torch.stack(final_scores),
-                'labels': torch.stack(final_labels)
-            })
+    
+    def compute_repnet_loss(self, feats, boxes):
+        N = boxes.size(0)
+        if N < 2:
+            return torch.tensor(0.0, device=feats.device)
 
-        return outs
+        rel_scores = self.repn(feats, boxes)
+
+        with torch.no_grad():
+            iou = box_iou(boxes, boxes)
+            target_rel = (iou > 0.1).float()
+
+            target_rel.fill_diagonal_(0)
+
+        loss = nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
+        return loss
     
     def compute_gcn_loss_gt(self, feats_list, boxes_list, labels_list, image_shapes):
         gcn_preds, gcn_labels = [], []
@@ -515,45 +478,6 @@ class GraphRCNN(nn.Module):
 
         gcn_loss = nn.functional.cross_entropy(gcn_preds, gcn_labels)
         return gcn_loss, total_repnet
-
-    def compute_rpn_loss(self, images, targets):
-        images_t, targets_t = self.detector.transform(images, targets)
-        feats = self.detector.backbone(images_t.tensors)
-        _, rpn_losses = self.detector.rpn(images_t, feats, targets_t)
-        return sum(rpn_losses.values())
-
-    def compute_gcn_loss(self, images, targets):
-        gcn_preds, gcn_labels, repnet_sum = [], [], 0.0
-        for img, tgt in zip(images, targets):
-            boxes  = tgt['boxes']
-            labels = tgt['labels']
-            if boxes.numel() == 0: continue
-            feats     = self._get_roi_feats(img.unsqueeze(0), boxes)
-            rel       = self.repn(feats, boxes)
-            edge_idx  = self._make_edge_index(rel)
-            geom      = self._box_geom(boxes, img.shape[-2:])
-            node_feats= torch.cat([feats, geom], dim=1)
-            logits    = self.agcn(node_feats, edge_idx)
-            gcn_preds.append(logits); gcn_labels.append(labels)
-            repnet_sum += self.compute_repnet_loss(feats, boxes)
-        if not gcn_preds:
-            device = images[0].device
-            return torch.tensor(0., device=device), torch.tensor(0., device=device)
-        gcn_preds  = torch.cat(gcn_preds)
-        gcn_labels = torch.cat(gcn_labels)
-        return nn.functional.cross_entropy(gcn_preds, gcn_labels), repnet_sum
-
-    def compute_repnet_loss(self, feats, boxes):
-        N = boxes.size(0)
-        if N < 2:
-            return torch.tensor(0., device=feats.device)
-        rel_scores = self.repn(feats, boxes)
-        with torch.no_grad():
-            iou = box_iou(boxes, boxes)
-            target_rel = (iou > 0.1).float()
-            target_rel.fill_diagonal_(0)
-        return nn.functional.binary_cross_entropy_with_logits(rel_scores, target_rel)
-
 
 def get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs):
     if epoch < freeze_epoch:
@@ -679,12 +603,11 @@ for epoch in range(num_epochs):
             p.requires_grad = True
 
         print(f"\n=== Teacher Forcing GNN at Epoch {epoch} ===")
-        
-        for t_ep in range(20):
+        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
             batch_times, gpu_memories, cpu_memories = [], [], []
-            with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+            for t_ep in range(10):
                 running = 0.0
-                with tqdm(train_loader, unit="batch", desc=f"[Teacher] {t_ep+1}/15") as tepoch:
+                with tqdm(train_loader, unit="batch", desc=f"[Teacher] {t_ep+1}/10") as tepoch:
                     for images, targets in tepoch:
                         images = [img.to(device) for img in images]
                         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -729,21 +652,21 @@ for epoch in range(num_epochs):
                         })
                         running += total_loss.item()
 
-            avg_time = np.mean(batch_times)
-            max_gpu = max(gpu_memories) if gpu_memories else 0
-            max_cpu = max(cpu_memories)
-            energy = tracker.final_emissions_data.energy_consumed
-            co2 = tracker.final_emissions
-            
-            print(tabulate([
-                ['Teacher Epoch', t_ep+1],
-                ['Avg Loss', f"{running/len(train_loader):.4f}"],
-                ['Avg Time (s)', f"{avg_time:.3f}"],
-                ['Max GPU MB', f"{max_gpu:.0f}"],
-                ['Max CPU MB', f"{max_cpu:.0f}"],
-                ['Energy kWh', f"{energy:.4f}"],
-                ['CO2 kg', f"{co2:.4f}"]
-            ], headers=['Metric','Value'], tablefmt='pretty'))
+        avg_time = np.mean(batch_times)
+        max_gpu = max(gpu_memories) if gpu_memories else 0
+        max_cpu = max(cpu_memories)
+        energy = tracker.final_emissions_data.energy_consumed
+        co2 = tracker.final_emissions
+        
+        print(tabulate([
+            ['Teacher Epoch', t_ep+1],
+            ['Avg Loss', f"{running/len(train_loader):.4f}"],
+            ['Avg Time (s)', f"{avg_time:.3f}"],
+            ['Max GPU MB', f"{max_gpu:.0f}"],
+            ['Max CPU MB', f"{max_cpu:.0f}"],
+            ['Energy kWh', f"{energy:.4f}"],
+            ['CO2 kg', f"{co2:.4f}"]
+        ], headers=['Metric','Value'], tablefmt='pretty'))
 
 
     gcn_weight = get_gnn_loss_weights(epoch, freeze_epoch, warmup_epochs)
@@ -804,7 +727,7 @@ for epoch in range(num_epochs):
 
 
                 tepoch.set_postfix({
-                "loss": f"{loss.item():.4f}",
+                "loss": f"{total_loss.item():.4f}",
                 "time (s)": f"{inference_time:.3f}",
                 "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                 "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
@@ -842,7 +765,7 @@ for epoch in range(num_epochs):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         epochs_without_improvement = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth")
         print(f"Saved new best model (macro-F1: {macro_f1:.4f})")
     else:
         epochs_without_improvement += 1
@@ -856,33 +779,14 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth", map_location=device))
+
+
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_v2_model.pth", map_location=device))
 model.to(device)
 
 model.eval()
 
 results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
-
-vis_dir = "/home/sismail/Thesis/visualisations/"
-os.makedirs(vis_dir, exist_ok=True)
-
-for i in range(5):
-    img_tensor, target = valid_dataset[i]
-    save_path = os.path.join(vis_dir, f"sample_augmented_{i}.png")
-    visualize_graphrcnn_step(
-        model,
-        img_tensor,
-        target,
-        train_dataset.idx_to_part,
-        device,
-        save_path
-    )
-
-results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
