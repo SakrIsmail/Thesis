@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
+from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
@@ -284,20 +285,19 @@ model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model.to(device)
 
-learning_rate = 1e-4
-weight_decay = 1e-4
 
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 20
+epochs = 50
+patience = 5
+best_macro_f1 = 0
+no_improve = 0
 
-for epoch in range(num_epochs):
-
+for epoch in range(1, epochs+1):
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
         model.train()
@@ -306,7 +306,7 @@ for epoch in range(num_epochs):
         gpu_memories = []
         cpu_memories = []
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{epoch}") as tepoch:
             for images, targets in tepoch:
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -317,6 +317,7 @@ for epoch in range(num_epochs):
                 loss_dict = model(images, targets)
                 total_loss = sum(loss for loss in loss_dict.values())
                 total_loss.backward()
+                clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
 
                 end_time = time.time()
@@ -345,6 +346,22 @@ for epoch in range(num_epochs):
                 if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
 
+            model.eval()
+            results = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+            parts = list(train_dataset.part_to_idx.values())
+            Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+            Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+            macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve = 0
+                torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth")
+            else:
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
@@ -364,9 +381,6 @@ for epoch in range(num_epochs):
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
-
-torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_augmented_model.pth")
-
 
 if torch.cuda.is_available():
     nvmlShutdown()

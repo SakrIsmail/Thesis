@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=faster_rcnn_MobileNet_baseline
-#SBATCH --output=outputs/faster_rcnn/output_faster_rcnn_MobileNet_baseline
-#SBATCH --error=outputs/faster_rcnn/error_faster_rcnn_MobileNet_baseline
+#SBATCH --job-name=yolo_augmented
+#SBATCH --output=outputs/yolo/output_yolo_augmented
+#SBATCH --error=outputs/yolo/error_yolo_augmented
 #SBATCH --time=24:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
@@ -18,6 +18,6 @@ eval "$(conda shell.bash hook)"
 conda activate /var/scratch/sismail/my_env
 
 # Run your Python script
-python python/faster_rcnn/faster_rcnn_MobileNet_baseline.py 
+python python/yolo/yolo_augmented.py 
 
 conda deactivate

@@ -2,6 +2,7 @@ import os
 import json
 import random
 from tqdm import tqdm
+import logging
 import time
 import psutil
 import gc
@@ -11,14 +12,15 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
-from torch.nn.utils import clip_grad_norm_
+import sys
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
+logging.getLogger("ultralytics").setLevel(logging.ERROR)
+logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
 
 def set_seed(seed: int = 42):
     random.seed(seed)
@@ -164,7 +166,7 @@ class BikePartsDetectionDataset(Dataset):
 train_dataset = BikePartsDetectionDataset(
     annotations_dict=train_annotations,
     image_dir=image_directory,
-    augment=False
+    augment=True
 )
 
 valid_dataset = BikePartsDetectionDataset(
@@ -204,33 +206,98 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-def evaluate_model(model, data_loader, part_to_idx, device):
-    model.eval()
+batch_times, gpu_memories, cpu_memories = [], [], []
+batch_count = 0
+nvml_handle, em_tracker = None, None
+start_time = 0
 
-    all_parts_set = set(part_to_idx.values())
-    results_per_image = []
+def on_train_epoch_start(trainer):
+    global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
+    # reset for new epoch
+    batch_times.clear()
+    gpu_memories.clear()
+    cpu_memories.clear()
+    batch_count = 0
+    # start emissions tracker
+    em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
+    em_tracker.__enter__()
+    # init GPU memory tracking
+    if trainer.device.type == 'cuda':
+        nvmlInit()
+        nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
-    for images, targets in tqdm(data_loader, desc="Evaluating"):
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+def on_train_batch_start(trainer):
+    global start_time
 
-        with torch.no_grad():
-            predictions = model(images)
+    start_time = time.time()   
+    
 
-        for i in range(len(images)):
-            pred_parts = set(predictions[i]['labels'].cpu().numpy().tolist())
-            true_missing_parts = set(targets[i]['missing_labels'].cpu().numpy().tolist())
-            image_id = targets[i]['image_id'].item()
+def on_train_batch_end(trainer):
+    global batch_count, start_time
+    # increment batch counter
+    batch_count += 1
+    # record timing and memory
+    end_time = time.time()
+    inference_time = end_time - start_time
+    batch_times.append(inference_time)
+    if nvml_handle:
+        mi = nvmlDeviceGetMemoryInfo(nvml_handle)
+        gpu_memories.append(mi.used / 1024**2)
+    else:
+        gpu_memories.append(0)
+    cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+    # log metrics separately
+    print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
+          f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
+    gc.collect()
 
-            predicted_missing_parts = all_parts_set - pred_parts
 
-            results_per_image.append({
-                'image_id': image_id,
-                'predicted_missing_parts': predicted_missing_parts,
-                'true_missing_parts': true_missing_parts
+def on_train_epoch_end(trainer):
+    global nvml_handle, em_tracker
+    # stop emissions tracker
+    em_tracker.__exit__(None, None, None)
+    energy = em_tracker.final_emissions_data.energy_consumed
+    co2 = em_tracker.final_emissions
+    # shutdown NVML
+    if nvml_handle:
+        nvmlShutdown()
+    # fetch epoch metrics
+    table = [
+        ['Epoch', trainer.epoch],
+        ['Final Loss', f"{trainer.loss:.4f}"],
+        ['Avg Batch Time (s)', f"{np.mean(batch_times):.4f}"],
+        ['Max GPU Mem (MB)', f"{np.max(gpu_memories):.1f}"],
+        ['Max CPU Mem (MB)', f"{np.max(cpu_memories):.1f}"],
+        ['Energy (kWh)', f"{energy:.4f}"],
+        ['CO₂ (kg)', f"{co2:.4f}"],
+    ]
+    print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
+
+
+def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
+    model.model.to(device).eval()
+    results = []
+
+    for images, targets in tqdm(loader, desc="Eval"):
+        np_images = []
+        for img in images:
+            # img is a tensor [3,H,W] in [0,1]
+            arr = img.cpu().permute(1, 2, 0).numpy()  # H,W,3 float32
+            arr = (arr * 255).clip(0, 255).astype(np.uint8)
+            np_images.append(arr)
+
+        preds = model(np_images, device=device, verbose=False)
+
+        for i, det in enumerate(preds):
+            pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
+            true_missing = set(targets[i]['missing_labels'].tolist())
+            all_parts   = set(part_to_idx.values())
+            results.append({
+                'image_id':             targets[i]['image_id'].item(),
+                'predicted_missing_parts':    all_parts - pred_labels,
+                'true_missing_parts':         true_missing
             })
-
-    return results_per_image
+    return results
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
@@ -276,129 +343,42 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 
-model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
-
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-num_classes = len(train_dataset.all_parts) + 1
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+model = YOLO('yolov8n.pt', verbose=False)
+model.add_callback("on_train_epoch_start", on_train_epoch_start)
+model.add_callback("on_train_batch_start", on_train_batch_start)
+model.add_callback("on_train_batch_end",   on_train_batch_end)
+model.add_callback("on_train_epoch_end",   on_train_epoch_end)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
+model.train(
+    data='/var/scratch/sismail/data/yolo_format/aug/data.yaml',
+    epochs=50,
+    patience=5,
+    batch=16,
+    imgsz=640,
+    optimizer='AdamW',
+    lr0=1e-4,
+    weight_decay=1e-4,
+    workers=4,
+    device=device,
+    seed=42,
+    verbose=False,
+    plots=False,
+    project='/var/scratch/sismail/models/yolo/runs',
+    name='bikeparts_experiment_augmented',
+    exist_ok=True
+)
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
-
-if torch.cuda.is_available():
-    nvmlInit()
-    handle = nvmlDeviceGetHandleByIndex(0)
-
-epochs = 50
-patience = 5
-best_macro_f1 = 0
-no_improve = 0
-
-for epoch in range(1, epochs+1):
-    with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-
-        model.train()
-
-        batch_times = []
-        gpu_memories = []
-        cpu_memories = []
-
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{epoch}") as tepoch:
-            for images, targets in tepoch:
-                images = [image.to(device) for image in images]
-                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-                start_time = time.time()
-
-                optimizer.zero_grad()
-                loss_dict = model(images, targets)
-                total_loss = sum(loss for loss in loss_dict.values())
-                total_loss.backward()
-                clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-
-                end_time = time.time()
-                inference_time = end_time - start_time
-                batch_times.append(inference_time)
-
-                if torch.cuda.is_available():
-                    mem_info = nvmlDeviceGetMemoryInfo(handle)
-                    gpu_mem_used = mem_info.used / (1024 ** 2)
-                    gpu_memories.append(gpu_mem_used)
-                else:
-                    gpu_mem_used = 0
-
-                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-                cpu_memories.append(cpu_mem_used)
-
-                tepoch.set_postfix({
-                    "loss": f"{total_loss.item():.4f}",
-                    "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-                })
-
-                del loss_dict, images, targets
-                gc.collect()
-                if torch.cuda.is_available(): 
-                    torch.cuda.empty_cache()
-
-            model.eval()
-            results = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-            parts = list(train_dataset.part_to_idx.values())
-            Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-            Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-            macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-            if macro_f1 > best_macro_f1:
-                best_macro_f1 = macro_f1
-                no_improve = 0
-                torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth")
-            else:
-                no_improve += 1
-                if no_improve >= patience:
-                    print(f"Early stopping at epoch {epoch}")
-                    break
-
-    energy_consumption = tracker.final_emissions_data.energy_consumed
-    co2_emissions = tracker.final_emissions
-
-    avg_time = sum(batch_times) / len(batch_times)
-    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
-    max_cpu_mem = max(cpu_memories)
-
-    table = [
-        ["Epoch", epoch + 1],
-        ["Final Loss", f"{total_loss.item():.4f}"],
-        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
-        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
-        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
-    ]
-
-    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
-
-if torch.cuda.is_available():
-    nvmlShutdown()
-
-
-model.load_state_dict(torch.load("/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_baseline_model.pth", map_location=device))
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt")
 model.to(device)
+
 
 model.eval()
 
-results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+val_results  = run_yolo_inference(model, valid_loader,  valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+test_results = run_yolo_inference(model, test_loader, test_dataset.part_to_idx, test_dataset.idx_to_part, device)
 
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
-
-results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
-
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
+part_level_evaluation(val_results,  valid_dataset.part_to_idx,  valid_dataset.idx_to_part)
+part_level_evaluation(test_results, test_dataset.part_to_idx, test_dataset.idx_to_part)

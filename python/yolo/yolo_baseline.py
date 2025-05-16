@@ -353,7 +353,8 @@ model.to(device)
 
 model.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=1,
+    epochs=50,
+    patience=5,
     batch=16,
     imgsz=640,
     optimizer='AdamW',
@@ -365,15 +366,12 @@ model.train(
     verbose=False,
     plots=False,
     project='/var/scratch/sismail/models/yolo/runs',
-    name='bikeparts_experiment',
+    name='bikeparts_experiment_baseline',
     exist_ok=True
 )
 
-
-
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment/weights/best.pt")
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_baseline/weights/best.pt")
 model.to(device)
 
 
