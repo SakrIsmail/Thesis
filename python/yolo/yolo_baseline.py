@@ -18,6 +18,10 @@ from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
+print(torch.cuda.is_available())
+print(torch.cuda.device_count())
+print(torch.cuda.get_device_name(0))
+
 
 def set_seed(seed: int = 42):
     random.seed(seed)
@@ -333,6 +337,7 @@ model.add_callback("on_train_epoch_begin", on_train_epoch_begin)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(device)
 model.to(device)
 
 model.train(
