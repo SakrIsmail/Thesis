@@ -209,6 +209,7 @@ em_tracker, nvml_handle = None, None
 
 def on_train_epoch_begin(trainer):
     global batch_times, cpu_memories, gpu_memories, batch_count, em_tracker, nvml_handle
+    print("[DEBUG] ** on_train_epoch_begin called **", file=sys.stderr)
     batch_times.clear(); cpu_memories.clear(); gpu_memories.clear(); batch_count=0
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
     em_tracker.start()
