@@ -336,6 +336,7 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 model = YOLO('yolov8n.pt', verbose=False)
 model.add_callback("on_train_epoch_start", on_train_epoch_start)
+model.add_callback("on_train_batch_start", on_train_batch_start)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
