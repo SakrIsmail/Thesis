@@ -621,7 +621,7 @@ os.makedirs(vis_dir, exist_ok=True)
 
 for i in range(5):
     img_tensor, target = valid_dataset[i]
-    save_path = os.path.join(vis_dir, f"sample_{i}.png")
+    save_path = os.path.join(vis_dir, f"sample_augmented_{i}.png")
     visualize_graphrcnn_step(
         model,
         img_tensor,
