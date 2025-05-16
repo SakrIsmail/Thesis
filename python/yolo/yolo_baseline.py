@@ -279,8 +279,8 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     results = []
 
     for images, targets in tqdm(loader, desc="Eval"):
-        imgs = [img.to(device) for img in images]
-        preds = model.model(imgs)  # raw detect objects
+        images = [img.to(device) for img in images]
+        preds = model(images, device=device, verbose=False)
 
         for i, det in enumerate(preds):
             pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
