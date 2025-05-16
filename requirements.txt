@@ -121,7 +121,7 @@ protobuf==4.25.3
 psutil==7.0.0
 ptyprocess @ file:///home/conda/feedstock_root/build_artifacts/ptyprocess_1733302279685/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl#sha256=92c32ff62b5fd8cf325bec5ab90d7be3d2a8ca8c8a3813ff487a8d2002630d1f
 pure_eval @ file:///home/conda/feedstock_root/build_artifacts/pure_eval_1733569405015/work
-py-cpuinfo==9.0.0
+py-cpuinfo @ file:///work/perseverance-python-buildout/croot/py-cpuinfo_1698865397566/work
 pycparser @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_pycparser_1733195786/work
 pydantic==2.11.4
 pydantic_core==2.33.2
@@ -179,6 +179,7 @@ types-python-dateutil==2.9.0.20241206
 typing-inspection==0.4.0
 typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_typing_extensions_1743820059/work
 tzdata @ file:///home/conda/feedstock_root/build_artifacts/python-tzdata_1742745135198/work
+ultralytics @ file:///home/conda/feedstock_root/build_artifacts/ultralytics_1747232218958/work
 urllib3 @ file:///home/conda/feedstock_root/build_artifacts/urllib3_1708239446578/work
 wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1733231326287/work
 webencodings @ file:///home/conda/feedstock_root/build_artifacts/webencodings_1733236011802/work
