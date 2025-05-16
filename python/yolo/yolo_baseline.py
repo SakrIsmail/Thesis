@@ -1,24 +1,3 @@
-import warnings, logging, tqdm
-
-# 1) Silence that DataLoader warning
-warnings.filterwarnings(
-    "ignore",
-    message=r"This DataLoader will create \d+ worker processes in total.*"
-)
-
-# 2) Silence Ultralytics’ logger
-logging.getLogger("ultralytics").setLevel(logging.ERROR)
-logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
-
-# 3) Monkey-patch tqdm so that only bars whose desc contains "Scanning" get disabled
-_orig_tqdm = tqdm.tqdm
-def _filtered_tqdm(*args, **kwargs):
-    desc = kwargs.get("desc", "")
-    if "Scanning" in desc:
-        kwargs["disable"] = True
-    return _orig_tqdm(*args, **kwargs)
-tqdm.tqdm = _filtered_tqdm
-
 import os
 import json
 import random
