@@ -343,6 +343,7 @@ model.train(
     lr0=1e-4,
     weight_decay=1e-4,
     workers=4,
+    device=device,
     seed=42,
     plots=False,
     project='/var/scratch/sismail/models/yolo/runs',
