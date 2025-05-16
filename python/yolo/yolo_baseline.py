@@ -220,7 +220,7 @@ def on_train_epoch_start(trainer):
     # init GPU memory tracking
     if trainer.device.type == 'cuda':
         nvmlInit()
-        nvml_handle = nvmlDeviceGetHandleByIndex(trainer.device.index)
+        nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
 
 def on_train_batch_end(trainer):
