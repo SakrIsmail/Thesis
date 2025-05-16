@@ -206,6 +206,7 @@ test_loader = DataLoader(
 batch_times, gpu_memories, cpu_memories = [], [], []
 batch_count = 0
 nvml_handle, em_tracker = None, None
+start_time = 0
 
 def on_train_epoch_start(trainer):
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
@@ -222,14 +223,20 @@ def on_train_epoch_start(trainer):
         nvmlInit()
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
+def on_train_batch_start(trainer):
+    global start_time
+
+    start_time = time.time()   
+    
 
 def on_train_batch_end(trainer):
-    global batch_count
+    global batch_count, start_time
     # increment batch counter
     batch_count += 1
     # record timing and memory
-    t = getattr(trainer, 'batch_time', 0.0)
-    batch_times.append(t)
+    end_time = time.time()
+    inference_time = end_time - start_time
+    batch_times.append(inference_time)
     if nvml_handle:
         mi = nvmlDeviceGetMemoryInfo(nvml_handle)
         gpu_memories.append(mi.used / 1024**2)
@@ -237,7 +244,7 @@ def on_train_batch_end(trainer):
         gpu_memories.append(0)
     cpu_memories.append(psutil.virtual_memory().used / 1024**2)
     # log metrics separately
-    print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={t:.3f}s | "
+    print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
           f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
     gc.collect()
 
@@ -252,10 +259,9 @@ def on_train_epoch_end(trainer):
     if nvml_handle:
         nvmlShutdown()
     # fetch epoch metrics
-    loss = trainer.metrics.get('train/loss', 0.0)
     table = [
         ['Epoch', trainer.epoch],
-        ['Final Loss', f"{loss:.4f}"],
+        ['Final Loss', f"{trainer.loss:.4f}"],
         ['Avg Batch Time (s)', f"{np.mean(batch_times):.4f}"],
         ['Max GPU Mem (MB)', f"{np.max(gpu_memories):.1f}"],
         ['Max CPU Mem (MB)', f"{np.max(cpu_memories):.1f}"],
