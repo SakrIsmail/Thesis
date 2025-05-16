@@ -18,10 +18,6 @@ from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
-print(torch.cuda.is_available())
-print(torch.cuda.device_count())
-print(torch.cuda.get_device_name(0))
-
 
 def set_seed(seed: int = 42):
     random.seed(seed)
@@ -207,44 +203,29 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-batch_times, gpu_memories, cpu_memories = [], [], []
+batch_times, cpu_memories, gpu_memories = [], [], []
 batch_count = 0
-nvml_handle, em_tracker = None, None
+em_tracker, nvml_handle = None, None
 
 def on_train_epoch_begin(trainer):
-    global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
-    # reset for new epoch
-    batch_times.clear()
-    gpu_memories.clear()
-    cpu_memories.clear()
-    batch_count = 0
-    # start emissions tracker
+    global batch_times, cpu_memories, gpu_memories, batch_count, em_tracker, nvml_handle
+    batch_times.clear(); cpu_memories.clear(); gpu_memories.clear(); batch_count=0
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
     em_tracker.__enter__()
-    # init GPU memory tracking
-    if trainer.device.type == 'cuda':
-        nvmlInit()
-        nvml_handle = nvmlDeviceGetHandleByIndex(trainer.device.index)
+
 
 
 def on_train_batch_end(trainer):
     global batch_count
-    # increment batch counter
     batch_count += 1
-    # record timing and memory
     t = getattr(trainer, 'batch_time', 0.0)
     batch_times.append(t)
-    if nvml_handle:
-        mi = nvmlDeviceGetMemoryInfo(nvml_handle)
-        gpu_memories.append(mi.used / 1024**2)
-    else:
-        gpu_memories.append(0)
-    cpu_memories.append(psutil.virtual_memory().used / 1024**2)
-    # log metrics separately
-    print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={t:.3f}s | "
-          f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
+    mem = torch.cuda.memory_allocated(trainer.device) / (1024**2)
+    gpu_memories.append(mem)
+    cpu_memories.append(psutil.virtual_memory().used / (1024**2))
+    print(f"[ERR] Batch {batch_count} | loss={trainer.loss:.4f} | time={t:.3f}s | "
+          f"GPU={mem:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
     gc.collect()
-
 
 def on_train_epoch_end(trainer):
     global nvml_handle, em_tracker
@@ -332,17 +313,16 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 
-model = YOLO('yolov8n.pt')
+model = YOLO('yolov8n.pt', verbose=False)
 model.add_callback("on_train_epoch_begin", on_train_epoch_begin)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(device)
 model.to(device)
 
 model.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=20,
+    epochs=30,
     batch=16,
     imgsz=640,
     optimizer='AdamW',
@@ -361,7 +341,7 @@ torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_baseline.p
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("yolov8n.pt")
+model = YOLO("yolov8n.pt", verbose=False)
 model.model.load_state_dict(torch.load("/var/scratch/sismail/models/yolo/yolo_baseline.pth", map_location=device))
 model.to(device)
 
