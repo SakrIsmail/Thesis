@@ -2,6 +2,7 @@ import os
 import json
 import random
 from tqdm import tqdm
+import logging
 import time
 import psutil
 import gc
@@ -18,6 +19,8 @@ from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
+logging.getLogger("ultralytics").setLevel(logging.ERROR)
+logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
 
 def set_seed(seed: int = 42):
     random.seed(seed)
@@ -344,7 +347,7 @@ model.to(device)
 
 model.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=20,
+    epochs=1,
     batch=16,
     imgsz=640,
     optimizer='AdamW',
@@ -353,13 +356,14 @@ model.train(
     workers=4,
     device=device,
     seed=42,
+    verbose=False,
     plots=False,
     project='/var/scratch/sismail/models/yolo/runs',
     name='bikeparts_experiment'
 )
 
 
-torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_baseline.pth")
+torch.save(model.model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_baseline.pth")
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
