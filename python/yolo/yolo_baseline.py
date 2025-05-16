@@ -333,6 +333,7 @@ model.add_callback("on_train_epoch_begin", on_train_epoch_begin)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
 
 model.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
