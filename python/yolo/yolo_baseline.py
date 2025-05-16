@@ -279,8 +279,14 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     results = []
 
     for images, targets in tqdm(loader, desc="Eval"):
-        images = [img.to(device) for img in images]
-        preds = model(images, device=device, verbose=False)
+        np_images = []
+        for img in images:
+            # img is a tensor [3,H,W] in [0,1]
+            arr = img.cpu().permute(1, 2, 0).numpy()  # H,W,3 float32
+            arr = (arr * 255).clip(0, 255).astype(np.uint8)
+            np_images.append(arr)
+
+        preds = model(np_images, device=device, verbose=False)
 
         for i, det in enumerate(preds):
             pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
