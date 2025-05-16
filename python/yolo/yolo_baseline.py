@@ -367,7 +367,7 @@ model.train(
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/train/bikeparts_experiment/weights/best.pt")
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment/weights/best.pt")
 model.to(device)
 
 
