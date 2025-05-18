@@ -278,12 +278,11 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    weights_dir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    os.makedirs(weights_dir, exist_ok=True)
-    ckpt_path = os.path.join(weights_dir, f'epoch{trainer.epoch}.pt')
-    trainer.model.save(ckpt_path) 
-    
-    model = YOLO(ckpt_path)
+    trainer.save_model()
+
+    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    last_path = os.path.join(wdir, 'last.pt')  
+    model = YOLO(last_path)  
     model.to(device).eval()
     results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 
@@ -297,7 +296,7 @@ def on_train_epoch_end(trainer):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         no_improve_epochs = 0
-        shutil.copy(ckpt_path, os.path.join(weights_dir, 'best.pt'))
+        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
     else:
         no_improve_epochs += 1
         if no_improve_epochs >= patience:
