@@ -1,4 +1,5 @@
 import os
+import shutil
 import json
 import random
 from tqdm import tqdm
@@ -277,12 +278,13 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    current_weights_path = f"/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_augmented/weights/last.pt"
-    torch.save(trainer.model.state_dict(), current_weights_path)
+    weights_dir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    os.makedirs(weights_dir, exist_ok=True)
+    ckpt_path = os.path.join(weights_dir, f'epoch{trainer.epoch}.pt')
+    trainer.save(ckpt_path) 
     
-    model = YOLO(current_weights_path)
-    model.to(device)
-    model.eval()
+    model = YOLO(ckpt_path)
+    model.to(device).eval()
     results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 
     parts = list(valid_dataset.part_to_idx.values())
@@ -295,7 +297,7 @@ def on_train_epoch_end(trainer):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         no_improve_epochs = 0
-        torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt")
+        shutil.copy(ckpt_path, os.path.join(weights_dir, 'best.pt'))
     else:
         no_improve_epochs += 1
         if no_improve_epochs >= patience:
