@@ -276,7 +276,11 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    model = trainer.model
+    current_weights_path = f"/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_baseline/weights/last.pt"
+    torch.save(trainer.model.state_dict(), current_weights_path)
+    
+    model = YOLO(current_weights_path)
+    model.to(device)
     model.eval()
     results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 
@@ -310,7 +314,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
             arr = (arr * 255).clip(0, 255).astype(np.uint8)
             np_images.append(arr)
 
-        preds = model(np_images, verbose=False)
+        preds = model(np_images, device=device, verbose=False)
 
         for i, det in enumerate(preds):
             pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
