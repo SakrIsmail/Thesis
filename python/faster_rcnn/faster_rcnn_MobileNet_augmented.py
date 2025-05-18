@@ -317,7 +317,6 @@ for epoch in range(1, epochs+1):
                 loss_dict = model(images, targets)
                 total_loss = sum(loss for loss in loss_dict.values())
                 total_loss.backward()
-                clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
 
                 end_time = time.time()
@@ -371,7 +370,7 @@ for epoch in range(1, epochs+1):
     max_cpu_mem = max(cpu_memories)
 
     table = [
-        ["Epoch", epoch + 1],
+        ["Epoch", epoch],
         ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],

@@ -78,8 +78,8 @@ test_annotations = {
 class BikePartsDetectionDataset(Dataset):
     def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
         self.all_parts = annotations_dict['all_parts']
-        self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
-        self.idx_to_part = {idx + 1: part for idx, part in enumerate(self.all_parts)}
+        self.part_to_idx = {part: idx for idx, part in enumerate(self.all_parts)}
+        self.idx_to_part = {idx: part for idx, part in enumerate(self.all_parts)}
         self.image_data = annotations_dict['images']
         self.image_filenames = list(self.image_data.keys())
         self.image_dir = image_dir
@@ -343,7 +343,7 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 
-model = YOLO('yolov8n.pt', verbose=False)
+model = YOLO('yolov8m.pt', verbose=False)
 model.add_callback("on_train_epoch_start", on_train_epoch_start)
 model.add_callback("on_train_batch_start", on_train_batch_start)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
