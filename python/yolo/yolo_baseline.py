@@ -310,7 +310,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
             arr = (arr * 255).clip(0, 255).astype(np.uint8)
             np_images.append(arr)
 
-        preds = model(np_images, device=device, verbose=False)
+        preds = model(np_images, verbose=False)
 
         for i, det in enumerate(preds):
             pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
