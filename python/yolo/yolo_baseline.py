@@ -280,7 +280,7 @@ def on_train_epoch_end(trainer):
     weights_dir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     os.makedirs(weights_dir, exist_ok=True)
     ckpt_path = os.path.join(weights_dir, f'epoch{trainer.epoch}.pt')
-    trainer.save(ckpt_path) 
+    trainer.model.save(ckpt_path) 
     
     model = YOLO(ckpt_path)  # correctly loads the script model
     model.to(device).eval()
