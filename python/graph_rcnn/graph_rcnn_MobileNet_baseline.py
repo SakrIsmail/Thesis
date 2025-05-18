@@ -511,7 +511,7 @@ opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
 
 epochs = 2
-freeze_epoch = 1
+freeze_epoch = 2
 patience = 5
 detector_best_macro_f1 = 0
 detector_no_improve = 0
