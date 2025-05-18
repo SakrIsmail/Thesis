@@ -510,8 +510,8 @@ graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
 
-epochs = 50
-freeze_epoch = 20
+epochs = 2
+freeze_epoch = 1
 patience = 5
 detector_best_macro_f1 = 0
 detector_no_improve = 0
@@ -594,7 +594,7 @@ for epoch in range(1, epochs+1):
         if macro_f1 > detector_best_macro_f1:
             detector_best_macro_f1 = macro_f1
             detector_no_improve = 0
-            torch.save(model.detector.state_dict(), "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth")
+            torch.save(model.detector.state_dict(), "/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_baseline_model.pth")
         else:
             detector_no_improve += 1
             if detector_no_improve >= patience:
@@ -603,7 +603,7 @@ for epoch in range(1, epochs+1):
                 
         continue
 
-    model.detector.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_baseline_model.pth"))
+    model.detector.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_baseline_model.pth"))
 
     for p in detector_params:
         p.requires_grad = False
@@ -614,7 +614,7 @@ for epoch in range(1, epochs+1):
         model.train()
         batch_times, gpu_memories, cpu_memories = [], [], []
 
-        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch-freeze_epoch}/{epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch + 1 - freeze_epoch}/{epochs - freeze_epoch}") as tepoch:
             for images, targets in tepoch:
                 images = [img.to(device) for img in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]

@@ -614,7 +614,7 @@ for epoch in range(1, epochs+1):
         model.train()
         batch_times, gpu_memories, cpu_memories = [], [], []
 
-        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch-freeze_epoch}/{epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch + 1 - freeze_epoch}/{epochs - freeze_epoch}") as tepoch:
             for images, targets in tepoch:
                 images = [img.to(device) for img in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -673,7 +673,7 @@ for epoch in range(1, epochs+1):
     if macro_f1 > joint_best_macro_f1:
         joint_best_macro_f1 = macro_f1
         joiny_no_improve = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth")
+        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth")
     else:
         joiny_no_improve += 1
         if joiny_no_improve >= patience:
@@ -685,7 +685,7 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth", map_location=device))
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth", map_location=device))
 model.to(device)
 
 model.eval()
