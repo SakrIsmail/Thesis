@@ -206,6 +206,7 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_times, gpu_memories, cpu_memories = [], [], []
 batch_count = 0
 nvml_handle, em_tracker = None, None
@@ -256,7 +257,7 @@ def on_train_batch_end(trainer):
 
 
 def on_train_epoch_end(trainer):
-    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader
+    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
 
     em_tracker.__exit__(None, None, None)
     energy = em_tracker.final_emissions_data.energy_consumed
@@ -277,7 +278,7 @@ def on_train_epoch_end(trainer):
 
     model = trainer.model
     model.eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
+    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -371,7 +372,6 @@ model.add_callback("on_train_epoch_start", on_train_epoch_start)
 model.add_callback("on_train_batch_start", on_train_batch_start)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 model.train(
