@@ -510,8 +510,8 @@ graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
 
-epochs = 2
-freeze_epoch = 2
+epochs = 50
+freeze_epoch = 20
 patience = 5
 detector_best_macro_f1 = 0
 detector_no_improve = 0
@@ -530,7 +530,7 @@ for epoch in range(1, epochs+1):
         with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
             model.detector.train()
             batch_times, gpu_memories, cpu_memories = [], [], []
-            with tqdm(train_loader, unit="batch", desc=f"Detector Epoch {epoch+1}/{freeze_epoch}") as tepoch:
+            with tqdm(train_loader, unit="batch", desc=f"Detector Epoch {epoch}/{freeze_epoch}") as tepoch:
                 for images, targets in tepoch:
                     images = [img.to(device) for img in images]
                     targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -614,7 +614,7 @@ for epoch in range(1, epochs+1):
         model.train()
         batch_times, gpu_memories, cpu_memories = [], [], []
 
-        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch + 1 - freeze_epoch}/{epochs - freeze_epoch}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch - freeze_epoch + 1}/{epochs - freeze_epoch + 1}") as tepoch:
             for images, targets in tepoch:
                 images = [img.to(device) for img in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
