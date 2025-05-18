@@ -575,7 +575,7 @@ for epoch in range(1, epochs+1):
         energy = tracker.final_emissions_data.energy_consumed
         co2 = tracker.final_emissions
         print(tabulate([
-            ['Epoch', epoch+1],
+            ['Detector Epoch', epoch],
             ['Detector Loss', f"{total_loss.item():.4f}"],
             ['Avg Batch Time (s)', f"{avg_time:.3f}"],
             ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
@@ -652,7 +652,7 @@ for epoch in range(1, epochs+1):
     energy = tracker.final_emissions_data.energy_consumed
     co2 = tracker.final_emissions
     print(tabulate([
-        ['Epoch', epoch+1],
+        ['Joint Epoch', epoch - freeze_epoch + 1],
         ['GNN Loss', f"{total_loss.item():.4f}"],
         ['Avg Batch Time (s)', f"{avg_time:.3f}"],
         ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
