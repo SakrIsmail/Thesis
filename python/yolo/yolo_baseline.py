@@ -388,6 +388,7 @@ model.train(
     lr0=1e-4,
     weight_decay=1e-4,
     workers=4,
+    autoanchor=False,
     device=device,
     seed=42,
     verbose=False,

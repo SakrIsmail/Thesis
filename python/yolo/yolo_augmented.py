@@ -39,8 +39,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/sismail/data/images'
+final_output_json='/var/scratch/$USER/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/$USER/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -381,7 +381,7 @@ model.add_callback("on_train_epoch_end",   on_train_epoch_end)
 model.to(device)
 
 model.train(
-    data='/var/scratch/sismail/data/yolo_format/aug/data.yaml',
+    data='/var/scratch/$USER/data/yolo_format/aug/data.yaml',
     epochs=50,
     batch=16,
     imgsz=640,
@@ -389,17 +389,18 @@ model.train(
     lr0=1e-4,
     weight_decay=1e-4,
     workers=4,
+    autoanchor=False,
     device=device,
     seed=42,
     verbose=False,
     plots=False,
-    project='/var/scratch/sismail/models/yolo/runs',
+    project='/var/scratch/$USER/models/yolo/runs',
     name='bikeparts_experiment_augmented',
     exist_ok=True
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt")
+model = YOLO("/var/scratch/$USER/models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt")
 model.to(device)
 
 
