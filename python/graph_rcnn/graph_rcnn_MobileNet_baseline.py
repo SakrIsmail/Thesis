@@ -19,12 +19,7 @@ from torchvision.ops import nms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch_geometric.nn import GATConv
-from pynvml import (
-    nvmlInit,
-    nvmlDeviceGetHandleByIndex,
-    nvmlDeviceGetMemoryInfo,
-    nvmlShutdown,
-)
+from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -49,9 +44,7 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json = (
-    "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
-)
+final_output_json = ("/var/scratch/sismail/data/processed/final_annotations_without_occluded.json")
 image_directory = "/var/scratch/sismail/data/images"
 
 test_ratio = 0.2
@@ -248,44 +241,44 @@ def evaluate_model(model, loader, part_to_idx, device):
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
     parts = list(part_to_idx.values())
-    Yt = np.array(
-        [[1 if p in r["true_missing_parts"] else 0 for p in parts] for r in results]
-    )
-    Yp = np.array(
-        [
-            [1 if p in r["predicted_missing_parts"] else 0 for p in parts]
-            for r in results
-        ]
-    )
-    micro = f1_score(Yt, Yp, average="micro", zero_division=0)
-    macro = f1_score(Yt, Yp, average="macro", zero_division=0)
-    fn = np.logical_and(Yt == 1, Yp == 0).sum()
-    tp = np.logical_and(Yt == 1, Yp == 1).sum()
-    fp = np.logical_and(Yt == 0, Yp == 1).sum()
-    miss_rate = fn / (fn + tp) if fn + tp > 0 else 0
-    fppi = fp / len(results)
-    acc = accuracy_score(Yt.flatten(), Yp.flatten())
-    prec = precision_score(Yt.flatten(), Yp.flatten(), zero_division=0)
-    rec = recall_score(Yt.flatten(), Yp.flatten(), zero_division=0)
-    f1 = f1_score(Yt.flatten(), Yp.flatten(), zero_division=0)
-    print(
-        f"Micro-F1: {micro:.4f}  Macro-F1: {macro:.4f}  MissRate: {miss_rate:.4f}  FPPI: {fppi:.4f}"
-    )
-    print(f"Acc: {acc:.4f}  Prec: {prec:.4f}  Rec: {rec:.4f}  F1: {f1:.4f}")
-    table = []
-    for j, p in enumerate(parts):
-        a = accuracy_score(Yt[:, j], Yp[:, j])
-        p_ = precision_score(Yt[:, j], Yp[:, j], zero_division=0)
-        r_ = recall_score(Yt[:, j], Yp[:, j], zero_division=0)
-        f_ = f1_score(Yt[:, j], Yp[:, j], zero_division=0)
-        table.append(
-            [idx_to_part[p], f"{a:.3f}", f"{p_:.3f}", f"{r_:.3f}", f"{f_:.3f}"]
-        )
-    print(
-        tabulate(
-            table, headers=["Part", "Acc", "Prec", "Rec", "F1"], tablefmt="fancy_grid"
-        )
-    )
+
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+
+    micro_f1 = f1_score(Y_true, Y_pred, average='micro', zero_division=0)
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+    FN = np.logical_and(Y_true==1, Y_pred==0).sum()
+    TP = np.logical_and(Y_true==1, Y_pred==1).sum()
+    FP = np.logical_and(Y_true==0, Y_pred==1).sum()
+
+    N_images = len(results)
+    miss_rate = FN/(FN+TP) if (FN+TP)>0 else 0
+    fppi = FP/N_images
+
+    overall_acc = accuracy_score(Y_true.flatten(), Y_pred.flatten())
+    overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_rec = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    print(f"[METRIC] Micro-F1: {micro_f1:.4f}")
+    print(f"[METRIC] Macro-F1: {macro_f1:.4f}")
+    print(f"[METRIC] Miss Rate: {miss_rate:.4f}")
+    print(f"[METRIC] FPPI: {fppi:.4f}")
+    print(f"[METRIC] Overall Acc: {overall_acc:.4f}")
+    print(f"[METRIC] Precision: {overall_prec:.4f}")
+    print(f"[METRIC] Recall: {overall_rec:.4f}")
+    print(f"[METRIC] F1: {overall_f1:.4f}")
+    
+    table=[]
+    for j,p in enumerate(parts):
+        acc = accuracy_score(Y_true[:,j], Y_pred[:,j])
+        prec = precision_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        rec = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        f1s = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
+
+    print("[METRIC-TABLE] Per-Part Evaluation")
+    print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
 detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
@@ -334,13 +327,12 @@ class GraphRCNN(nn.Module):
         cls_hidden=512,
     ):
         super().__init__()
-        # reuse detector pieces
         self.transform = detector.transform
         self.backbone = detector.backbone
         self.rpn = detector.rpn
         self.roi_pool = detector.roi_heads.box_roi_pool
         self.box_head = detector.roi_heads.box_head
-        self.detector = detector  # for indirect inference
+        self.detector = detector
         self.k = topk
         self.num_parts = num_parts
 
@@ -348,7 +340,6 @@ class GraphRCNN(nn.Module):
         self.repn = RelationProposalNetwork(feat_dim)
         self.agcn = AttentionalGCN(feat_dim + 4, gcn_hidden, gcn_hidden)
 
-        # presence‐head
         self.classifier = nn.Sequential(
             nn.Linear(gcn_hidden, cls_hidden),
             nn.ReLU(inplace=True),
@@ -356,7 +347,6 @@ class GraphRCNN(nn.Module):
         )
 
     def forward(self, images, targets=None):
-        # --- TRAINING: unchanged from your code ---
         if self.training:
             loss_dict = self.detector(images, targets)
             base_loss = sum(loss_dict.values())
@@ -371,77 +361,82 @@ class GraphRCNN(nn.Module):
             )
             return total_loss, loss_dict
 
-        # --- EVAL: only output present‐parts per image ----
         dets = self.detector(images)
         outputs = []
         for img, det in zip(images, dets):
             boxes = det["boxes"]
             if boxes.numel() == 0:
-                # no detections → no parts present
                 outputs.append({"present_parts": []})
                 continue
 
-            # 1) get per‐RoI features
             feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
-            # 2) relation, edges, geom
             rel_scores = self.repn(feats, boxes)
             edge_index = self._make_edge_index(rel_scores)
             geom = self._box_geom(boxes, img.shape[-2:])
 
-            # 3) GCN over (feat ⊕ geom)
             node_feats = torch.cat([feats, geom], dim=1)
             logits = self.agcn(node_feats, edge_index)
-            # 4) class probabilities
             probs = torch.softmax(logits, dim=1)
 
-            # 5) pick best label per node
             new_scores, new_labels = probs.max(dim=1)
-            # 6) optionally threshold on score (keep only confident)
             keep = new_labels != 0
             new_labels = new_labels[keep]
 
-            # 7) remove duplicates: we only care which parts appear
             present = torch.unique(new_labels).tolist()
 
             outputs.append({"present_parts": present})
 
         return outputs
-    
+
     def _get_roi_feats(self, img, boxes):
         fmap = self.detector.backbone(img)
-        roi  = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
+        roi = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
         return self.detector.roi_heads.box_head(roi)
-    
+
     def _make_edge_index(self, scores):
         idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
         src = idx.flatten()
-        dst = torch.arange(scores.size(0), device=scores.device).unsqueeze(1).expand(-1, self.k).flatten()
+        dst = (
+            torch.arange(scores.size(0), device=scores.device)
+            .unsqueeze(1)
+            .expand(-1, self.k)
+            .flatten()
+        )
         return torch.stack([dst, src], 0)
-    
+
     def _box_geom(self, boxes, shape):
         h, w = shape
         nb = boxes.clone()
-        nb[:, [0,2]] /= w
-        nb[:, [1,3]] /= h
-        return torch.stack([nb[:,0], nb[:,1], nb[:,2]-nb[:,0], nb[:,3]-nb[:,1]], dim=1)
-    
+        nb[:, [0, 2]] /= w
+        nb[:, [1, 3]] /= h
+        return torch.stack(
+            [nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], dim=1
+        )
+
     def compute_gcn_loss(self, images, targets):
         gcn_preds, gcn_labels, rep_sum = [], [], 0.0
         for img, tgt in zip(images, targets):
-            boxes  = tgt['boxes']
-            labels = tgt['labels']
-            if boxes.numel() < 2: continue
+            boxes = tgt["boxes"]
+            labels = tgt["labels"]
+            if boxes.numel() < 2:
+                continue
             feats = self._get_roi_feats(img.unsqueeze(0), boxes)
-            rel   = self.repn(feats, boxes)
-            edge  = self._make_edge_index(rel)
-            geom  = self._box_geom(boxes, img.shape[-2:])
-            nf    = torch.cat([feats, geom], dim=1)
-            logits= self.agcn(nf, edge)
-            gcn_preds.append(logits); gcn_labels.append(labels)
-            rep_sum += nn.functional.binary_cross_entropy_with_logits(rel, (box_iou(boxes, boxes)>0.1).float(), reduction='mean')
+            rel = self.repn(feats, boxes)
+            edge = self._make_edge_index(rel)
+            geom = self._box_geom(boxes, img.shape[-2:])
+            nf = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(nf, edge)
+            gcn_preds.append(logits)
+            gcn_labels.append(labels)
+            rep_sum += nn.functional.binary_cross_entropy_with_logits(
+                rel, (box_iou(boxes, boxes) > 0.1).float(), reduction="mean"
+            )
         if not gcn_preds:
-            return torch.tensor(0., device=images[0].device), torch.tensor(0., device=images[0].device)
-        pred = torch.cat(gcn_preds); lab = torch.cat(gcn_labels)
+            return torch.tensor(0.0, device=images[0].device), torch.tensor(
+                0.0, device=images[0].device
+            )
+        pred = torch.cat(gcn_preds)
+        lab = torch.cat(gcn_labels)
         return nn.functional.cross_entropy(pred, lab), rep_sum
 
 
@@ -455,7 +450,7 @@ if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-epochs = 1
+epochs = 50
 patience = 5
 best_macro_f1 = 0
 no_improve = 0
@@ -566,7 +561,7 @@ for epoch in range(1, epochs + 1):
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
-    
+
 if torch.cuda.is_available():
     nvmlShutdown()
 
@@ -591,7 +586,7 @@ part_level_evaluation(
 
 results_per_image = evaluate_model(
     model, test_loader, train_dataset.part_to_idx, device
-)
+)   
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part

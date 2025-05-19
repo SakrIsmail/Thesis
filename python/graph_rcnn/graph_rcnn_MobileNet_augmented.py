@@ -26,17 +26,17 @@ import matplotlib.patches as patches
 from torchvision.transforms.functional import to_pil_image
 
 
-
-
 def set_seed(seed: int = 42):
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+
 set_seed(42)
+
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % (2**32)
@@ -44,17 +44,17 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/sismail/data/images'
+final_output_json = ("/var/scratch/sismail/data/processed/final_annotations_without_occluded.json")
+image_directory = "/var/scratch/sismail/data/images"
 
 test_ratio = 0.2
 valid_ratio = 0.1
 random_seed = 42
 
-with open(final_output_json, 'r') as f:
+with open(final_output_json, "r") as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations['images'].keys())
+image_filenames = list(annotations["images"].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -67,27 +67,34 @@ valid_images = train_images[:num_valid]
 train_images = train_images[num_valid:]
 
 train_annotations = {
-    'all_parts': annotations['all_parts'],
-    'images': {img_name: annotations['images'][img_name] for img_name in train_images}
+    "all_parts": annotations["all_parts"],
+    "images": {img_name: annotations["images"][img_name] for img_name in train_images},
 }
 
 valid_annotations = {
-    'all_parts': annotations['all_parts'],
-    'images': {img_name: annotations['images'][img_name] for img_name in valid_images}
+    "all_parts": annotations["all_parts"],
+    "images": {img_name: annotations["images"][img_name] for img_name in valid_images},
 }
 
 test_annotations = {
-    'all_parts': annotations['all_parts'],
-    'images': {img_name: annotations['images'][img_name] for img_name in test_images}
+    "all_parts": annotations["all_parts"],
+    "images": {img_name: annotations["images"][img_name] for img_name in test_images},
 }
 
 
 class BikePartsDetectionDataset(Dataset):
-    def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
-        self.all_parts = annotations_dict['all_parts']
+    def __init__(
+        self,
+        annotations_dict,
+        image_dir,
+        transform=None,
+        augment=True,
+        target_size=(640, 640),
+    ):
+        self.all_parts = annotations_dict["all_parts"]
         self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
         self.idx_to_part = {idx + 1: part for idx, part in enumerate(self.all_parts)}
-        self.image_data = annotations_dict['images']
+        self.image_data = annotations_dict["images"]
         self.image_filenames = list(self.image_data.keys())
         self.image_dir = image_dir
         self.transform = transform
@@ -105,11 +112,17 @@ class BikePartsDetectionDataset(Dataset):
             boxes[:, [0, 2]] = w - boxes[:, [2, 0]]
 
         if random.random() < 0.8:
-            image = transforms.functional.adjust_brightness(image, brightness_factor=random.uniform(0.6, 1.4))
+            image = transforms.functional.adjust_brightness(
+                image, brightness_factor=random.uniform(0.6, 1.4)
+            )
         if random.random() < 0.8:
-            image = transforms.functional.adjust_contrast(image, contrast_factor=random.uniform(0.6, 1.4))
+            image = transforms.functional.adjust_contrast(
+                image, contrast_factor=random.uniform(0.6, 1.4)
+            )
         if random.random() < 0.5:
-            image = transforms.functional.adjust_saturation(image, saturation_factor=random.uniform(0.7, 1.3))
+            image = transforms.functional.adjust_saturation(
+                image, saturation_factor=random.uniform(0.7, 1.3)
+            )
 
         return image, boxes
 
@@ -120,23 +133,23 @@ class BikePartsDetectionDataset(Dataset):
         img_filename = self.image_filenames[real_idx]
         img_path = os.path.join(self.image_dir, img_filename)
 
-        image = Image.open(img_path).convert('RGB')
+        image = Image.open(img_path).convert("RGB")
         orig_width, orig_height = image.size
 
         annotation = self.image_data[img_filename]
-        available_parts_info = annotation['available_parts']
-        missing_parts_names = annotation.get('missing_parts', [])
+        available_parts_info = annotation["available_parts"]
+        missing_parts_names = annotation.get("missing_parts", [])
 
         boxes = []
         labels = []
 
         for part_info in available_parts_info:
-            part_name = part_info['part_name']
-            bbox = part_info['absolute_bounding_box']
-            xmin = bbox['left']
-            ymin = bbox['top']
-            xmax = xmin + bbox['width']
-            ymax = ymin + bbox['height']
+            part_name = part_info["part_name"]
+            bbox = part_info["absolute_bounding_box"]
+            xmin = bbox["left"]
+            ymin = bbox["top"]
+            xmax = xmin + bbox["width"]
+            ymax = ymin + bbox["height"]
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(self.part_to_idx[part_name])
 
@@ -156,36 +169,29 @@ class BikePartsDetectionDataset(Dataset):
         image = transforms.functional.to_tensor(image)
 
         missing_labels = torch.tensor(
-            [self.part_to_idx[part] for part in missing_parts_names],
-            dtype=torch.int64
+            [self.part_to_idx[part] for part in missing_parts_names], dtype=torch.int64
         )
 
         target = {
-            'boxes': boxes,
-            'labels': labels,
-            'missing_labels': missing_labels,
-            'image_id': torch.tensor([real_idx])
+            "boxes": boxes,
+            "labels": labels,
+            "missing_labels": missing_labels,
+            "image_id": torch.tensor([real_idx]),
         }
 
         return image, target
 
 
 train_dataset = BikePartsDetectionDataset(
-    annotations_dict=train_annotations,
-    image_dir=image_directory,
-    augment=True
+    annotations_dict=train_annotations, image_dir=image_directory, augment=True
 )
 
 valid_dataset = BikePartsDetectionDataset(
-    annotations_dict=valid_annotations,
-    image_dir=image_directory,
-    augment=False
+    annotations_dict=valid_annotations, image_dir=image_directory, augment=False
 )
 
 test_dataset = BikePartsDetectionDataset(
-    annotations_dict=test_annotations,
-    image_dir=image_directory,
-    augment=False
+    annotations_dict=test_annotations, image_dir=image_directory, augment=False
 )
 
 train_loader = DataLoader(
@@ -194,7 +200,7 @@ train_loader = DataLoader(
     batch_size=16,
     shuffle=True,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch))
+    collate_fn=lambda batch: tuple(zip(*batch)),
 )
 
 valid_loader = DataLoader(
@@ -202,7 +208,7 @@ valid_loader = DataLoader(
     batch_size=16,
     shuffle=False,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch))
+    collate_fn=lambda batch: tuple(zip(*batch)),
 )
 
 test_loader = DataLoader(
@@ -210,110 +216,27 @@ test_loader = DataLoader(
     batch_size=16,
     shuffle=False,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch))
+    collate_fn=lambda batch: tuple(zip(*batch)),
 )
 
-def visualize_graphrcnn_step(model,
-                             img_tensor: torch.Tensor,
-                             target: dict,
-                             idx_to_part: dict,
-                             device: torch.device,
-                             save_path: str):
-    """
-    Run one image through the detector & GCN, plot:
-      [ DETECTOR boxes ] | [ RELATION GRAPH ] | [ GCN-REFINED labels ]
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+def evaluate_model(model, loader, part_to_idx, device):
     model.eval()
-
-    img = img_tensor.to(device).unsqueeze(0)
-    with torch.no_grad():
-        det = model.detector(img)[0]
-        boxes0  = det['boxes'].cpu()
-        labels0 = det['labels'].cpu()
-
-        feats = model._get_roi_feats(img, det['boxes'].to(device)).squeeze(0).cpu()
-        edge_index = model._make_edge_index(model.repn(feats.to(device), det['boxes'].to(device))).cpu()
-
-        geom = model._box_geom(det['boxes'].cpu(), img_tensor.shape[-2:])
-        node_feats = torch.cat([feats, geom], dim=1).to(device)
-        logits = model.agcn(node_feats, edge_index.to(device))
-        labels1 = logits.argmax(1).cpu()
-        boxes1  = det['boxes'][labels1 != 0].cpu()
-
-    fig, axes = plt.subplots(1, 3, figsize=(18,6))
-    pil = to_pil_image(img_tensor.cpu())
-    for ax in axes:
-        ax.imshow(pil)
-        ax.axis('off')
-
-    axes[0].set_title("1) Detector")
-    for b,l in zip(boxes0, labels0):
-        x0,y0,x1,y1 = b
-        rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
-                                 linewidth=2, edgecolor='blue', facecolor='none')
-        axes[0].add_patch(rect)
-        axes[0].text(x0, y0, idx_to_part[l.item()],
-                     color='white', fontsize=9,
-                     bbox=dict(facecolor='blue', alpha=0.5))
-
-    axes[1].set_title("2) Relation Graph")
-
-    centers = [( (b[0]+b[2])/2, (b[1]+b[3])/2 ) for b in boxes0]
-    for (i,(x,y)) in enumerate(centers):
-        axes[1].plot(x,y,'ro')
-        axes[1].text(x,y, str(i), color='yellow', fontsize=10)
-
-    src, dst = edge_index
-    for s,d in zip(src, dst):
-        x1,y1 = centers[s]
-        x2,y2 = centers[d]
-        axes[1].annotate("",
-                        xy=(x2,y2), xytext=(x1,y1),
-                        arrowprops=dict(arrowstyle="-", color="white", linewidth=1))
-
-
-    axes[2].set_title("3) GCN-Refined")
-    for b,l in zip(boxes1, labels1[labels1!=0]):
-        x0,y0,x1,y1 = b
-        rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
-                                 linewidth=2, edgecolor='green', facecolor='none')
-        axes[2].add_patch(rect)
-        axes[2].text(x0, y0, idx_to_part[l.item()],
-                     color='white', fontsize=9,
-                     bbox=dict(facecolor='green', alpha=0.5))
-
-    plt.tight_layout()
-    plt.savefig(save_path, bbox_inches='tight')
-    plt.close(fig)
-
-def evaluate_model(model, data_loader, part_to_idx, device):
-    model.eval()
-
-    all_parts_set = set(part_to_idx.values())
-    results_per_image = []
-
-    for images, targets in tqdm(data_loader, desc="Evaluating"):
-        images = [img.to(device) for img in images]
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-        with torch.no_grad():
-            predictions = model(images)
-
-        for i in range(len(images)):
-            pred_parts = set(predictions[i]['labels'].cpu().numpy().tolist())
-            true_missing_parts = set(targets[i]['missing_labels'].cpu().numpy().tolist())
-            image_id = targets[i]['image_id'].item()
-
-            predicted_missing_parts = all_parts_set - pred_parts
-
-            results_per_image.append({
-                'image_id': image_id,
-                'predicted_missing_parts': predicted_missing_parts,
-                'true_missing_parts': true_missing_parts
-            })
-
-    return results_per_image
+    all_parts = set(part_to_idx.values())
+    results = []
+    for images, targets in tqdm(loader):
+        images = [i.to(device) for i in images]
+        preds = model(images)
+        for i, (p, t) in enumerate(zip(preds, targets)):
+            pred_set = set(p["present_parts"])
+            true_set = set(t["missing_labels"].tolist())
+            results.append(
+                {
+                    "predicted_missing_parts": all_parts - pred_set,
+                    "true_missing_parts": true_set,
+                }
+            )
+    return results
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
@@ -357,363 +280,313 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
+
 detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
 in_feats = detector.roi_heads.box_predictor.cls_score.in_features
 
-detector.roi_heads.box_predictor = FastRCNNPredictor(in_feats, len(train_dataset.all_parts)+1)
+detector.roi_heads.box_predictor = FastRCNNPredictor(
+    in_feats, len(train_dataset.all_parts) + 1
+)
 
 
 class RelationProposalNetwork(nn.Module):
-    def __init__(self, in_c, hidden_c=256):
+    def __init__(self, feature_dim, hidden_dim=256):
         super().__init__()
-        self.fc1 = nn.Linear(in_c*2 + 4, hidden_c)
-        self.fc2 = nn.Linear(hidden_c, 1)
+        self.fc1 = nn.Linear(feature_dim * 2 + 4, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, 1)
 
-    def forward(self, feats, boxes):
-        N, C = feats.size()
-        f1 = feats.unsqueeze(1).expand(-1, N, -1)
-        f2 = feats.unsqueeze(0).expand(N, -1, -1)
+    def forward(self, features, boxes):
+        N, _ = features.size()
+        f1 = features.unsqueeze(1).expand(-1, N, -1)
+        f2 = features.unsqueeze(0).expand(N, -1, -1)
         b1 = boxes.unsqueeze(1).expand(-1, N, -1)
         b2 = boxes.unsqueeze(0).expand(N, -1, -1)
         geom = torch.abs(b1 - b2)
-        x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
+        x = nn.functional.relu(self.fc1(torch.cat([f1, f2, geom], -1)))
         return self.fc2(x).squeeze(-1)
 
+
 class AttentionalGCN(nn.Module):
-    def __init__(self, in_c, hid_c, out_c, heads=4):
+    def __init__(self, in_dim, hidden_dim, out_dim, heads=4):
         super().__init__()
-        self.gat1 = GATConv(in_c, hid_c, heads=heads)
-        self.gat2 = GATConv(hid_c*heads, out_c, heads=1)
+        self.layer1 = GATConv(in_dim, hidden_dim, heads=heads)
+        self.layer2 = GATConv(hidden_dim * heads, out_dim, heads=1)
 
     def forward(self, x, edge_index):
-        x = torch.relu(self.gat1(x, edge_index))
-        return self.gat2(x, edge_index)
+        x = nn.functional.relu(self.layer1(x, edge_index))
+        return self.layer2(x, edge_index)
+
 
 class GraphRCNN(nn.Module):
-    def __init__(self, detector, num_classes, k=3):
+    def __init__(
+        self,
+        detector,
+        num_parts,
+        topk=3,
+        gcn_hidden=256,
+        cls_hidden=512,
+    ):
         super().__init__()
+        self.transform = detector.transform
+        self.backbone = detector.backbone
+        self.rpn = detector.rpn
+        self.roi_pool = detector.roi_heads.box_roi_pool
+        self.box_head = detector.roi_heads.box_head
         self.detector = detector
-        in_feats = detector.roi_heads.box_predictor.cls_score.in_features
-        self.repn = RelationProposalNetwork(in_feats)
-        self.agcn = AttentionalGCN(in_feats + 4, 256, num_classes)
-        self.k = k
-        self.log_sigma_gcn    = nn.Parameter(torch.zeros(()))
-        self.log_sigma_repnet = nn.Parameter(torch.zeros(()))
+        self.k = topk
+        self.num_parts = num_parts
 
-    def _get_roi_feats(self, img, boxes):
-        fmap = self.detector.backbone(img)
-        roi  = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
-        return self.detector.roi_heads.box_head(roi)
-    
-    def _make_edge_index(self, scores):
-        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
-        src = idx.flatten()
-        dst = torch.arange(scores.size(0), device=scores.device).unsqueeze(1).expand(-1, self.k).flatten()
-        return torch.stack([dst, src], 0)
-    
-    def _box_geom(self, boxes, shape):
-        h, w = shape
-        nb = boxes.clone()
-        nb[:, [0,2]] /= w
-        nb[:, [1,3]] /= h
-        return torch.stack([nb[:,0], nb[:,1], nb[:,2]-nb[:,0], nb[:,3]-nb[:,1]], dim=1)
-    
+        feat_dim = self.box_head.fc7.out_features
+        self.repn = RelationProposalNetwork(feat_dim)
+        self.agcn = AttentionalGCN(feat_dim + 4, gcn_hidden, gcn_hidden)
+
+        self.classifier = nn.Sequential(
+            nn.Linear(gcn_hidden, cls_hidden),
+            nn.ReLU(inplace=True),
+            nn.Linear(cls_hidden, num_parts),
+        )
+
     def forward(self, images, targets=None):
         if self.training:
             loss_dict = self.detector(images, targets)
             base_loss = sum(loss_dict.values())
-
             gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
-
             total_loss = base_loss + gcn_loss + repnet_loss
-            loss_dict.update({
-                'base_loss': base_loss,
-                'gcn_loss': gcn_loss,
-                'repnet_loss': repnet_loss
-            })
+            loss_dict.update(
+                {
+                    "base_loss": base_loss,
+                    "gcn_loss": gcn_loss,
+                    "repnet_loss": repnet_loss,
+                }
+            )
             return total_loss, loss_dict
 
         dets = self.detector(images)
         outputs = []
         for img, det in zip(images, dets):
-            boxes  = det['boxes']
-            scores = det['scores']
-            labels = det['labels']
+            boxes = det["boxes"]
             if boxes.numel() == 0:
-                outputs.append(det)
+                outputs.append({"present_parts": []})
                 continue
 
-            feats      = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
             rel_scores = self.repn(feats, boxes)
             edge_index = self._make_edge_index(rel_scores)
-            geom       = self._box_geom(boxes, img.shape[-2:])
+            geom = self._box_geom(boxes, img.shape[-2:])
 
             node_feats = torch.cat([feats, geom], dim=1)
-            logits     = self.agcn(node_feats, edge_index)
-            probs      = torch.softmax(logits, dim=1)
+            logits = self.agcn(node_feats, edge_index)
+            probs = torch.softmax(logits, dim=1)
+
             new_scores, new_labels = probs.max(dim=1)
+            keep = new_labels != 0
+            new_labels = new_labels[keep]
 
-            keep = (new_labels != 0) & (new_scores > 0.3)
-            boxes2 = boxes[keep]
-            scores2 = new_scores[keep]
-            labels2 = new_labels[keep]
+            present = torch.unique(new_labels).tolist()
 
-            keep_idx = nms(boxes2, scores2, iou_threshold=0.5)
-            boxes_n  = boxes2[keep_idx]
-            scores_n = scores2[keep_idx]
-            labels_n = labels2[keep_idx]
+            outputs.append({"present_parts": present})
 
-            final_boxes, final_scores, final_labels = [], [], []
-            for c in labels_n.unique():
-                mask = labels_n == c
-                c_scores = scores_n[mask]
-                c_boxes  = boxes_n[mask]
-                best     = c_scores.argmax()
-                final_boxes.append(c_boxes[best])
-                final_scores.append(c_scores[best])
-                final_labels.append(c)
-            outputs.append({
-                'boxes':  torch.stack(final_boxes),
-                'scores': torch.stack(final_scores),
-                'labels': torch.stack(final_labels)
-            })
         return outputs
-    
+
+    def _get_roi_feats(self, img, boxes):
+        fmap = self.detector.backbone(img)
+        roi = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
+        return self.detector.roi_heads.box_head(roi)
+
+    def _make_edge_index(self, scores):
+        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
+        src = idx.flatten()
+        dst = (
+            torch.arange(scores.size(0), device=scores.device)
+            .unsqueeze(1)
+            .expand(-1, self.k)
+            .flatten()
+        )
+        return torch.stack([dst, src], 0)
+
+    def _box_geom(self, boxes, shape):
+        h, w = shape
+        nb = boxes.clone()
+        nb[:, [0, 2]] /= w
+        nb[:, [1, 3]] /= h
+        return torch.stack(
+            [nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], dim=1
+        )
+
     def compute_gcn_loss(self, images, targets):
         gcn_preds, gcn_labels, rep_sum = [], [], 0.0
         for img, tgt in zip(images, targets):
-            boxes  = tgt['boxes']
-            labels = tgt['labels']
-            if boxes.numel() < 2: continue
+            boxes = tgt["boxes"]
+            labels = tgt["labels"]
+            if boxes.numel() < 2:
+                continue
             feats = self._get_roi_feats(img.unsqueeze(0), boxes)
-            rel   = self.repn(feats, boxes)
-            edge  = self._make_edge_index(rel)
-            geom  = self._box_geom(boxes, img.shape[-2:])
-            nf    = torch.cat([feats, geom], dim=1)
-            logits= self.agcn(nf, edge)
-            gcn_preds.append(logits); gcn_labels.append(labels)
-            rep_sum += nn.functional.binary_cross_entropy_with_logits(rel, (box_iou(boxes, boxes)>0.1).float(), reduction='mean')
+            rel = self.repn(feats, boxes)
+            edge = self._make_edge_index(rel)
+            geom = self._box_geom(boxes, img.shape[-2:])
+            nf = torch.cat([feats, geom], dim=1)
+            logits = self.agcn(nf, edge)
+            gcn_preds.append(logits)
+            gcn_labels.append(labels)
+            rep_sum += nn.functional.binary_cross_entropy_with_logits(
+                rel, (box_iou(boxes, boxes) > 0.1).float(), reduction="mean"
+            )
         if not gcn_preds:
-            return torch.tensor(0., device=images[0].device), torch.tensor(0., device=images[0].device)
-        pred = torch.cat(gcn_preds); lab = torch.cat(gcn_labels)
+            return torch.tensor(0.0, device=images[0].device), torch.tensor(
+                0.0, device=images[0].device
+            )
+        pred = torch.cat(gcn_preds)
+        lab = torch.cat(gcn_labels)
         return nn.functional.cross_entropy(pred, lab), rep_sum
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+model = GraphRCNN(detector, len(train_dataset.all_parts)).to(device)
 
-model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
-
-detector_params = list(model.detector.backbone.parameters()) \
-                + list(model.detector.rpn.parameters()) \
-                + list(model.detector.roi_heads.parameters())
-graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
-
-opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
-opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
-
-epochs = 50
-freeze_epoch = 20
-patience = 5
-detector_best_macro_f1 = 0
-detector_no_improve = 0
-joint_best_macro_f1 = 0
-joint_no_improve = 0
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-for p in graph_params:
-    p.requires_grad = False
+epochs = 50
+patience = 5
+best_macro_f1 = 0
+no_improve = 0
 
-for epoch in range(1, epochs+1):
-    if epoch < freeze_epoch:
-        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-            model.detector.train()
-            batch_times, gpu_memories, cpu_memories = [], [], []
-            with tqdm(train_loader, unit="batch", desc=f"Detector Epoch {epoch}/{freeze_epoch}") as tepoch:
-                for images, targets in tepoch:
-                    images = [img.to(device) for img in images]
-                    targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-
-                    start_time = time.time()
-
-                    opt_det.zero_grad()
-                    loss_dict = model.detector(images, targets)
-                    total_loss = sum(loss_dict.values())
-                    total_loss.backward()
-                    opt_det.step()
-
-                    end_time = time.time()
-                    inference_time = end_time - start_time
-
-                    batch_times.append(inference_time)
-                    if torch.cuda.is_available():
-                        gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
-                        gpu_memories.append(gpu_mem_used)
-                    else:
-                        gpu_mem_used = 0
-                    
-                    cpu_mem_used = psutil.virtual_memory().used / 1024**2
-                    cpu_memories.append(cpu_mem_used)
-
-
-                    tepoch.set_postfix({
-                    "loss": f"{total_loss.item():.4f}",
-                    "time (s)": f"{inference_time:.3f}",
-                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-                    })
-
-                    del loss_dict, images, targets
-                    gc.collect()
-                    if torch.cuda.is_available(): 
-                        torch.cuda.empty_cache()
-
-        avg_time = np.mean(batch_times)
-        max_gpu = max(gpu_memories) if gpu_memories else 0
-        max_cpu = max(cpu_memories)
-        energy = tracker.final_emissions_data.energy_consumed
-        co2 = tracker.final_emissions
-        print(tabulate([
-            ['Detector Epoch', epoch],
-            ['Detector Loss', f"{total_loss.item():.4f}"],
-            ['Avg Batch Time (s)', f"{avg_time:.3f}"],
-            ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
-            ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
-            ['Energy (kWh)', f"{energy:.4f}"],
-            ['CO2 (kg)', f"{co2:.4f}"]
-        ], headers=['Metric','Value'], tablefmt='pretty'))
-
-        model.eval()
-        results = evaluate_model(model.detector, valid_loader, train_dataset.part_to_idx, device)
-        parts = list(train_dataset.part_to_idx.values())
-        Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-        Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-        macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-        if macro_f1 > detector_best_macro_f1:
-            detector_best_macro_f1 = macro_f1
-            detector_no_improve = 0
-            torch.save(model.detector.state_dict(), "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth")
-        else:
-            detector_no_improve += 1
-            if detector_no_improve >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                freeze_epoch = epoch
-                
-        continue
-
-    model.detector.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth"))
-
-    for p in detector_params:
-        p.requires_grad = False
-    for p in graph_params:
-        p.requires_grad = True
-        
+for epoch in range(1, epochs + 1):
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-        model.train()
-        batch_times, gpu_memories, cpu_memories = [], [], []
 
-        with tqdm(train_loader, unit="batch", desc=f"Joint Epoch {epoch - freeze_epoch + 1}/{epochs - freeze_epoch + 1}") as tepoch:
+        model.train()
+
+        batch_times = []
+        gpu_memories = []
+        cpu_memories = []
+
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
             for images, targets in tepoch:
-                images = [img.to(device) for img in images]
-                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+                images = [image.to(device) for image in images]
+                targets = [
+                    {
+                        "boxes": t["boxes"].to(device),
+                        "labels": t["labels"].to(device),
+                        "image_id": t["image_id"].to(device),
+                    }
+                    for t in targets
+                ]
 
                 start_time = time.time()
-                opt_graph.zero_grad()
+
+                optimizer.zero_grad()
                 total_loss, loss_dict = model(images, targets)
                 total_loss.backward()
-                opt_graph.step()
-                end_time = time.time()
+                optimizer.step()
 
+                end_time = time.time()
                 inference_time = end_time - start_time
                 batch_times.append(inference_time)
+
                 if torch.cuda.is_available():
-                    gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                    mem_info = nvmlDeviceGetMemoryInfo(handle)
+                    gpu_mem_used = mem_info.used / (1024**2)
                     gpu_memories.append(gpu_mem_used)
                 else:
                     gpu_mem_used = 0
-                
-                cpu_mem_used = psutil.virtual_memory().used / 1024**2
+
+                cpu_mem_used = psutil.virtual_memory().used / (1024**2)
                 cpu_memories.append(cpu_mem_used)
 
+                tepoch.set_postfix(
+                    {
+                        "loss": f"{total_loss.item():.4f}",
+                        "time (s)": f"{inference_time:.3f}",
+                        "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                        "CPU Mem (MB)": f"{cpu_mem_used:.0f}",
+                    }
+                )
 
-                tepoch.set_postfix({
-                "loss": f"{total_loss.item():.4f}",
-                "time (s)": f"{inference_time:.3f}",
-                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-                })
+                del loss_dict, images, targets
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
+            model.eval()
+            results = evaluate_model(
+                model, valid_loader, train_dataset.part_to_idx, device
+            )
+            parts = list(train_dataset.part_to_idx.values())
+            Y_true = np.array(
+                [
+                    [1 if p in r["true_missing_parts"] else 0 for p in parts]
+                    for r in results
+                ]
+            )
+            Y_pred = np.array(
+                [
+                    [1 if p in r["predicted_missing_parts"] else 0 for p in parts]
+                    for r in results
+                ]
+            )
+            macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
 
-    avg_time = np.mean(batch_times)
-    max_gpu = max(gpu_memories) if gpu_memories else 0
-    max_cpu = max(cpu_memories)
-    energy = tracker.final_emissions_data.energy_consumed
-    co2 = tracker.final_emissions
-    print(tabulate([
-        ['Joint Epoch', epoch - freeze_epoch + 1],
-        ['GNN Loss', f"{total_loss.item():.4f}"],
-        ['Avg Batch Time (s)', f"{avg_time:.3f}"],
-        ['Max GPU Mem (MB)', f"{max_gpu:.0f}"],
-        ['Max CPU Mem (MB)', f"{max_cpu:.0f}"],
-        ['Energy (kWh)', f"{energy:.4f}"],
-        ['CO2 (kg)', f"{co2:.4f}"]
-    ], headers=['Metric','Value'], tablefmt='pretty'))
-    
-    model.eval()
-    print(f"\nEvaluating on validation set after Epoch {epoch}...")
-    results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve = 0
+                torch.save(
+                    model.state_dict(),
+                    "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
+                )
+            else:
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
-    parts = list(train_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+    energy_consumption = tracker.final_emissions_data.energy_consumed
+    co2_emissions = tracker.final_emissions
 
-    if macro_f1 > joint_best_macro_f1:
-        joint_best_macro_f1 = macro_f1
-        joint_no_improve = 0
-        torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth")
-    else:
-        joint_no_improve += 1
-        if joint_no_improve >= patience:
-            print(f"Early stopping at epoch {epoch}")
-            break
-    
+    avg_time = sum(batch_times) / len(batch_times)
+    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
+    max_cpu_mem = max(cpu_memories)
+
+    table = [
+        ["Epoch", epoch],
+        ["Final Loss", f"{total_loss.item():.4f}"],
+        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
+        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
+        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
+    ]
+
+    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
 if torch.cuda.is_available():
     nvmlShutdown()
 
-
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth", map_location=device))
+model.load_state_dict(
+    torch.load(
+        "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
+        map_location=device,
+    )
+)
 model.to(device)
 
 model.eval()
 
-results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+results_per_image = evaluate_model(
+    model, valid_loader, train_dataset.part_to_idx, device
+)
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )
 
-vis_dir = "/home/sismail/Thesis/visualisations/"
-os.makedirs(vis_dir, exist_ok=True)
 
-for i in range(5):
-    img_tensor, target = valid_dataset[i]
-    save_path = os.path.join(vis_dir, f"sample_augmented_{i}.png")
-    visualize_graphrcnn_step(
-        model,
-        img_tensor,
-        target,
-        train_dataset.idx_to_part,
-        device,
-        save_path
-    )
-
-results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
+results_per_image = evaluate_model(
+    model, test_loader, train_dataset.part_to_idx, device
+)   
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
