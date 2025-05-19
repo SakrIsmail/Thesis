@@ -164,7 +164,7 @@ train_loader = DataLoader(
     worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -172,7 +172,7 @@ valid_loader = DataLoader(
     valid_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -180,7 +180,7 @@ test_loader = DataLoader(
     test_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -350,7 +350,6 @@ class HallucinationFasterRCNN(nn.Module):
                     if l > self.P:
                         miss_boxes.append(b)
                         miss_scores.append(s)
-                        # convert l∈(P+1..2P) to 0-based part index:
                         miss_labels.append((l - 1 - self.P).item())
                 final.append({
                     'boxes_missing':  torch.stack(miss_boxes) if miss_boxes else torch.zeros((0,4), device=boxes.device),
@@ -451,7 +450,7 @@ for epoch in range(1, epochs+1):
     max_cpu_mem = max(cpu_memories)
 
     table = [
-        ["Epoch", epoch + 1],
+        ["Epoch", epoch],
         ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
