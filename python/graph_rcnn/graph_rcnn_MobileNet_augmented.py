@@ -478,6 +478,25 @@ class GraphRCNN(nn.Module):
                 'labels': torch.stack(final_labels)
             })
         return outputs
+    
+    def compute_gcn_loss(self, images, targets):
+        gcn_preds, gcn_labels, rep_sum = [], [], 0.0
+        for img, tgt in zip(images, targets):
+            boxes  = tgt['boxes']
+            labels = tgt['labels']
+            if boxes.numel() < 2: continue
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel   = self.repn(feats, boxes)
+            edge  = self._make_edge_index(rel)
+            geom  = self._box_geom(boxes, img.shape[-2:])
+            nf    = torch.cat([feats, geom], dim=1)
+            logits= self.agcn(nf, edge)
+            gcn_preds.append(logits); gcn_labels.append(labels)
+            rep_sum += nn.functional.binary_cross_entropy_with_logits(rel, (box_iou(boxes, boxes)>0.1).float(), reduction='mean')
+        if not gcn_preds:
+            return torch.tensor(0., device=images[0].device), torch.tensor(0., device=images[0].device)
+        pred = torch.cat(gcn_preds); lab = torch.cat(gcn_labels)
+        return nn.functional.cross_entropy(pred, lab), rep_sum
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -499,7 +518,7 @@ patience = 5
 detector_best_macro_f1 = 0
 detector_no_improve = 0
 joint_best_macro_f1 = 0
-joiny_no_improve = 0
+joint_no_improve = 0
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -655,11 +674,11 @@ for epoch in range(1, epochs+1):
 
     if macro_f1 > joint_best_macro_f1:
         joint_best_macro_f1 = macro_f1
-        joiny_no_improve = 0
+        joint_no_improve = 0
         torch.save(model.state_dict(), f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth")
     else:
-        joiny_no_improve += 1
-        if joiny_no_improve >= patience:
+        joint_no_improve += 1
+        if joint_no_improve >= patience:
             print(f"Early stopping at epoch {epoch}")
             break
     

@@ -307,7 +307,7 @@ for epoch in range(1, epochs+1):
         gpu_memories = []
         cpu_memories = []
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{epoch}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
             for images, targets in tepoch:
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
