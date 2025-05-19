@@ -368,7 +368,7 @@ if torch.cuda.is_available():
     handle = nvmlDeviceGetHandleByIndex(0)
 
 epochs = 50
-patience = 5
+patience = 10
 best_macro_f1 = 0
 no_improve = 0
 
