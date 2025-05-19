@@ -390,7 +390,7 @@ class AttentionalGCN(nn.Module):
         return self.gat2(x, edge_index)
 
 class GraphRCNN(nn.Module):
-    def __init__(self, detector, num_classes, k=3, rep_pairs=128, iou_thresh=0.1):
+    def __init__(self, detector, num_classes, k=3):
         super().__init__()
         self.detector = detector
         in_feats = detector.roi_heads.box_predictor.cls_score.in_features
@@ -399,9 +399,6 @@ class GraphRCNN(nn.Module):
         self.k = k
         self.log_sigma_gcn    = nn.Parameter(torch.zeros(()))
         self.log_sigma_repnet = nn.Parameter(torch.zeros(()))
-
-        self.rep_pairs = rep_pairs
-        self.iou_thresh = iou_thresh
 
     def _get_roi_feats(self, img, boxes):
         fmap = self.detector.backbone(img)
@@ -421,55 +418,18 @@ class GraphRCNN(nn.Module):
         nb[:, [1,3]] /= h
         return torch.stack([nb[:,0], nb[:,1], nb[:,2]-nb[:,0], nb[:,3]-nb[:,1]], dim=1)
     
-    def _sampled_rep_loss(self, feats, boxes):
-        N = feats.size(0)
-        all_scores = self.repn(feats, boxes).view(-1)
-        all_ious = box_iou(boxes, boxes).view(-1)
-        M = all_scores.size(0)
-        K = min(self.rep_pairs, M)
-        idx = torch.randperm(M, device=feats.device)[:K]
-        scores_s = all_scores[idx]
-        tgt_s = (all_ious[idx] > self.iou_thresh).float()
-        return nn.functional.binary_cross_entropy_with_logits(scores_s, tgt_s)
-    
     def forward(self, images, targets=None):
         if self.training:
             loss_dict = self.detector(images, targets)
-            det_loss = sum(loss_dict.values())
+            base_loss = sum(loss_dict.values())
 
-            # repnet loss
-            rep_loss = 0
-            for img, tgt in zip(images, targets):
-                boxes = tgt['boxes']
-                if boxes.size(0) < 2: continue
-                feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
-                rep_loss += self._sampled_rep_loss(feats, boxes)
-            rep_loss = rep_loss / max(len(images), 1)
+            gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
 
-            # GCN loss (no repn inside)
-            gcn_loss = 0; cnt = 0
-            for img, tgt in zip(images, targets):
-                boxes = tgt['boxes']; labels = tgt['labels']
-                if boxes.size(0) < 1: continue
-                feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
-                geom = self._box_geom(boxes, img.shape[-2:])
-                nf = torch.cat([feats, geom], dim=1)
-                with torch.no_grad(): rel_scores = self.repn(feats, boxes); edge = self._make_edge_index(rel_scores)
-                logits = self.agcn(nf, edge)
-                gcn_loss += nn.functional.cross_entropy(logits, labels, reduction='mean')
-                cnt += 1
-            gcn_loss = gcn_loss / max(cnt, 1)
-
-            w_rep = 0.5 * (rep_loss * torch.exp(-self.log_sigma_repnet) + self.log_sigma_repnet)
-            w_gcn = 0.5 * (gcn_loss * torch.exp(-self.log_sigma_gcn) + self.log_sigma_gcn)
-            total_loss = det_loss + w_rep + w_gcn
-
+            total_loss = base_loss + gcn_loss + repnet_loss
             loss_dict.update({
-                'det_loss': det_loss,
-                'rep_loss': rep_loss,
+                'base_loss': base_loss,
                 'gcn_loss': gcn_loss,
-                'w_rep': w_rep,
-                'w_gcn': w_gcn
+                'repnet_loss': repnet_loss
             })
             return total_loss, loss_dict
 
@@ -482,22 +442,61 @@ class GraphRCNN(nn.Module):
             if boxes.numel() == 0:
                 outputs.append(det)
                 continue
-            feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
-            geom = self._box_geom(boxes, img.shape[-2:])
+
+            feats      = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
+            rel_scores = self.repn(feats, boxes)
+            edge_index = self._make_edge_index(rel_scores)
+            geom       = self._box_geom(boxes, img.shape[-2:])
+
             node_feats = torch.cat([feats, geom], dim=1)
-            with torch.no_grad():
-                rel_scores = self.repn(feats, boxes)
-                edge_index = self._make_edge_index(rel_scores)
-            logits = self.agcn(node_feats, edge_index)
-            probs = torch.softmax(logits, dim=1)
+            logits     = self.agcn(node_feats, edge_index)
+            probs      = torch.softmax(logits, dim=1)
             new_scores, new_labels = probs.max(dim=1)
+
             keep = (new_labels != 0) & (new_scores > 0.3)
-            b2 = boxes[keep]; s2 = new_scores[keep]; l2 = new_labels[keep]
-            idx = nms(b2, s2, iou_threshold=0.5)
-            fs, ss, ls = b2[idx], s2[idx], l2[idx]
-            final = {'boxes': fs, 'scores': ss, 'labels': ls}
-            outputs.append(final)
+            boxes2 = boxes[keep]
+            scores2 = new_scores[keep]
+            labels2 = new_labels[keep]
+
+            keep_idx = nms(boxes2, scores2, iou_threshold=0.5)
+            boxes_n  = boxes2[keep_idx]
+            scores_n = scores2[keep_idx]
+            labels_n = labels2[keep_idx]
+
+            final_boxes, final_scores, final_labels = [], [], []
+            for c in labels_n.unique():
+                mask = labels_n == c
+                c_scores = scores_n[mask]
+                c_boxes  = boxes_n[mask]
+                best     = c_scores.argmax()
+                final_boxes.append(c_boxes[best])
+                final_scores.append(c_scores[best])
+                final_labels.append(c)
+            outputs.append({
+                'boxes':  torch.stack(final_boxes),
+                'scores': torch.stack(final_scores),
+                'labels': torch.stack(final_labels)
+            })
         return outputs
+    
+    def compute_gcn_loss(self, images, targets):
+        gcn_preds, gcn_labels, rep_sum = [], [], 0.0
+        for img, tgt in zip(images, targets):
+            boxes  = tgt['boxes']
+            labels = tgt['labels']
+            if boxes.numel() < 2: continue
+            feats = self._get_roi_feats(img.unsqueeze(0), boxes)
+            rel   = self.repn(feats, boxes)
+            edge  = self._make_edge_index(rel)
+            geom  = self._box_geom(boxes, img.shape[-2:])
+            nf    = torch.cat([feats, geom], dim=1)
+            logits= self.agcn(nf, edge)
+            gcn_preds.append(logits); gcn_labels.append(labels)
+            rep_sum += nn.functional.binary_cross_entropy_with_logits(rel, (box_iou(boxes, boxes)>0.1).float(), reduction='mean')
+        if not gcn_preds:
+            return torch.tensor(0., device=images[0].device), torch.tensor(0., device=images[0].device)
+        pred = torch.cat(gcn_preds); lab = torch.cat(gcn_labels)
+        return nn.functional.cross_entropy(pred, lab), rep_sum
     
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
