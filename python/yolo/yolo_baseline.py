@@ -59,6 +59,7 @@ test_images = image_filenames[:num_test]
 train_images = image_filenames[num_test:]
 num_valid = int(len(train_images) * valid_ratio)
 valid_images = train_images[:num_valid]
+train_images = train_images[num_valid:]
 
 train_annotations = {
     'all_parts': annotations['all_parts'],

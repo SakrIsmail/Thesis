@@ -17,6 +17,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection import FasterRCNN
+from torchvision.models.detection.rpn import AnchorGenerator, RPNHead
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
@@ -56,6 +58,8 @@ test_images = image_filenames[:num_test]
 train_images = image_filenames[num_test:]
 num_valid = int(len(train_images) * valid_ratio)
 valid_images = train_images[:num_valid]
+train_images = train_images[num_valid:]
+
 
 train_annotations = {
     'all_parts': annotations['all_parts'],
@@ -74,38 +78,32 @@ test_annotations = {
 
 
 class BikePartsDetectionDataset(Dataset):
-    def __init__(self, annotations_dict, image_dir,
-                 transform=None, augment=True, target_size=(640,640)):
-        self.all_parts     = annotations_dict['all_parts']
-        self.part_to_idx   = {p:i+1 for i,p in enumerate(self.all_parts)}  # background=0
-        self.idx_to_part   = {i+1:p for i,p in enumerate(self.all_parts)}
-        self.image_data    = annotations_dict['images']
+    def __init__(self, annotations_dict, image_dir, augment=True, target_size=(640,640)):
+        self.all_parts       = annotations_dict['all_parts']
+        self.part_to_idx     = {p: i+1 for i, p in enumerate(self.all_parts)}  # background=0
+        self.image_data      = annotations_dict['images']
         self.image_filenames = list(self.image_data.keys())
-        self.image_dir     = image_dir
-        self.transform     = transform
-        self.augment       = augment
-        self.target_size   = target_size
+        self.image_dir       = image_dir
+        self.augment         = augment
+        self.target_size     = target_size
 
     def __len__(self):
-        # if augment, you double-sample half with flips/color jits
         return len(self.image_filenames) * (2 if self.augment else 1)
 
     def apply_augmentation(self, image, boxes):
-        # same as yours
+        # horizontal flip
         if random.random() < 0.5:
             image = transforms.functional.hflip(image)
             w = image.width
             boxes = boxes.clone()
             boxes[:, [0,2]] = w - boxes[:, [2,0]]
+        # color jitters
         if random.random() < 0.8:
-            image = transforms.functional.adjust_brightness(
-                         image, brightness_factor=random.uniform(0.6,1.4))
+            image = transforms.functional.adjust_brightness(image, random.uniform(0.6,1.4))
         if random.random() < 0.8:
-            image = transforms.functional.adjust_contrast(
-                         image, contrast_factor=random.uniform(0.6,1.4))
+            image = transforms.functional.adjust_contrast(image, random.uniform(0.6,1.4))
         if random.random() < 0.5:
-            image = transforms.functional.adjust_saturation(
-                         image, saturation_factor=random.uniform(0.7,1.3))
+            image = transforms.functional.adjust_saturation(image, random.uniform(0.7,1.3))
         return image, boxes
 
     def __getitem__(self, idx):
@@ -113,18 +111,18 @@ class BikePartsDetectionDataset(Dataset):
         do_aug   = self.augment and (idx >= len(self.image_filenames))
 
         fn = self.image_filenames[real_idx]
-        img = Image.open(os.path.join(self.image_dir,fn)).convert('RGB')
+        img = Image.open(os.path.join(self.image_dir, fn)).convert('RGB')
         ow, oh = img.size
 
-        info = self.image_data[fn]['parts']
+        parts = self.image_data[fn]['parts']
         boxes, labels, is_missing = [], [], []
-
-        for part in info:
+        for part in parts:
             bb = part['absolute_bounding_box']
-            x0,y0 = bb['left'], bb['top']
-            x1,y1 = x0+bb['width'], y0+bb['height']
+            x0, y0 = bb['left'], bb['top']
+            x1, y1 = x0 + bb['width'], y0 + bb['height']
             boxes.append([x0,y0,x1,y1])
-            labels.append(self.part_to_idx[part['part_name']])
+            idx = self.part_to_idx[part['part_name']]
+            labels.append(idx)
             is_missing.append(0 if part['present'] else 1)
 
         boxes = torch.tensor(boxes, dtype=torch.float32)
@@ -134,20 +132,12 @@ class BikePartsDetectionDataset(Dataset):
         if do_aug:
             img, boxes = self.apply_augmentation(img, boxes)
 
-        # resize + rescale boxes
         img = transforms.functional.resize(img, self.target_size)
         sx, sy = self.target_size[0]/ow, self.target_size[1]/oh
-        boxes[:,[0,2]] *= sx
-        boxes[:,[1,3]] *= sy
+        boxes[:,[0,2]] *= sx; boxes[:,[1,3]] *= sy
         img = transforms.functional.to_tensor(img)
 
-        target = {
-            'boxes': boxes,
-            'labels': labels,
-            'is_missing': is_missing,
-            'image_id': torch.tensor([real_idx])
-        }
-        return img, target
+        return img, {'boxes': boxes, 'labels': labels, 'is_missing': is_missing}
 
 
 
@@ -217,14 +207,7 @@ def visualize_and_save_predictions(model, dataset, device, out_dir="output_preds
             ax.add_patch(rect)
 
         # predicted missing boxes in blue
-        if 'missing_flag' in pred:
-            # for FasterRCNN variant that uses 'missing_flag'
-            mask = pred['missing_flag']==1
-        else:
-            # for your 22-way head: any box where missing_preds[argmax]==1
-            flags = pred['missing_preds'].argmax(dim=1)==1
-            mask = flags.cpu()
-        pred_boxes = pred['boxes'][mask].cpu().numpy()
+        pred_boxes = pred['boxes_missing'].cpu().numpy()
         for (x0,y0,x1,y1) in pred_boxes:
             rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
                                      linewidth=2, edgecolor='b', facecolor='none')
@@ -236,29 +219,34 @@ def visualize_and_save_predictions(model, dataset, device, out_dir="output_preds
         plt.close(fig)
 
 def evaluate_model(model, loader, device):
+    """
+    Returns a list of dicts with:
+      - 'predicted_missing_parts': np.array of 0/1 of length P
+      - 'true_missing_parts'     : np.array of 0/1 of length P
+    """
     model.eval()
     results = []
-    for imgs, targets in loader:
-        imgs = [i.to(device) for i in imgs]
-        with torch.no_grad():
-            preds = model(imgs)
+    P = model.P
 
-        for tgt, pred in zip(targets, preds):
-            # full 22-vector: 1 if that part was flagged missing
-            vec = torch.zeros(len(model.backbone_model.roi_heads.box_predictor.cls_score.weight), dtype=torch.int64)
-            for lbl,flag in zip(pred['labels'].cpu(), pred['missing_flag']):
-                if flag.item()==1:
-                    vec[lbl-1] = 1
-            # ground truth:
-            true_vec = torch.zeros_like(vec)
-            for lbl, m in zip(tgt['labels'], tgt['is_missing']):
-                true_vec[lbl-1] = m
+    with torch.no_grad():
+        for imgs, tgts in loader:
+            imgs = [img.to(device) for img in imgs]
+            outs = model(imgs)
 
-            results.append({
-              'image_id': tgt['image_id'].item(),
-              'predicted_missing_parts': vec.tolist(),
-              'true_missing_parts':       true_vec.tolist()
-            })
+            for tgt, out in zip(tgts, outs):
+                # build pred vector
+                vec_pred = torch.zeros(P, dtype=torch.int64)
+                for part_idx in out['labels_missing'].cpu().tolist():
+                    vec_pred[part_idx] = 1
+
+                # true vector
+                vec_true = tgt['is_missing']
+
+                results.append({
+                    'predicted_missing_parts': vec_pred.cpu().numpy(),
+                    'true_missing_parts':      vec_true.cpu().numpy()
+                })
+
     return results
 
 
@@ -309,97 +297,79 @@ def part_level_evaluation(results, all_parts):
 
     print("\n[PER-PART EVALUATION]")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
+        
 
-class BikePartsFasterRCNN(nn.Module):
-    def __init__(self, num_classes):
+
+class HallucinationFasterRCNN(nn.Module):
+    def __init__(self, all_parts, trainable_backbone_layers=3):
         super().__init__()
-        # load base Faster-RCNN
-        self.backbone_model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
-        in_f = self.backbone_model.roi_heads.box_predictor.cls_score.in_features
-        # replace the detection head
-        self.backbone_model.roi_heads.box_predictor = FastRCNNPredictor(in_f, num_classes)
-        # add a missing/not‐missing head on top of the RoI features
-        self.missing_head = nn.Linear(in_f, 2)
+        P = len(all_parts)
+        # backbone
+        base = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT', trainable_backbone_layers=trainable_backbone_layers)
+        backbone = base.backbone
+        # RPN: part-conditioned
+        anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+        aspect_ratios= ((0.5,1.0,2.0),)*len(anchor_sizes)
+        rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
+        rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0] * P)
+        # FasterRCNN with custom RPN
+        self.model = FasterRCNN(
+            backbone=backbone,
+            num_classes=1,
+            rpn_anchor_generator=rpn_anchor_generator,
+            rpn_head=rpn_head,
+            trainable_backbone_layers=trainable_backbone_layers
+        )
+        # ROI head: 1 + 2P classes
+        in_feats = self.model.roi_heads.box_predictor.cls_score.in_features
+        self.model.roi_heads.box_predictor = FastRCNNPredictor(in_feats, num_classes=1+2*P)
+        self.P = P
 
     def forward(self, images, targets=None):
         if self.training:
-            # 1) standard detection losses
-            losses = self.backbone_model(images, targets)
-
-            # 2) extract feature‐maps
-            img_tensor = torch.stack(images)
-            features   = self.backbone_model.backbone(img_tensor)
-
-            # 3) gather all GT boxes & missing flags
-            all_boxes   = [t['boxes'] for t in targets]
-            all_labels  = [t['is_missing'] for t in targets]
-            shapes      = [img.shape[-2:] for img in images]
-
-            # skip empty images
-            valid = [i for i,b in enumerate(all_boxes) if b.numel()>0]
-            if valid:
-                vb   = [all_boxes[i]  for i in valid]
-                vm   = torch.cat([all_labels[i] for i in valid], dim=0)
-                vsz  = [shapes[i]     for i in valid]
-
-                # RoI‐align + box‐head to get per‐RoI features
-                rois = self.backbone_model.roi_heads.box_roi_pool(features, vb, vsz)
-                head_feats = self.backbone_model.roi_heads.box_head(rois)
-                # missing‐loss
-                logits = self.missing_head(head_feats)
-                losses['loss_missing'] = nn.functional.cross_entropy(logits, vm)
-
-            return losses
-
+            new_t = []
+            for t in targets:
+                labs = []
+                for lbl, miss in zip(t['labels'], t['is_missing']):
+                    k = lbl.item() - 1
+                    cls = 1 + k if miss.item()==0 else 1 + self.P + k
+                    labs.append(cls)
+                new_t.append({'boxes': t['boxes'], 'labels': torch.tensor(labs, device=t['boxes'].device)})
+            return self.model(images, new_t)
         else:
-            # inference: get raw detections
-            outputs = self.backbone_model(images)
-
-            # extract features once
-            img_tensor = torch.stack(images)
-            features   = self.backbone_model.backbone(img_tensor)
-
-            for img_idx, out in enumerate(outputs):
-                boxes = out['boxes']
-                if boxes.numel()==0:
-                    out['missing_flag'] = torch.zeros((0,), dtype=torch.int64)
-                    continue
-
-                # RoI + head
-                rois  = self.backbone_model.roi_heads.box_roi_pool(
-                             features, [boxes], [images[img_idx].shape[-2:]])
-                feats = self.backbone_model.roi_heads.box_head(rois)
-                logits= self.missing_head(feats)
-                # pick argmax over the 2 classes
-                flags = logits.argmax(dim=1).cpu()
-                out['missing_flag'] = flags
-
-                # if you only want the missing boxes:
-                out['boxes_missing'] = boxes[flags==1]
-                out['labels_missing']= out['labels'][flags==1]
-
-            return outputs
+            outs = self.model(images)
+            final = []
+            for out in outs:
+                boxes, labels, scores = out['boxes'], out['labels'], out['scores']
+                miss_boxes, miss_scores, miss_labels = [], [], []
+                for b, l, s in zip(boxes, labels, scores):
+                    if l > self.P:
+                        miss_boxes.append(b)
+                        miss_scores.append(s)
+                        # convert l∈(P+1..2P) to 0-based part index:
+                        miss_labels.append((l - 1 - self.P).item())
+                final.append({
+                    'boxes_missing':  torch.stack(miss_boxes) if miss_boxes else torch.zeros((0,4), device=boxes.device),
+                    'scores_missing': torch.tensor(miss_scores, device=boxes.device)   if miss_scores else torch.tensor([], device=boxes.device),
+                    'labels_missing': torch.tensor(miss_labels, device=boxes.device)   if miss_labels else torch.tensor([], device=boxes.device)
+                })
+            return final
         
 
-num_classes = len(train_dataset.all_parts) + 1 
-model = BikePartsFasterRCNN(num_classes=num_classes)
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-model.to(device)
-
-learning_rate = 1e-4
-weight_decay = 1e-4
-
-params = [p for p in model.parameters() if p.requires_grad]
-optimizer = torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = HallucinationFasterRCNN(train_dataset.all_parts).to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 20
+epochs = 50
+patience = 5
+best_macro_f1 = 0
+no_improve = 0
 
-for epoch in range(num_epochs):
+for epoch in range(1, epochs+1):
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
         model.train()
@@ -408,7 +378,7 @@ for epoch in range(num_epochs):
         gpu_memories = []
         cpu_memories = []
 
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch+1}/{num_epochs}") as tepoch:
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
             for images, targets in tepoch:
                 images = [image.to(device) for image in images]
                 targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -447,6 +417,27 @@ for epoch in range(num_epochs):
                 if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
 
+            model.eval()
+            preds, trues = [], []
+            with torch.no_grad():
+                for imgs, tgts in valid_loader:
+                    imgs = [i.to(device) for i in imgs]
+                    outs = model(imgs)
+                    for out, t in zip(outs, tgts):
+                        vec = np.zeros(len(train_dataset.all_parts), dtype=int)
+                        for idx,box in enumerate(out['boxes_missing']): vec[idx%len(vec)] = 1
+                        preds.append(vec)
+                        trues.append(t['is_missing'].numpy())
+            macro_f1 = f1_score(np.vstack(trues), np.vstack(preds), average='macro', zero_division=0)
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve =  0
+                torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_missing_baseline_model.pth")
+            else:
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
@@ -467,7 +458,7 @@ for epoch in range(num_epochs):
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
-torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_missing_baseline_model.pth")
+
 
 if torch.cuda.is_available():
     nvmlShutdown()
@@ -479,7 +470,7 @@ model.to(device)
 model.eval()
 
 results_per_image = evaluate_model(model, valid_loader, device)
-print(results_per_image)
+# print(results_per_image)
 
 part_level_evaluation(results_per_image, train_dataset.all_parts)
 
