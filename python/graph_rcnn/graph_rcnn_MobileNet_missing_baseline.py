@@ -513,8 +513,9 @@ for epoch in range(1, epochs + 1):
             for images, targets in tepoch:
                 images = [image.to(device) for image in images]
                 for t in targets:
-                    t["boxes"] = t["boxes"].to(device)
-                    t["is_missing"] = t["is_missing"].to(device)
+                    t["boxes"]       = t["boxes"].to(device)
+                    t["labels"]      = t["labels"].to(device)
+                    t["is_missing"]  = t["is_missing"].to(device)
 
                 start_time = time.time()
 
