@@ -190,40 +190,31 @@ def visualize_and_save_predictions(model, dataset, device, out_dir="output_preds
 
     for idx in range(min(n_images, len(dataset))):
         img, target = dataset[idx]
-        # send through model
         with torch.no_grad():
             pred = model([img.to(device)])[0]
 
-        # convert back to PIL for plotting
         img_np = img.mul(255).permute(1,2,0).byte().cpu().numpy()
-        fig, ax = plt.subplots(1, figsize=(8,8))
+        fig, ax = plt.subplots(figsize=(8,8))
         ax.imshow(img_np)
 
-        # ground-truth missing boxes in red
         gt_boxes = target['boxes'][target['is_missing']==1].cpu().numpy()
-        for (x0,y0,x1,y1) in gt_boxes:
+        for x0,y0,x1,y1 in gt_boxes:
             rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
                                      linewidth=2, edgecolor='r', facecolor='none')
             ax.add_patch(rect)
 
-        # predicted missing boxes in blue
         pred_boxes = pred['boxes_missing'].cpu().numpy()
-        for (x0,y0,x1,y1) in pred_boxes:
+        for x0,y0,x1,y1 in pred_boxes:
             rect = patches.Rectangle((x0,y0), x1-x0, y1-y0,
                                      linewidth=2, edgecolor='b', facecolor='none')
             ax.add_patch(rect)
 
         ax.axis('off')
-        fname = os.path.join(out_dir, f"pred_{idx}.png")
-        plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+        plt.savefig(os.path.join(out_dir, f"pred_{idx}.png"), bbox_inches='tight', pad_inches=0)
         plt.close(fig)
 
+
 def evaluate_model(model, loader, device):
-    """
-    Returns a list of dicts with:
-      - 'predicted_missing_parts': np.array of 0/1 of length P
-      - 'true_missing_parts'     : np.array of 0/1 of length P
-    """
     model.eval()
     results = []
     P = model.P
@@ -234,13 +225,16 @@ def evaluate_model(model, loader, device):
             outs = model(imgs)
 
             for tgt, out in zip(tgts, outs):
-                # build pred vector
                 vec_pred = torch.zeros(P, dtype=torch.int64)
                 for part_idx in out['labels_missing'].cpu().tolist():
                     vec_pred[part_idx] = 1
 
-                # true vector
-                vec_true = tgt['is_missing']
+                vec_true = torch.zeros(P, dtype=torch.int64)
+                for lbl, miss in zip(tgt['labels'].cpu().tolist(),
+                                     tgt['is_missing'].cpu().tolist()):
+                    idx0 = lbl - 1
+                    if miss == 1:
+                        vec_true[idx0] = 1
 
                 results.append({
                     'predicted_missing_parts': vec_pred.cpu().numpy(),
@@ -248,7 +242,6 @@ def evaluate_model(model, loader, device):
                 })
 
     return results
-
 
 
 def part_level_evaluation(results, all_parts):
@@ -304,26 +297,37 @@ class HallucinationFasterRCNN(nn.Module):
     def __init__(self, all_parts, trainable_backbone_layers=3):
         super().__init__()
         P = len(all_parts)
-        # backbone
-        base = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT', trainable_backbone_layers=trainable_backbone_layers)
-        backbone = base.backbone
-        # RPN: part-conditioned
-        anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
-        aspect_ratios= ((0.5,1.0,2.0),)*len(anchor_sizes)
-        rpn_anchor_generator = AnchorGenerator(anchor_sizes, aspect_ratios)
-        rpn_head = RPNHead(backbone.out_channels, rpn_anchor_generator.num_anchors_per_location()[0] * P)
-        # FasterRCNN with custom RPN
+
+        base_model = fasterrcnn_mobilenet_v3_large_fpn(
+            weights='DEFAULT',
+            trainable_backbone_layers=trainable_backbone_layers
+        )
+        backbone = base_model.backbone
+        default_anchor_generator = base_model.rpn.anchor_generator
+
+        num_anchors = default_anchor_generator.num_anchors_per_location()[0]
+        rpn_head = RPNHead(
+            in_channels=backbone.out_channels,
+            num_anchors=num_anchors * P
+        )
+
         self.model = FasterRCNN(
             backbone=backbone,
             num_classes=1,
-            rpn_anchor_generator=rpn_anchor_generator,
+            rpn_anchor_generator=default_anchor_generator,
             rpn_head=rpn_head,
             trainable_backbone_layers=trainable_backbone_layers
         )
-        # ROI head: 1 + 2P classes
-        in_feats = self.model.roi_heads.box_predictor.cls_score.in_features
-        self.model.roi_heads.box_predictor = FastRCNNPredictor(in_feats, num_classes=1+2*P)
+
+        in_features = self.model.roi_heads.box_predictor.cls_score.in_features
+        total_classes = 1 + 2 * P
+        self.model.roi_heads.box_predictor = FastRCNNPredictor(
+            in_features,
+            num_classes=total_classes
+        )
+
         self.P = P
+
 
     def forward(self, images, targets=None):
         if self.training:
