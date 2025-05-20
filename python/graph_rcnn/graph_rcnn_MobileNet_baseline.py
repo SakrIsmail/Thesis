@@ -244,19 +244,26 @@ def evaluate_model(model, loader, part_to_idx, device):
     model.eval()
     all_parts = set(part_to_idx.values())
     results = []
+
     for images, targets in tqdm(loader):
         images = [i.to(device) for i in images]
         preds = model(images)
-        for i, (p, t) in enumerate(zip(preds, targets)):
-            pred_set = set(p["present_parts"])
+
+        for p, t in zip(preds, targets):
+            if "present_parts" in p:
+                pred_set = set(p["present_parts"])
+            else:
+                labels = p["labels"].cpu().tolist()
+                pred_set = set(l for l in labels if l != 0)
+
             true_set = set(t["missing_labels"].tolist())
-            results.append(
-                {
-                    "predicted_missing_parts": all_parts - pred_set,
-                    "true_missing_parts": true_set,
-                }
-            )
+            results.append({
+                "predicted_missing_parts": all_parts - pred_set,
+                "true_missing_parts":      true_set,
+            })
+
     return results
+
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
