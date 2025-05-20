@@ -44,8 +44,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json = "/var/scratch/sismail/data/processed/final_direct_missing.json"
-image_directory = "/var/scratch/sismail/data/images"
+final_output_json = "/var/scratch/$USER/data/processed/final_direct_missing.json"
+image_directory = "/var/scratch/$USER/data/images"
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -172,7 +172,7 @@ test_dataset = BikePartsDetectionDataset(
 train_loader = DataLoader(
     train_dataset,
     worker_init_fn=seed_worker,
-    batch_size=8,
+    batch_size=16,
     shuffle=True,
     num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch)),
@@ -180,7 +180,7 @@ train_loader = DataLoader(
 
 valid_loader = DataLoader(
     valid_dataset,
-    batch_size=8,
+    batch_size=16,
     shuffle=False,
     num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch)),
@@ -188,7 +188,7 @@ valid_loader = DataLoader(
 
 test_loader = DataLoader(
     test_dataset,
-    batch_size=8,
+    batch_size=16,
     shuffle=False,
     num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch)),
@@ -577,7 +577,7 @@ for epoch in range(1, epochs + 1):
                 no_improve = 0
                 torch.save(
                     model.state_dict(),
-                    "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
+                    "/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
                 )
             else:
                 no_improve += 1
@@ -610,7 +610,7 @@ if torch.cuda.is_available():
 
 model.load_state_dict(
     torch.load(
-        "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
+        "/var/scratch/$USER/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
         map_location=device,
     )
 )
@@ -629,7 +629,7 @@ visualize_and_save_predictions(
     model,
     valid_dataset,
     device,
-    out_dir="/home/sismail/Thesis/visualisations/",
+    out_dir="/home/$USER/Thesis/visualisations/",
     n_images=5,
 )
 
