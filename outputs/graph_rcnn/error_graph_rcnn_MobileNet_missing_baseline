@@ -1,0 +1,25 @@
+[codecarbon WARNING @ 23:03:07] Multiple instances of codecarbon are allowed to run at the same time.
+Epoch 1/1:   0%|          | 0/718 [00:00<?, ?batch/s]Epoch 1/1:   0%|          | 0/718 [00:00<?, ?batch/s]
+Traceback (most recent call last):
+  File "/home/sismail/Thesis/python/graph_rcnn/graph_rcnn_MobileNet_missing_baseline.py", line 523, in <module>
+    loss_dict = model(images, targets)
+                ^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sismail/Thesis/python/graph_rcnn/graph_rcnn_MobileNet_missing_baseline.py", line 401, in forward
+    rel = self.repn(feats_img, boxes_img)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/var/scratch/sismail/my_env/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sismail/Thesis/python/graph_rcnn/graph_rcnn_MobileNet_missing_baseline.py", line 340, in forward
+    x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 13.36 GiB. GPU 0 has a total capacity of 10.90 GiB of which 7.44 GiB is free. Including non-PyTorch memory, this process has 3.46 GiB memory in use. Of the allocated memory 3.09 GiB is allocated by PyTorch, and 220.43 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
