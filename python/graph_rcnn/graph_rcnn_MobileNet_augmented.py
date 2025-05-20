@@ -1,7 +1,6 @@
 import os
 import json
 import random
-import itertools
 from tqdm import tqdm
 import time
 import psutil
@@ -27,17 +26,17 @@ import matplotlib.patches as patches
 from torchvision.transforms.functional import to_pil_image
 
 
+
+
 def set_seed(seed: int = 42):
     random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-
 set_seed(42)
-
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % (2**32)
@@ -45,17 +44,17 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json = ("/var/scratch/sismail/data/processed/final_annotations_without_occluded.json")
-image_directory = "/var/scratch/sismail/data/images"
+final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
 random_seed = 42
 
-with open(final_output_json, "r") as f:
+with open(final_output_json, 'r') as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations["images"].keys())
+image_filenames = list(annotations['images'].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -65,37 +64,29 @@ test_images = image_filenames[:num_test]
 train_images = image_filenames[num_test:]
 num_valid = int(len(train_images) * valid_ratio)
 valid_images = train_images[:num_valid]
-train_images = train_images[num_valid:]
 
 train_annotations = {
-    "all_parts": annotations["all_parts"],
-    "images": {img_name: annotations["images"][img_name] for img_name in train_images},
+    'all_parts': annotations['all_parts'],
+    'images': {img_name: annotations['images'][img_name] for img_name in train_images}
 }
 
 valid_annotations = {
-    "all_parts": annotations["all_parts"],
-    "images": {img_name: annotations["images"][img_name] for img_name in valid_images},
+    'all_parts': annotations['all_parts'],
+    'images': {img_name: annotations['images'][img_name] for img_name in valid_images}
 }
 
 test_annotations = {
-    "all_parts": annotations["all_parts"],
-    "images": {img_name: annotations["images"][img_name] for img_name in test_images},
+    'all_parts': annotations['all_parts'],
+    'images': {img_name: annotations['images'][img_name] for img_name in test_images}
 }
 
 
 class BikePartsDetectionDataset(Dataset):
-    def __init__(
-        self,
-        annotations_dict,
-        image_dir,
-        transform=None,
-        augment=True,
-        target_size=(640, 640),
-    ):
-        self.all_parts = annotations_dict["all_parts"]
+    def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
+        self.all_parts = annotations_dict['all_parts']
         self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
         self.idx_to_part = {idx + 1: part for idx, part in enumerate(self.all_parts)}
-        self.image_data = annotations_dict["images"]
+        self.image_data = annotations_dict['images']
         self.image_filenames = list(self.image_data.keys())
         self.image_dir = image_dir
         self.transform = transform
@@ -113,17 +104,11 @@ class BikePartsDetectionDataset(Dataset):
             boxes[:, [0, 2]] = w - boxes[:, [2, 0]]
 
         if random.random() < 0.8:
-            image = transforms.functional.adjust_brightness(
-                image, brightness_factor=random.uniform(0.6, 1.4)
-            )
+            image = transforms.functional.adjust_brightness(image, brightness_factor=random.uniform(0.6, 1.4))
         if random.random() < 0.8:
-            image = transforms.functional.adjust_contrast(
-                image, contrast_factor=random.uniform(0.6, 1.4)
-            )
+            image = transforms.functional.adjust_contrast(image, contrast_factor=random.uniform(0.6, 1.4))
         if random.random() < 0.5:
-            image = transforms.functional.adjust_saturation(
-                image, saturation_factor=random.uniform(0.7, 1.3)
-            )
+            image = transforms.functional.adjust_saturation(image, saturation_factor=random.uniform(0.7, 1.3))
 
         return image, boxes
 
@@ -134,23 +119,23 @@ class BikePartsDetectionDataset(Dataset):
         img_filename = self.image_filenames[real_idx]
         img_path = os.path.join(self.image_dir, img_filename)
 
-        image = Image.open(img_path).convert("RGB")
+        image = Image.open(img_path).convert('RGB')
         orig_width, orig_height = image.size
 
         annotation = self.image_data[img_filename]
-        available_parts_info = annotation["available_parts"]
-        missing_parts_names = annotation.get("missing_parts", [])
+        available_parts_info = annotation['available_parts']
+        missing_parts_names = annotation.get('missing_parts', [])
 
         boxes = []
         labels = []
 
         for part_info in available_parts_info:
-            part_name = part_info["part_name"]
-            bbox = part_info["absolute_bounding_box"]
-            xmin = bbox["left"]
-            ymin = bbox["top"]
-            xmax = xmin + bbox["width"]
-            ymax = ymin + bbox["height"]
+            part_name = part_info['part_name']
+            bbox = part_info['absolute_bounding_box']
+            xmin = bbox['left']
+            ymin = bbox['top']
+            xmax = xmin + bbox['width']
+            ymax = ymin + bbox['height']
             boxes.append([xmin, ymin, xmax, ymax])
             labels.append(self.part_to_idx[part_name])
 
@@ -170,29 +155,36 @@ class BikePartsDetectionDataset(Dataset):
         image = transforms.functional.to_tensor(image)
 
         missing_labels = torch.tensor(
-            [self.part_to_idx[part] for part in missing_parts_names], dtype=torch.int64
+            [self.part_to_idx[part] for part in missing_parts_names],
+            dtype=torch.int64
         )
 
         target = {
-            "boxes": boxes,
-            "labels": labels,
-            "missing_labels": missing_labels,
-            "image_id": torch.tensor([real_idx]),
+            'boxes': boxes,
+            'labels': labels,
+            'missing_labels': missing_labels,
+            'image_id': torch.tensor([real_idx])
         }
 
         return image, target
 
 
 train_dataset = BikePartsDetectionDataset(
-    annotations_dict=train_annotations, image_dir=image_directory, augment=True
+    annotations_dict=train_annotations,
+    image_dir=image_directory,
+    augment=False
 )
 
 valid_dataset = BikePartsDetectionDataset(
-    annotations_dict=valid_annotations, image_dir=image_directory, augment=False
+    annotations_dict=valid_annotations,
+    image_dir=image_directory,
+    augment=False
 )
 
 test_dataset = BikePartsDetectionDataset(
-    annotations_dict=test_annotations, image_dir=image_directory, augment=False
+    annotations_dict=test_annotations,
+    image_dir=image_directory,
+    augment=False
 )
 
 train_loader = DataLoader(
@@ -201,7 +193,7 @@ train_loader = DataLoader(
     batch_size=16,
     shuffle=True,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch)),
+    collate_fn=lambda batch: tuple(zip(*batch))
 )
 
 valid_loader = DataLoader(
@@ -209,7 +201,7 @@ valid_loader = DataLoader(
     batch_size=16,
     shuffle=False,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch)),
+    collate_fn=lambda batch: tuple(zip(*batch))
 )
 
 test_loader = DataLoader(
@@ -217,52 +209,36 @@ test_loader = DataLoader(
     batch_size=16,
     shuffle=False,
     num_workers=4,
-    collate_fn=lambda batch: tuple(zip(*batch)),
+    collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-
-P = len(train_annotations["all_parts"])
-part_to_idx = {p: i for i, p in enumerate(train_annotations["all_parts"])}
-
-C = np.zeros((P, P), dtype=np.float32)
-counts = np.zeros(P, dtype=np.int32)
-
-for ann in train_annotations["images"].values():
-    labels = [part_to_idx[p["part_name"]] for p in ann["available_parts"]]
-    for i in labels:
-        counts[i] += 1
-    for i, j in itertools.combinations(labels, 2):
-        C[i, j] += 1
-        C[j, i] += 1
-
-eps = 1e-6
-co_occur = C / (counts[:, None] + eps)
-τ = 0.25
-adj_prior = (co_occur > τ).astype(np.float32)
-
-def evaluate_model(model, loader, part_to_idx, device):
+def evaluate_model(model, data_loader, part_to_idx, device):
     model.eval()
-    all_parts = set(part_to_idx.values())
-    results = []
 
-    for images, targets in tqdm(loader):
-        images = [i.to(device) for i in images]
-        preds = model(images)
+    all_parts_set = set(part_to_idx.values())
+    results_per_image = []
 
-        for p, t in zip(preds, targets):
-            if "present_parts" in p:
-                pred_set = set(p["present_parts"])
-            else:
-                labels = p["labels"].cpu().tolist()
-                pred_set = set(l for l in labels if l != 0)
+    for images, targets in tqdm(data_loader, desc="Evaluating"):
+        images = [img.to(device) for img in images]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-            true_set = set(t["missing_labels"].tolist())
-            results.append({
-                "predicted_missing_parts": all_parts - pred_set,
-                "true_missing_parts":      true_set,
+        with torch.no_grad():
+            predictions = model(images)
+
+        for i in range(len(images)):
+            pred_parts = set(predictions[i]['labels'].cpu().numpy().tolist())
+            true_missing_parts = set(targets[i]['missing_labels'].cpu().numpy().tolist())
+            image_id = targets[i]['image_id'].item()
+
+            predicted_missing_parts = all_parts_set - pred_parts
+
+            results_per_image.append({
+                'image_id': image_id,
+                'predicted_missing_parts': predicted_missing_parts,
+                'true_missing_parts': true_missing_parts
             })
 
-    return results
+    return results_per_image
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
@@ -306,190 +282,156 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-
 detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
 in_feats = detector.roi_heads.box_predictor.cls_score.in_features
 
-detector.roi_heads.box_predictor = FastRCNNPredictor(
-    in_feats, len(train_dataset.all_parts) + 1
-)
+detector.roi_heads.box_predictor = FastRCNNPredictor(in_feats, len(train_dataset.all_parts)+1)
 
 
 class RelationProposalNetwork(nn.Module):
-    def __init__(self, feature_dim, hidden_dim=256):
+    def __init__(self, in_c, hidden_c=256):
         super().__init__()
-        self.fc1 = nn.Linear(feature_dim * 2 + 4, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, 1)
+        self.fc1 = nn.Linear(in_c*2 + 4, hidden_c)
+        self.fc2 = nn.Linear(hidden_c, 1)
 
-    def forward(self, features, boxes):
-        N, _ = features.size()
-        f1 = features.unsqueeze(1).expand(-1, N, -1)
-        f2 = features.unsqueeze(0).expand(N, -1, -1)
+    def forward(self, feats, boxes):
+        N, C = feats.size()
+        f1 = feats.unsqueeze(1).expand(-1, N, -1)
+        f2 = feats.unsqueeze(0).expand(N, -1, -1)
         b1 = boxes.unsqueeze(1).expand(-1, N, -1)
         b2 = boxes.unsqueeze(0).expand(N, -1, -1)
         geom = torch.abs(b1 - b2)
-        x = nn.functional.relu(self.fc1(torch.cat([f1, f2, geom], -1)))
+        x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
         return self.fc2(x).squeeze(-1)
 
-
 class AttentionalGCN(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim, heads=4):
+    def __init__(self, in_c, hid_c, out_c, heads=4):
         super().__init__()
-        self.layer1 = GATConv(in_dim, hidden_dim, heads=heads)
-        self.layer2 = GATConv(hidden_dim * heads, out_dim, heads=1)
+        self.gat1 = GATConv(in_c, hid_c, heads=heads)
+        self.gat2 = GATConv(hid_c*heads, out_c, heads=1)
 
     def forward(self, x, edge_index):
-        x = nn.functional.relu(self.layer1(x, edge_index))
-        return self.layer2(x, edge_index)
-
+        x = torch.relu(self.gat1(x, edge_index))
+        return self.gat2(x, edge_index)
 
 class GraphRCNN(nn.Module):
-    def __init__(self, detector, num_parts, topk=3, gcn_hidden=256, cls_hidden=512, λ_gcn: float = 1.0, λ_rep: float = 0.1):
+    def __init__(self, detector, num_classes, k=3):
         super().__init__()
-        self.transform = detector.transform
-        self.backbone = detector.backbone
-        self.rpn = detector.rpn
-        self.roi_pool = detector.roi_heads.box_roi_pool
-        self.box_head = detector.roi_heads.box_head
         self.detector = detector
-        self.k = topk
-        self.num_parts = num_parts
+        in_feats = detector.roi_heads.box_predictor.cls_score.in_features
+        self.repn = RelationProposalNetwork(in_feats)
+        self.agcn = AttentionalGCN(in_feats + 4, 256, num_classes)
+        self.k = k
+        self.log_sigma_gcn    = nn.Parameter(torch.zeros(()))
+        self.log_sigma_repnet = nn.Parameter(torch.zeros(()))
 
-        feat_dim = self.box_head.fc7.out_features
-        self.repn = RelationProposalNetwork(feat_dim)
-        self.agcn = AttentionalGCN(feat_dim + 4, gcn_hidden, gcn_hidden)
-
-        buf = torch.from_numpy(adj_prior).float()
-        self.register_buffer("adj_prior", buf)
-
-        self.λ_gcn = λ_gcn
-        self.λ_rep = λ_rep
-
-        self.classifier = nn.Sequential(
-            nn.Linear(gcn_hidden, cls_hidden),
-            nn.ReLU(inplace=True),
-            nn.Linear(cls_hidden, num_parts),
-        )
-
+    def _get_roi_feats(self, img, boxes):
+        fmap = self.detector.backbone(img)
+        roi  = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
+        return self.detector.roi_heads.box_head(roi)
+    
+    def _make_edge_index(self, scores):
+        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
+        src = idx.flatten()
+        dst = torch.arange(scores.size(0), device=scores.device).unsqueeze(1).expand(-1, self.k).flatten()
+        return torch.stack([dst, src], 0)
+    
+    def _box_geom(self, boxes, shape):
+        h, w = shape
+        nb = boxes.clone()
+        nb[:, [0,2]] /= w
+        nb[:, [1,3]] /= h
+        return torch.stack([nb[:,0], nb[:,1], nb[:,2]-nb[:,0], nb[:,3]-nb[:,1]], dim=1)
+    
     def forward(self, images, targets=None):
         if self.training:
             loss_dict = self.detector(images, targets)
             base_loss = sum(loss_dict.values())
+
             gcn_loss, repnet_loss = self.compute_gcn_loss(images, targets)
-            total_loss = base_loss + self.λ_gcn * gcn_loss + self.λ_rep * repnet_loss
-            loss_dict.update(
-                {
-                    "base_loss": base_loss,
-                    "gcn_loss": gcn_loss,
-                    "repnet_loss": repnet_loss,
-                }
-            )
+
+            total_loss = base_loss + gcn_loss + repnet_loss
+            loss_dict.update({
+                'base_loss': base_loss,
+                'gcn_loss': gcn_loss,
+                'repnet_loss': repnet_loss,
+            })
             return total_loss, loss_dict
 
         dets = self.detector(images)
         outputs = []
         for img, det in zip(images, dets):
-            boxes = det["boxes"]
+            boxes  = det['boxes']
+            scores = det['scores']
+            labels = det['labels']
             if boxes.numel() == 0:
-                outputs.append({"present_parts": []})
+                outputs.append(det)
                 continue
 
-            feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
+            feats      = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
             rel_scores = self.repn(feats, boxes)
             edge_index = self._make_edge_index(rel_scores)
-            geom = self._box_geom(boxes, img.shape[-2:])
-
+            geom       = self._box_geom(boxes, img.shape[-2:])
             node_feats = torch.cat([feats, geom], dim=1)
-            feats = self.agcn(node_feats, edge_index)
-            logits = self.classifier(feats)
-            probs  = torch.softmax(logits, dim=1)
-
+            logits     = self.agcn(node_feats, edge_index)
+            probs      = torch.softmax(logits, dim=1)
             new_scores, new_labels = probs.max(dim=1)
-            keep = new_labels != 0
-            new_labels = new_labels[keep]
 
-            present = torch.unique(new_labels).tolist()
+            keep = (new_labels != 0) & (new_scores > 0.3)
+            boxes2 = boxes[keep]
+            scores2 = new_scores[keep]
+            labels2 = new_labels[keep]
 
-            outputs.append({"present_parts": present})
+            keep_idx = nms(boxes2, scores2, iou_threshold=0.5)
+            boxes_n  = boxes2[keep_idx]
+            scores_n = scores2[keep_idx]
+            labels_n = labels2[keep_idx]
 
+            final_boxes, final_scores, final_labels = [], [], []
+            for c in labels_n.unique():
+                mask = labels_n == c
+                c_scores = scores_n[mask]
+                c_boxes  = boxes_n[mask]
+                best     = c_scores.argmax()
+                final_boxes.append(c_boxes[best])
+                final_scores.append(c_scores[best])
+                final_labels.append(c)
+            outputs.append({
+                'boxes':  torch.stack(final_boxes),
+                'scores': torch.stack(final_scores),
+                'labels': torch.stack(final_labels)
+            })
         return outputs
-
-    def _get_roi_feats(self, img, boxes):
-        fmap = self.detector.backbone(img)
-        roi = self.detector.roi_heads.box_roi_pool(fmap, [boxes], [img.shape[-2:]])
-        return self.detector.roi_heads.box_head(roi)
-
-    def _make_edge_index(self, scores):
-        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
-        src = idx.flatten()
-        dst = (
-            torch.arange(scores.size(0), device=scores.device)
-            .unsqueeze(1)
-            .expand(-1, self.k)
-            .flatten()
-        )
-        return torch.stack([dst, src], 0)
-
-    def _box_geom(self, boxes, shape):
-        h, w = shape
-        nb = boxes.clone()
-        nb[:, [0, 2]] /= w
-        nb[:, [1, 3]] /= h
-        return torch.stack(
-            [nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], dim=1
-        )
-
+    
     def compute_gcn_loss(self, images, targets):
-        rep_losses, gcn_preds, gcn_labels = [], [], []
-
+        gcn_preds, gcn_labels, rep_sum = [], [], 0.0
         for img, tgt in zip(images, targets):
-            boxes  = tgt["boxes"]
-            labels = tgt["labels"]
-            N = boxes.size(0)
-            if N < 2:
-                continue
-
+            boxes  = tgt['boxes']
+            labels = tgt['labels']
+            if boxes.numel() < 2: continue
             feats = self._get_roi_feats(img.unsqueeze(0), boxes)
-            feats = feats.squeeze(0)
             rel   = self.repn(feats, boxes)
-
-            idx = labels - 1
-            prior_mat = self.adj_prior[idx][:, idx]
-
-            rep_loss_img = nn.functional.binary_cross_entropy_with_logits(
-                rel, prior_mat, reduction="mean"
-            )
-            rep_losses.append(rep_loss_img)
-
             edge  = self._make_edge_index(rel)
             geom  = self._box_geom(boxes, img.shape[-2:])
             nf    = torch.cat([feats, geom], dim=1)
-            logits = self.agcn(nf, edge)
-            gcn_preds.append(logits)
-            gcn_labels.append(labels)
-
+            logits= self.agcn(nf, edge)
+            gcn_preds.append(logits); gcn_labels.append(labels)
+            rep_sum += nn.functional.binary_cross_entropy_with_logits(rel, (box_iou(boxes, boxes)>0.1).float(), reduction='mean')
         if not gcn_preds:
-            zero = torch.tensor(0., device=images[0].device)
-            return zero, zero
+            return torch.tensor(0., device=images[0].device), torch.tensor(0., device=images[0].device)
+        pred = torch.cat(gcn_preds); lab = torch.cat(gcn_labels)
+        return nn.functional.cross_entropy(pred, lab), rep_sum
 
-        # average rep-net loss
-        repnet_loss = torch.stack(rep_losses).mean()
-
-        pred = torch.cat(gcn_preds, dim=0)
-        lab  = torch.cat(gcn_labels, dim=0)
-        gcn_loss = nn.functional.cross_entropy(pred, lab)
-
-        return gcn_loss, repnet_loss
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = GraphRCNN(detector, len(train_dataset.all_parts)).to(device)
+model = GraphRCNN(detector, len(train_dataset.all_parts) + 1).to(device)
 
 detector_params = list(model.detector.backbone.parameters()) \
                 + list(model.detector.rpn.parameters()) \
                 + list(model.detector.roi_heads.parameters())
-graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters()) + list(model.classifier.parameters())
+graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 
 opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
@@ -536,7 +478,7 @@ for epoch in range(1, epochs+1):
                         gpu_memories.append(gpu_mem_used)
                     else:
                         gpu_mem_used = 0
-
+                    
                     cpu_mem_used = psutil.virtual_memory().used / 1024**2
                     cpu_memories.append(cpu_mem_used)
 
@@ -584,19 +526,16 @@ for epoch in range(1, epochs+1):
             if detector_no_improve >= patience:
                 print(f"Early stopping at epoch {epoch}")
                 freeze_epoch = epoch
-
+                
         continue
 
-    if epoch == freeze_epoch:
-        model.detector.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth"))
-
-        model.detector.eval()
+    model.detector.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth"))
 
     for p in detector_params:
         p.requires_grad = False
     for p in graph_params:
         p.requires_grad = True
-
+        
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
         model.train()
         batch_times, gpu_memories, cpu_memories = [], [], []
@@ -620,16 +559,13 @@ for epoch in range(1, epochs+1):
                     gpu_memories.append(gpu_mem_used)
                 else:
                     gpu_mem_used = 0
-
+                
                 cpu_mem_used = psutil.virtual_memory().used / 1024**2
                 cpu_memories.append(cpu_mem_used)
 
 
                 tepoch.set_postfix({
                 "loss": f"{total_loss.item():.4f}",
-                "detector loss": f"{loss_dict['base_loss'].item():.4f}",
-                "gcn loss": f"{loss_dict['gcn_loss'].item():.4f}",
-                "repnet loss": f"{loss_dict['repnet_loss'].item():.4f}",
                 "time (s)": f"{inference_time:.3f}",
                 "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                 "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
@@ -650,9 +586,9 @@ for epoch in range(1, epochs+1):
         ['Energy (kWh)', f"{energy:.4f}"],
         ['CO2 (kg)', f"{co2:.4f}"]
     ], headers=['Metric','Value'], tablefmt='pretty'))
-
+    
     model.eval()
-    print(f"\nEvaluating on validation set after Epoch {epoch}...")
+    print(f"\nEvaluating on validation set after Epoch {epoch + 1}...")
     results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
     parts = list(train_dataset.part_to_idx.values())
@@ -669,33 +605,25 @@ for epoch in range(1, epochs+1):
         if joiny_no_improve >= patience:
             print(f"Early stopping at epoch {epoch}")
             break
-
+    
 
 if torch.cuda.is_available():
     nvmlShutdown()
 
-model.load_state_dict(
-    torch.load(
-        "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
-        map_location=device,
-    )
-)
+
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth", map_location=device))
 model.to(device)
 
 model.eval()
 
-results_per_image = evaluate_model(
-    model, valid_loader, train_dataset.part_to_idx, device
-)
+results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )
 
 
-results_per_image = evaluate_model(
-    model, test_loader, train_dataset.part_to_idx, device
-)   
+results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
