@@ -351,13 +351,9 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    try:
-        trainer.save_model()
-    except Exception:
-        pass 
+    trainer.save_model()
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
-    print(last_yolo, file=sys.stderr)
     last_dgnn = os.path.join(wdir, 'dgnn_last.pt')
     torch.save(dgnn.state_dict(), last_dgnn)
 
@@ -485,7 +481,8 @@ model.train(
     plots=False,
     project='/var/scratch/sismail/models/yolo/runs',
     name='bikeparts_dgnn_euclid',
-    exist_ok=True
+    exist_ok=True,
+    save=True
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
