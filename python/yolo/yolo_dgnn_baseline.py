@@ -365,7 +365,7 @@ def on_fit_epoch_end(trainer):
     dgnn_eval.eval()
 
     stored_feats.clear()
-    head = val_model.model[-1]
+    head = val_model.model.model[-1]
     head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
 
     results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
