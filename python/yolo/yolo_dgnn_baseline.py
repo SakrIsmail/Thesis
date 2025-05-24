@@ -239,7 +239,7 @@ patience = 5
 
 def on_train_start(trainer):
     global dgnn, gnn_opt, stored_feats
-    head = trainer.model.model.model[-1]
+    head = trainer.model.model[-1]
     head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
     dgnn = SpatialDGNN().to(trainer.device)
     gnn_opt = torch.optim.AdamW(dgnn.parameters(), lr=1e-4)
