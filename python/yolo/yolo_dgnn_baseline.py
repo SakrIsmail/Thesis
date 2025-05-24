@@ -351,7 +351,7 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-
+def on_fit_epoch_end(trainer):
     trainer.model.validation(trainer)
     
     trainer.save_model()
@@ -467,6 +467,7 @@ model.add_callback('on_before_zero_grad', on_before_zero_grad)
 model.add_callback('optimizer_step', optimizer_step)
 model.add_callback('on_train_batch_end', on_train_batch_end)
 model.add_callback('on_train_epoch_end', on_train_epoch_end)
+model.add_callback('on_fit_epoch_end', on_fit_epoch_end)
 model.to(device)
 
 model.train(
