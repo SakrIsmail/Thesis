@@ -357,6 +357,7 @@ def on_train_epoch_end(trainer):
         pass 
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
+    print(last_yolo, file=sys.stderr)
     last_dgnn = os.path.join(wdir, 'dgnn_last.pt')
     torch.save(dgnn.state_dict(), last_dgnn)
 
