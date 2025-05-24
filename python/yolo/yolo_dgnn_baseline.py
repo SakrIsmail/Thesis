@@ -332,7 +332,7 @@ def on_train_batch_end(trainer):
 
 
 def on_train_epoch_end(trainer):
-    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
+    global nvml_handle, em_tracker
 
     em_tracker.__exit__(None, None, None)
     energy = em_tracker.final_emissions_data.energy_consumed
@@ -352,6 +352,7 @@ def on_train_epoch_end(trainer):
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
 def on_fit_epoch_end(trainer):
+    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
     trainer.save_model()
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
