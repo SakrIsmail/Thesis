@@ -351,6 +351,9 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
+
+    trainer.model.validation(trainer)
+    
     trainer.save_model()
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
