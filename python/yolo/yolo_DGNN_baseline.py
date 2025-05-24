@@ -12,13 +12,15 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-import torch
 import sys
+import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
+from torch_geometric.nn import GCNConv
 
 logging.getLogger("ultralytics").setLevel(logging.ERROR)
 logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
@@ -208,7 +210,24 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
+
+class SpatialDGNN(torch.nn.Module):
+    def __init__(self, feat_dim=256, hidden_dim=512):
+        super().__init__()
+        in_dim = feat_dim + 6
+        self.conv1 = GCNConv(in_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, in_dim)
+
+    def forward(self, x, edge_index, edge_weight=None):
+        h = nn.functional.relu(self.conv1(x, edge_index, edge_weight))
+        return self.conv2(h, edge_index, edge_weight)
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+stored_feats = []
+dgnn = None
+gnn_opt = None
+
 batch_times, gpu_memories, cpu_memories = [], [], []
 batch_count = 0
 nvml_handle, em_tracker = None, None
@@ -217,32 +236,87 @@ best_macro_f1 = 0.0
 no_improve_epochs = 0
 patience = 5
 
+
+def on_train_start(trainer):
+    global dgnn, gnn_opt, stored_feats
+    head = trainer.model.model.model[-1]
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
+    dgnn = SpatialDGNN().to(trainer.device)
+    gnn_opt = torch.optim.AdamW(dgnn.parameters(), lr=1e-4)
+    stored_feats.clear()
+
+
 def on_train_epoch_start(trainer):
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
-    # reset for new epoch
     batch_times.clear()
     gpu_memories.clear()
     cpu_memories.clear()
     batch_count = 0
-    # start emissions tracker
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
     em_tracker.__enter__()
-    # init GPU memory tracking
     if trainer.device.type == 'cuda':
         nvmlInit()
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
 def on_train_batch_start(trainer):
-    global start_time
+    global start_time, stored_feats
+    start_time = time.time()
+    stored_feats.clear()  
 
-    start_time = time.time()   
+
+def on_before_zero_grad(trainer):
+    preds = trainer.predictions
+    total_gnn_loss = 0.0
+    device = trainer.device
+
+    sigma_spatial = 20.0
+    gamma_appear = 5.0
+    alpha = 1.0 / (2 * sigma_spatial**2)
+    weight_threshold = 1e-3
+
+    for feats, det in zip(stored_feats, preds):
+        Ni = feats.size(0)
+        if Ni < 2: continue
+
+        boxes = det.boxes.xyxy.to(device)
+        confs = det.boxes.conf.to(device).unsqueeze(1)
+        clss  = det.boxes.cls.to(device).unsqueeze(1)
+        feats = feats.to(device)
+
+        cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
+        cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
+        ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
+        hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+        x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
+
+        centers = torch.cat([cxs, cys], dim=1)
+        dist_mat = torch.cdist(centers, centers, p=2)
+        w_spatial = torch.exp(-alpha * dist_mat**2)
+        sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1), feats.unsqueeze(0), dim=2)
+        w_appear = torch.exp(gamma_appear * sim_feats)
+        W = w_spatial * w_appear
+        src, dst = (W > weight_threshold).nonzero(as_tuple=True)
+        if src.numel() == 0:
+            continue
+        edge_index = torch.stack([src, dst], dim=0)
+        edge_weight = W[src, dst]
+        x_ref = dgnn(x, edge_index, edge_weight)
+        total_gnn_loss += nn.functional.mse_loss(x_ref[:, -256:], x[:, -256:])
+    if len(preds) > 0:
+        total_gnn_loss = total_gnn_loss / len(preds)
+        λ = 0.1
+        combined = trainer.loss + λ * total_gnn_loss
+        trainer.optimizer.zero_grad(); gnn_opt.zero_grad()
+        combined.backward()
+        gnn_opt.step()
+        trainer.loss = combined.item()
     
+def optimizer_step(trainer):
+    trainer.optimizer.step()
 
 def on_train_batch_end(trainer):
-    global batch_count, start_time
-    # increment batch counter
+    global batch_count
     batch_count += 1
-    # record timing and memory
     end_time = time.time()
     inference_time = end_time - start_time
     batch_times.append(inference_time)
@@ -252,7 +326,6 @@ def on_train_batch_end(trainer):
     else:
         gpu_memories.append(0)
     cpu_memories.append(psutil.virtual_memory().used / 1024**2)
-    # log metrics separately
     print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
           f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
     gc.collect()
@@ -311,8 +384,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     for images, targets in tqdm(loader, desc="Eval"):
         np_images = []
         for img in images:
-            # img is a tensor [3,H,W] in [0,1]
-            arr = img.cpu().permute(1, 2, 0).numpy()  # H,W,3 float32
+            arr = img.cpu().permute(1, 2, 0).numpy()
             arr = (arr * 255).clip(0, 255).astype(np.uint8)
             np_images.append(arr)
 
@@ -373,11 +445,14 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 
-model = YOLO('yolov8m.pt', verbose=False)
-model.add_callback("on_train_epoch_start", on_train_epoch_start)
-model.add_callback("on_train_batch_start", on_train_batch_start)
-model.add_callback("on_train_batch_end",   on_train_batch_end)
-model.add_callback("on_train_epoch_end",   on_train_epoch_end)
+model=YOLO('yolov8m.pt',verbose=False)
+model.add_callback('on_train_start', on_train_start)
+model.add_callback('on_train_epoch_start', on_train_epoch_start)
+model.add_callback('on_train_batch_start', on_train_batch_start)
+model.add_callback('on_before_zero_grad', on_before_zero_grad)
+model.add_callback('optimizer_step', optimizer_step)
+model.add_callback('on_train_batch_end', on_train_batch_end)
+model.add_callback('on_train_epoch_end', on_train_epoch_end)
 model.to(device)
 
 model.train(
@@ -394,12 +469,12 @@ model.train(
     verbose=False,
     plots=False,
     project='/var/scratch/sismail/models/yolo/runs',
-    name='bikeparts_experiment_baseline',
+    name='bikeparts_dgnn_euclid',
     exist_ok=True
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_baseline/weights/best.pt")
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt")
 model.to(device)
 
 
