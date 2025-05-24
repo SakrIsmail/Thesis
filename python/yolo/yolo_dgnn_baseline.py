@@ -351,10 +351,9 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
-    trainer.model.save(last_yolo)
+    model.save(last_yolo)
     last_dgnn = os.path.join(wdir, 'dgnn_last.pt')
     torch.save(dgnn.state_dict(), last_dgnn)
 
