@@ -352,12 +352,22 @@ def on_train_epoch_end(trainer):
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
     trainer.save_model()
-
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    last_path = os.path.join(wdir, 'last.pt')  
-    model = YOLO(last_path)  
-    model.to(device).eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+    last_yolo = os.path.join(wdir, 'last.pt')
+    last_dgnn = os.path.join(wdir, 'dgnn_last.pt')
+    torch.save(dgnn.state_dict(), last_dgnn)
+
+    val_model = YOLO(last_yolo)
+    val_model.to(trainer.device).eval()
+    dgnn_eval = SpatialDGNN().to(trainer.device)
+    dgnn_eval.load_state_dict(torch.load(last_dgnn, map_location=trainer.device))
+    dgnn_eval.eval()
+
+    stored_feats.clear()
+    head = val_model.model[-1]
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
+
+    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -369,7 +379,8 @@ def on_train_epoch_end(trainer):
     if macro_f1 > best_macro_f1:
         best_macro_f1 = macro_f1
         no_improve_epochs = 0
-        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
+        shutil.copy(last_yolo, os.path.join(wdir, 'best.pt'))
+        shutil.copy(last_dgnn, os.path.join(wdir, 'dgnn_best.pt'))
     else:
         no_improve_epochs += 1
         if no_improve_epochs >= patience:
@@ -474,11 +485,14 @@ model.train(
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt")
-model.to(device)
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt").to(device).eval()
+dgnn_eval = SpatialDGNN().to(device)
+dgnn_eval.load_state_dict(torch.load("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/dgnn_best.pt", map_location=device))
+dgnn_eval.eval()
+stored_feats.clear()
+head = model.model[-1]
+head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
 
-
-model.eval()
 
 val_results  = run_yolo_inference(model, valid_loader,  valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 test_results = run_yolo_inference(model, test_loader, test_dataset.part_to_idx, test_dataset.idx_to_part, device)
