@@ -410,6 +410,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, si
         preds = model(np_images, device=device, verbose=False)
 
         for i, det in enumerate(preds):
+            print(f"STORED FEATS {stored_feats}", file=sys.stderr)
             feats = stored_feats[i].to(device)
             boxes = det.boxes.xyxy.to(device)
             confs = det.boxes.conf.to(device).unsqueeze(1)
