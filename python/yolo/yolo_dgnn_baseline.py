@@ -41,8 +41,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/sismail/data/images'
+final_output_json='/var/scratch/$USER/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/$USER/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -414,7 +414,13 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
         preds = model(np_images, device=device, verbose=False)
 
         for feat, det, target in zip(stored_feats, preds, targets):
-            feats = feat[0].to(device)  # shape: [N, C]
+            feat_tensor = feat[0]  # Raw output from hook
+            if feat_tensor.ndim == 3:
+                feats = feat_tensor.squeeze(0).to(device)  # [N, C]
+            elif feat_tensor.ndim == 4:
+                feats = feat_tensor.permute(0, 2, 3, 1).reshape(-1, feat_tensor.shape[1]).to(device)  # [N, C]
+            else:
+                feats = feat_tensor.view(feat_tensor.size(0), -1).to(device)
             boxes = det.boxes.xyxy.to(device)
             confs = det.boxes.conf.to(device).unsqueeze(1)
             clss  = det.boxes.cls.to(device).unsqueeze(1)
@@ -519,7 +525,7 @@ model.add_callback('on_fit_epoch_end', on_fit_epoch_end)
 model.to(device)
 
 model.train(
-    data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
+    data='/var/scratch/$USER/data/yolo_format/noaug/data.yaml',
     epochs=50,
     batch=16,
     imgsz=640,
@@ -531,16 +537,16 @@ model.train(
     seed=42,
     verbose=False,
     plots=False,
-    project='/var/scratch/sismail/models/yolo/runs',
+    project='/var/scratch/$USER/models/yolo/runs',
     name='bikeparts_dgnn_euclid',
     exist_ok=True,
     save=True
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt").to(device).eval()
+model = YOLO("/var/scratch/$USER/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt").to(device).eval()
 dgnn_eval = SpatialDGNN().to(device)
-dgnn_eval.load_state_dict(torch.load("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/dgnn_best.pt", map_location=device))
+dgnn_eval.load_state_dict(torch.load("/var/scratch/$USER/models/yolo/runs/bikeparts_dgnn_euclid/weights/dgnn_best.pt", map_location=device))
 dgnn_eval.eval()
 
 
