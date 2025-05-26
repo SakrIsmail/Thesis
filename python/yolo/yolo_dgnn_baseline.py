@@ -369,7 +369,7 @@ def on_fit_epoch_end(trainer, wrapper):
     dgnn_eval.eval()
 
 
-    results = trainer.run_inference(valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, early_stopping=True)
+    results = wrapper.run_inference(valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, early_stopping=True)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
