@@ -320,10 +320,6 @@ class YOLOGNNWrapper(nn.Module):
     ):
         super().__init__()
         yolo = YOLO(yolo_path)
-        yolo.add_callback("on_train_epoch_start", on_epoch_start)
-        yolo.add_callback("on_train_batch_start", on_batch_start)
-        yolo.add_callback("on_train_batch_end", on_batch_end)
-        yolo.add_callback("on_train_epoch_end", on_epoch_end)
         m = list(yolo.model.model)
         self.extractor = nn.Sequential(*m[:-1])
         self.head = m[-1]
@@ -377,6 +373,17 @@ class YOLOGNNWrapper(nn.Module):
             out[: logits.size(0)] = logits
             logits = out
         return dets, logits
+    
+def compute_loss(logits, targets, num_parts):
+    """
+    Computes binary cross-entropy loss over predicted missing parts.
+    `targets` is a list of dicts with key 'missing_labels'.
+    """
+    B = logits.size(0)
+    target_tensor = torch.zeros(B, num_parts, device=logits.device)
+    for i, t in enumerate(targets):
+        target_tensor[i, t["missing_labels"]] = 1.0
+    return F.binary_cross_entropy_with_logits(logits, target_tensor)
 
 
 def run_yolo_inference(model, loader, p2i, i2p, device):
@@ -467,46 +474,44 @@ model = YOLOGNNWrapper(
 ).to(device)
 
 
-model.train(
-    data="/var/scratch/sismail/data/yolo_format/noaug/data.yaml",
-    epochs=50,
-    batch=16,
-    imgsz=640,
-    optimizer="AdamW",
-    lr0=1e-4,
-    weight_decay=1e-4,
-    workers=4,
-    device=device,
-    seed=42,
-    verbose=False,
-    plots=False,
-    project="/var/scratch/sismail/models/yolo/runs",
-    name="bikeparts_experiment_gnn_baseline",
-    exist_ok=True,
-)
+optimizer = AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+epochs = 50
+best_val_f1 = 0.0
+patience, max_patience = 0, 5
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0.0
 
-model = YOLOGNNWrapper(
-    yolo_path="yolov8m.pt",
-    hidden_dim=128,
-    num_parts=len(train_dataset.all_parts),
-    dist_thresh=50.0,
-    cos_thresh=0.8,
-    roi_size=7,
-).to(device)
+    on_epoch_start(model)
+    for imgs, targets in tqdm(train_loader, desc=f"Train Epoch {epoch+1}"):
+        on_batch_start(model)
+        imgs = torch.stack(imgs).to(device)
+        optimizer.zero_grad()
+        _, logits = model(imgs)
+        loss = compute_loss(logits, targets, num_parts=len(train_dataset.all_parts))
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+        on_batch_end(model)
 
+    model.loss = total_loss / len(train_loader)
+    model.epoch = epoch
+    model.args = type("Args", (object,), {
+        "project": "/var/scratch/sismail/models/yolo/runs",
+        "name": "bikeparts_experiment_gnn_baseline"
+    })
+    on_epoch_end(model)
 
-best_ckpt = (
-    "/var/scratch/$USER/models/yolo/runs/bikeparts_experiment_gnn/weights/best.pt"
-)
-model.head.model.load_state_dict(
-    torch.load(best_ckpt, map_location=device)
-)  # detection head
-model.load_state_dict(
-    torch.load(best_ckpt.replace("best.pt", "best_wrapper.pt"), map_location=device)
-)
-model.eval()
+    # Early stopping
+    if no_imp >= max_patience:
+        print("Early stopping triggered.")
+        break
+
+# Save GNN wrapper's state_dict
+torch.save(model.state_dict(),
+           os.path.join(model.args.project, model.args.name, "weights", "best_wrapper.pt"))
+
 
 
 model.eval()
