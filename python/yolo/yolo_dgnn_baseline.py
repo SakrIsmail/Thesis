@@ -446,7 +446,7 @@ class BikePartsTrainer:
         self.model = YOLO(model_path, verbose=False)
         
         self.dgnn = SpatialDGNN().to(device)
-        self.feat_reducer = nn.Linear(576, 256)
+        self.feat_reducer = nn.Linear(576, 256).to(self.device)
         
         self.callbacks = []
         
