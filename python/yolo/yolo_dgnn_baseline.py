@@ -240,7 +240,7 @@ def on_epoch_start(model):
     gpu_mem.clear()
     cpu_mem.clear()
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False).__enter__()
-    if model.device.type == "cuda":
+    if torch.cuda.is_available():
         nvmlInit()
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
