@@ -368,7 +368,7 @@ def on_fit_epoch_end(trainer):
     dgnn_eval.eval()
 
 
-    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device, dgnn_eval)
+    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device, dgnn_eval, early_stopping=True)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -437,7 +437,7 @@ def save_detection_graph(
     plt.close(fig)
 
 
-def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
+def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, early_stopping = False,
                        sigma_spatial=20.0, gamma_appear=5.0,
                        weight_threshold=1e-3, conf_threshold=0.5):
 
@@ -498,7 +498,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
                 refined_confs = confs.squeeze(1).cpu()
                 refined_cls   = clss.squeeze(1).cpu().long()
 
-            if num_imgs < 3:
+            if num_imgs < 3 and not early_stopping:
         
                 filename = f"img{target['image_id'].item():04d}.png"
                 save_path = os.path.join('/home/sismail/Thesis/visualisations', filename)
