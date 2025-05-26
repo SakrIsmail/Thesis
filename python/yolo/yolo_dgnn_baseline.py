@@ -234,24 +234,22 @@ nvml_handle, em_tracker = None, None
 best_macro_f1, no_imp = 0.0, 0
 
 
-def on_epoch_start(trainer):
+def on_epoch_start(model):
     global batch_times, gpu_mem, cpu_mem, nvml_handle, em_tracker
     batch_times.clear()
     gpu_mem.clear()
     cpu_mem.clear()
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False).__enter__()
-    if trainer.device.type == "cuda":
+    if model.device.type == "cuda":
         nvmlInit()
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
+def on_batch_start(model):
+    model._batch_start = time.time()
 
-def on_batch_start(trainer):
-    trainer._batch_start = time.time()
-
-
-def on_batch_end(trainer):
+def on_batch_end(model):
     global batch_times, gpu_mem, cpu_mem
-    t = time.time() - trainer._batch_start
+    t = time.time() - model._batch_start
     batch_times.append(t)
     if nvml_handle:
         mi = nvmlDeviceGetMemoryInfo(nvml_handle)
@@ -261,16 +259,15 @@ def on_batch_end(trainer):
     cpu_mem.append(psutil.virtual_memory().used // (1024**2))
     gc.collect()
 
-
-def on_epoch_end(trainer):
+def on_epoch_end(model, epoch, loss, args):
     global best_macro_f1, no_imp
     energy = em_tracker.__exit__(None, None, None).final_emissions_data.energy_consumed
     co2 = em_tracker.final_emissions
     nvmlShutdown()
-    # print table
+
     stats = [
-        ["Epoch", trainer.epoch],
-        ["Loss", f"{trainer.loss:.4f}"],
+        ["Epoch", epoch],
+        ["Loss", f"{loss:.4f}"],
         ["Avg batch time", f"{np.mean(batch_times):.3f}s"],
         ["Max GPU", f"{max(gpu_mem)}MB"],
         ["Max CPU", f"{max(cpu_mem)}MB"],
@@ -278,26 +275,19 @@ def on_epoch_end(trainer):
         ["CO₂", f"{co2:.4f}kg"],
     ]
     print(tabulate(stats, headers=["Metric", "Value"], tablefmt="pretty"))
-    # validation missing-part F1
-    model_yaml = os.path.join(
-        trainer.args.project, trainer.args.name, "weights", "last.pt"
-    )
-    val_model = YOLO(model_yaml).to(trainer.device).eval()
-    res = run_yolo_inference(
-        val_model,
-        valid_loader,
-        valid_dataset.part2idx,
-        valid_dataset.idx2part,
-        trainer.device,
-    )
+
+    # Validation
+    model_yaml = os.path.join(args.project, args.name, "weights", "last.pt")
+    val_model = YOLO(model_yaml).to(model.device).eval()
+    res = run_yolo_inference(val_model, valid_loader, valid_dataset.part2idx, valid_dataset.idx2part, model.device)
+
     parts = list(valid_dataset.part2idx.values())
     Yt = np.array([[int(p in r["true_missing_parts"]) for p in parts] for r in res])
-    Yp = np.array(
-        [[int(p in r["predicted_missing_parts"]) for p in parts] for r in res]
-    )
+    Yp = np.array([[int(p in r["predicted_missing_parts"]) for p in parts] for r in res])
     m_f1 = f1_score(Yt, Yp, average="macro", zero_division=0)
     print(f"Val Macro-F1: {m_f1:.4f}")
-    # early stop
+
+    # Early stopping
     if m_f1 > best_macro_f1:
         best_macro_f1 = m_f1
         no_imp = 0
@@ -305,7 +295,8 @@ def on_epoch_end(trainer):
     else:
         no_imp += 1
         if no_imp >= 5:
-            trainer.stop_training = True
+            model.stop_training = True
+
 
 
 class YOLOGNNWrapper(nn.Module):
@@ -386,15 +377,20 @@ def compute_loss(logits, targets, num_parts):
     return F.binary_cross_entropy_with_logits(logits, target_tensor)
 
 
-def run_yolo_inference(model, loader, p2i, i2p, device):
-    model.model.to(device).eval()
+def run_yolo_inference(model_wrapper, loader, p2i, i2p, device):
+    model_wrapper.to(device)  # Move the entire wrapper to device if supported
+    model_wrapper.eval()      # Set to eval mode if applicable
+
     results = []
     for imgs, tgs in tqdm(loader, desc="Eval"):
+        # Convert tensors to numpy arrays for inference
         arrs = [
             (img.cpu().permute(1, 2, 0).numpy() * 255).astype(np.uint8) for img in imgs
         ]
-        preds = model(arrs, device=device, verbose=False)
-        # same logic as before...
+
+        # Run inference through the wrapper
+        preds = model_wrapper(arrs, device=device, verbose=False)
+
         for i, det in enumerate(preds):
             pr = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
             tm = set(tgs[i]["missing_labels"].tolist())
@@ -407,6 +403,7 @@ def run_yolo_inference(model, loader, p2i, i2p, device):
                 }
             )
     return results
+
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
