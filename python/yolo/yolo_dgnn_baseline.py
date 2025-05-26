@@ -8,6 +8,7 @@ import time
 import psutil
 import gc
 import numpy as np
+import networkx as nx
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -239,8 +240,8 @@ patience = 5
 
 def on_train_start(trainer):
     global dgnn, gnn_opt, stored_feats
-    head = trainer.model.model[-1]
-    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
+    head = trainer.model.model[-2]
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out[1]))
     dgnn = SpatialDGNN().to(trainer.device)
     gnn_opt = torch.optim.AdamW(dgnn.parameters(), lr=1e-4)
     stored_feats.clear()
@@ -304,9 +305,10 @@ def on_before_zero_grad(trainer):
         total_gnn_loss += nn.functional.mse_loss(x_ref[:, -256:], x[:, -256:])
     if len(preds) > 0:
         total_gnn_loss = total_gnn_loss / len(preds)
-        λ = 0.1
-        combined = trainer.loss + λ * total_gnn_loss
-        trainer.optimizer.zero_grad(); gnn_opt.zero_grad()
+        lmbda = 0.1
+        combined = trainer.loss + lmbda * total_gnn_loss
+        trainer.optimizer.zero_grad()
+        gnn_opt.zero_grad()
         combined.backward()
         gnn_opt.step()
         trainer.loss = combined.item()
@@ -387,76 +389,132 @@ def on_fit_epoch_end(trainer):
             trainer.stop_training = True
 
 
+def save_detection_graph(
+    np_image,
+    boxes,
+    W,
+    edge_index,
+    output_path: str,
+    title: str = None,
+    dpi: int = 150
+):
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    centers = ((boxes[:, :2] + boxes[:, 2:]) / 2).cpu().numpy()
+
+    G = nx.Graph()
+    for i, (x, y) in enumerate(centers):
+        G.add_node(i, pos=(x, y))
+
+    for src, dst in edge_index.t().cpu().numpy():
+        w = float(W[src, dst].cpu())
+        G.add_edge(int(src), int(dst), weight=w)
+
+    fig, ax = plt.subplots(figsize=(8, 8), dpi=dpi)
+    ax.imshow(np_image)
+    ax.axis('off')
+
+    pos = nx.get_node_attributes(G, 'pos')
+    weights = [d['weight'] for _, _, d in G.edges(data=True)]
+
+    nx.draw_networkx_edges(
+        G, pos, ax=ax,
+        width=[2.0 * w for w in weights],
+        alpha=0.7,
+        edge_color='yellow'
+    )
+    nx.draw_networkx_nodes(
+        G, pos, ax=ax,
+        node_size=50,
+        node_color='red'
+    )
+    if title:
+        ax.set_title(title)
+
+    plt.tight_layout(pad=0)
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close(fig)
+
+
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
                        sigma_spatial=20.0, gamma_appear=5.0,
                        weight_threshold=1e-3, conf_threshold=0.5):
 
+    stored_feats = []
+
+    detect_layer = model.model.model[-2]
+    hook_handle = detect_layer.register_forward_hook(
+        lambda m, inp, out: stored_feats.append(out[1].detach())
+    )
+
     model.model.to(device).eval()
     dgnn.to(device).eval()
+    num_imgs = 0
 
     alpha = 1.0 / (2 * sigma_spatial**2)
     results = []
 
-    stored_feats = []
-
-    # Hook to store features from YOLO head
-    head = model.model.model[-1]
-    hook_handle = head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
-
     for images, targets in tqdm(loader, desc="DGNN Inference"):
         stored_feats.clear()
 
-        # Convert to numpy for YOLOv8 inference
         np_images = [
-            (img.cpu().permute(1, 2, 0).numpy() * 255).clip(0, 255).astype('uint8')
+            (img.cpu().permute(1,2,0).numpy()*255).clip(0,255).astype('uint8')
             for img in images
         ]
         preds = model(np_images, device=device, verbose=False)
 
-        for feat, det, target in zip(stored_feats, preds, targets):
-            feat_tensor = feat[0]  # Raw output from hook
-            if feat_tensor.ndim == 3:
-                feats = feat_tensor.squeeze(0).to(device)  # [N, C]
-            elif feat_tensor.ndim == 4:
-                feats = feat_tensor.permute(0, 2, 3, 1).reshape(-1, feat_tensor.shape[1]).to(device)  # [N, C]
-            else:
-                feats = feat_tensor.view(feat_tensor.size(0), -1).to(device)
+        for i, (feat_tensor, det, target) in enumerate(zip(stored_feats, preds, targets)):
+            feats = feat_tensor.to(device)
+
             boxes = det.boxes.xyxy.to(device)
             confs = det.boxes.conf.to(device).unsqueeze(1)
             clss  = det.boxes.cls.to(device).unsqueeze(1)
-
-            cxs = ((boxes[:, 0] + boxes[:, 2]) / 2).unsqueeze(1)
-            cys = ((boxes[:, 1] + boxes[:, 3]) / 2).unsqueeze(1)
-            ws  = (boxes[:, 2] - boxes[:, 0]).unsqueeze(1)
-            hs  = (boxes[:, 3] - boxes[:, 1]).unsqueeze(1)
+            cxs = ((boxes[:,0] + boxes[:,2])/2).unsqueeze(1)
+            cys = ((boxes[:,1] + boxes[:,3])/2).unsqueeze(1)
+            ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
+            hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
 
             x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
-
             centers = torch.cat([cxs, cys], dim=1)
             dist_mat = torch.cdist(centers, centers, p=2)
             w_spatial = torch.exp(-alpha * dist_mat**2)
-
-            sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1), feats.unsqueeze(0), dim=2)
+            sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1),
+                                                       feats.unsqueeze(0), dim=2)
             w_appear = torch.exp(gamma_appear * sim_feats)
             W = w_spatial * w_appear
 
             src, dst = (W > weight_threshold).nonzero(as_tuple=True)
             if src.numel() > 0:
-                edge_index = torch.stack([src, dst], dim=0)
+                edge_index  = torch.stack([src, dst], dim=0)
                 edge_weight = W[src, dst]
-
                 with torch.no_grad():
                     x_ref = dgnn(x, edge_index, edge_weight)
-
                 refined_confs = x_ref[:, 4].cpu()
-                refined_cls = x_ref[:, 5].round().clamp(0, len(part_to_idx) - 1).long().cpu()
+                refined_cls   = x_ref[:, 5].round()\
+                                            .clamp(0, len(part_to_idx)-1)\
+                                            .long().cpu()
             else:
                 refined_confs = confs.squeeze(1).cpu()
-                refined_cls = clss.squeeze(1).cpu().long()
+                refined_cls   = clss.squeeze(1).cpu().long()
+
+            if num_imgs < 3:
+        
+                filename = f"img{target['image_id'].item():04d}.png"
+                save_path = os.path.join('/home/sismail/Thesis/visualisations', filename)
+
+                save_detection_graph(
+                    np_images[i],
+                    det.boxes.xyxy,
+                    W,
+                    edge_index,
+                    output_path=save_path,
+                    title=f"Image {target['image_id'].item()}"
+                )
+                num_imgs += 1
 
             keep = (refined_confs >= conf_threshold).nonzero().squeeze(1)
             pred_labels = set(refined_cls[keep].tolist())
-
             true_missing = set(target['missing_labels'].tolist())
             all_parts = set(part_to_idx.values())
 
@@ -468,6 +526,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
 
     hook_handle.remove()
     return results
+
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
