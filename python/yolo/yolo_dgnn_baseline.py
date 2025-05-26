@@ -7,6 +7,7 @@ import logging
 import time
 import psutil
 import gc
+from functools import partial
 import numpy as np
 import networkx as nx
 from tabulate import tabulate
@@ -353,7 +354,7 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-def on_fit_epoch_end(trainer):
+def on_fit_epoch_end(trainer, wrapper):
     global best_macro_f1, no_improve_epochs, patience, valid_loader, device
     trainer.save_model()
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
@@ -629,7 +630,7 @@ trainer.add_callbacks([
     ('optimizer_step', optimizer_step),
     ('on_train_batch_end', on_train_batch_end),
     ('on_train_epoch_end', on_train_epoch_end),
-    ('on_fit_epoch_end', on_fit_epoch_end),
+    ('on_fit_epoch_end', partial(on_fit_epoch_end, wrapper=trainer)),
 ])
 
 
