@@ -320,10 +320,10 @@ class YOLOGNNWrapper(nn.Module):
     ):
         super().__init__()
         yolo = YOLO(yolo_path)
-        model.head.add_callback("on_train_epoch_start", on_epoch_start)
-        model.head.add_callback("on_train_batch_start", on_batch_start)
-        model.head.add_callback("on_train_batch_end", on_batch_end)
-        model.head.add_callback("on_train_epoch_end", on_epoch_end)
+        yolo.head.add_callback("on_train_epoch_start", on_epoch_start)
+        yolo.head.add_callback("on_train_batch_start", on_batch_start)
+        yolo.head.add_callback("on_train_batch_end", on_batch_end)
+        yolo.head.add_callback("on_train_epoch_end", on_epoch_end)
         m = list(yolo.model.model)
         self.extractor = nn.Sequential(*m[:-1])
         self.head = m[-1]
