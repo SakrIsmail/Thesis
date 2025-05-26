@@ -387,7 +387,9 @@ def on_fit_epoch_end(trainer):
             trainer.stop_training = True
 
 
-def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, sigma_spatial: float = 20.0, gamma_appear: float = 5.0, weight_threshold: float = 1e-3, conf_threshold: float = 0.5):
+def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn,
+                       sigma_spatial=20.0, gamma_appear=5.0,
+                       weight_threshold=1e-3, conf_threshold=0.5):
 
     model.model.to(device).eval()
     dgnn.to(device).eval()
@@ -397,66 +399,68 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, si
 
     stored_feats = []
 
+    # Hook to store features from YOLO head
     head = model.model.model[-1]
     hook_handle = head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
 
     for images, targets in tqdm(loader, desc="DGNN Inference"):
         stored_feats.clear()
-        np_images = []
-        for img in images:
-            arr = img.cpu().permute(1, 2, 0).numpy()
-            arr = (arr * 255).clip(0, 255).astype('uint8')
-            np_images.append(arr)
+
+        # Convert to numpy for YOLOv8 inference
+        np_images = [
+            (img.cpu().permute(1, 2, 0).numpy() * 255).clip(0, 255).astype('uint8')
+            for img in images
+        ]
         preds = model(np_images, device=device, verbose=False)
 
-        for i, det in enumerate(preds):
-            feats = stored_feats[i][0].to(device)
+        for feat, det, target in zip(stored_feats, preds, targets):
+            feats = feat[0].to(device)  # shape: [N, C]
             boxes = det.boxes.xyxy.to(device)
             confs = det.boxes.conf.to(device).unsqueeze(1)
             clss  = det.boxes.cls.to(device).unsqueeze(1)
 
-            cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
-            cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
-            ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
-            hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+            cxs = ((boxes[:, 0] + boxes[:, 2]) / 2).unsqueeze(1)
+            cys = ((boxes[:, 1] + boxes[:, 3]) / 2).unsqueeze(1)
+            ws  = (boxes[:, 2] - boxes[:, 0]).unsqueeze(1)
+            hs  = (boxes[:, 3] - boxes[:, 1]).unsqueeze(1)
 
             x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
 
-            centers  = torch.cat([cxs, cys], dim=1)
+            centers = torch.cat([cxs, cys], dim=1)
             dist_mat = torch.cdist(centers, centers, p=2)
             w_spatial = torch.exp(-alpha * dist_mat**2)
-            sim_feats  = nn.functional.cosine_similarity(feats.unsqueeze(1),
-                                             feats.unsqueeze(0),
-                                             dim=2)
-            w_appear  = torch.exp(gamma_appear * sim_feats)
+
+            sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1), feats.unsqueeze(0), dim=2)
+            w_appear = torch.exp(gamma_appear * sim_feats)
             W = w_spatial * w_appear
 
             src, dst = (W > weight_threshold).nonzero(as_tuple=True)
             if src.numel() > 0:
-                edge_index  = torch.stack([src, dst], dim=0)
+                edge_index = torch.stack([src, dst], dim=0)
                 edge_weight = W[src, dst]
+
                 with torch.no_grad():
                     x_ref = dgnn(x, edge_index, edge_weight)
 
                 refined_confs = x_ref[:, 4].cpu()
-                refined_cls   = x_ref[:, 5].round().clamp(0, len(part_to_idx)-1).long().cpu()
+                refined_cls = x_ref[:, 5].round().clamp(0, len(part_to_idx) - 1).long().cpu()
             else:
                 refined_confs = confs.squeeze(1).cpu()
-                refined_cls   = clss.squeeze(1).cpu().long()
+                refined_cls = clss.squeeze(1).cpu().long()
 
             keep = (refined_confs >= conf_threshold).nonzero().squeeze(1)
             pred_labels = set(refined_cls[keep].tolist())
 
+            true_missing = set(target['missing_labels'].tolist())
+            all_parts = set(part_to_idx.values())
 
-            true_missing = set(targets[i]['missing_labels'].tolist())
-            all_parts    = set(part_to_idx.values())
             results.append({
-                'image_id': targets[i]['image_id'].item(),
+                'image_id': target['image_id'].item(),
                 'predicted_missing_parts': all_parts - pred_labels,
-                'true_missing_parts':      true_missing
+                'true_missing_parts': true_missing
             })
-    hook_handle.remove()
 
+    hook_handle.remove()
     return results
 
 
