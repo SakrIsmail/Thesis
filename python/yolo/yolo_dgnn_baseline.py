@@ -19,6 +19,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from torchvision.ops import roi_align
 from ultralytics import YOLO
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
@@ -490,9 +491,9 @@ class BikePartsTrainer:
         self.dgnn.eval()
         
     def run_inference(self, loader, part_to_idx, idx_to_part,
-                      sigma_spatial=20.0, gamma_appear=5.0,
-                      weight_threshold=1e-3, conf_threshold=0.5,
-                      early_stopping=False):
+                  sigma_spatial=20.0, gamma_appear=5.0,
+                  weight_threshold=1e-3, conf_threshold=0.5,
+                  early_stopping=False):
         """Run combined YOLO + DGNN inference, no callbacks."""
         
         stored_feats = []
@@ -506,6 +507,8 @@ class BikePartsTrainer:
         results = []
         num_imgs = 0
         
+        stride = 32  # Adjust this if your feature map stride differs
+        
         for images, targets in tqdm(loader, desc="DGNN Inference"):
             stored_feats.clear()
             np_images = [
@@ -515,45 +518,64 @@ class BikePartsTrainer:
             preds = self.model(np_images, device=self.device, verbose=False)
             
             for i, (feat_tensor, det, target) in enumerate(zip(stored_feats, preds, targets)):
-                feats = feat_tensor.to(self.device)
+                feats = feat_tensor.to(self.device)  # shape [1, C, H, W]
                 
-                boxes = det.boxes.xyxy.to(self.device)
-                confs = det.boxes.conf.to(self.device).unsqueeze(1)
-                clss  = det.boxes.cls.to(self.device).unsqueeze(1)
-                cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
-                cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
-                ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
-                hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
-
-                print("cxs:", cxs.shape)
-                print("cys:", cys.shape)
-                print("ws:", ws.shape)
-                print("hs:", hs.shape)
-                print("confs:", confs.shape)
-                print("clss:", clss.shape)
-                print("feats:", feats.shape)
+                boxes = det.boxes.xyxy.to(self.device)  # [num_boxes, 4]
+                confs = det.boxes.conf.to(self.device).unsqueeze(1)  # [num_boxes, 1]
+                clss  = det.boxes.cls.to(self.device).unsqueeze(1)  # [num_boxes, 1]
+                cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)  # [num_boxes, 1]
+                cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)  # [num_boxes, 1]
+                ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)        # [num_boxes, 1]
+                hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)        # [num_boxes, 1]
                 
-                x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
+                num_boxes = boxes.shape[0]
+                if num_boxes > 0:
+                    # Scale boxes for roi_align (x1,y1,x2,y2) / stride
+                    boxes_scaled = boxes / stride
+                    
+                    # Batch indices for roi_align: all zeros since one image at a time
+                    batch_indices = torch.zeros(num_boxes, 1, device=self.device)
+                    
+                    # Boxes for roi_align [num_boxes, 5]: (batch_idx, x1, y1, x2, y2)
+                    boxes_for_roi = torch.cat([batch_indices, boxes_scaled], dim=1)
+                    
+                    # ROI align to get pooled features of size 1x1 per box
+                    pooled_feats = roi_align(feats, boxes_for_roi, output_size=(1, 1))
+                    
+                    # Flatten pooled features to [num_boxes, C]
+                    pooled_feats = pooled_feats.view(num_boxes, -1)
+                    
+                    # Concatenate all per-box features and detection info
+                    x = torch.cat([cxs, cys, ws, hs, confs, clss, pooled_feats], dim=1)
+                else:
+                    # No detections: create empty tensor with proper feature size
+                    x = torch.empty((0, 6 + feats.shape[1]), device=self.device)
+                
                 centers = torch.cat([cxs, cys], dim=1)
                 dist_mat = torch.cdist(centers, centers, p=2)
                 w_spatial = torch.exp(-alpha * dist_mat**2)
-                sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1),
-                                                           feats.unsqueeze(0), dim=2)
-                w_appear = torch.exp(gamma_appear * sim_feats)
-                W = w_spatial * w_appear
+                sim_feats = nn.functional.cosine_similarity(
+                    pooled_feats.unsqueeze(1), pooled_feats.unsqueeze(0), dim=2) if num_boxes > 0 else torch.tensor([])
+                w_appear = torch.exp(gamma_appear * sim_feats) if num_boxes > 0 else torch.tensor([])
                 
-                src, dst = (W > weight_threshold).nonzero(as_tuple=True)
-                if src.numel() > 0:
-                    edge_index  = torch.stack([src, dst], dim=0)
-                    edge_weight = W[src, dst]
-                    with torch.no_grad():
-                        x_ref = self.dgnn(x, edge_index, edge_weight)
-                    refined_confs = x_ref[:, 4].cpu()
-                    refined_cls   = x_ref[:, 5].round().clamp(0, len(part_to_idx)-1).long().cpu()
-                else:
-                    refined_confs = confs.squeeze(1).cpu()
-                    refined_cls   = clss.squeeze(1).cpu().long()
+                if num_boxes > 0:
+                    W = w_spatial * w_appear
                     
+                    src, dst = (W > weight_threshold).nonzero(as_tuple=True)
+                    if src.numel() > 0:
+                        edge_index  = torch.stack([src, dst], dim=0)
+                        edge_weight = W[src, dst]
+                        with torch.no_grad():
+                            x_ref = self.dgnn(x, edge_index, edge_weight)
+                        refined_confs = x_ref[:, 4].cpu()
+                        refined_cls   = x_ref[:, 5].round().clamp(0, len(part_to_idx)-1).long().cpu()
+                    else:
+                        refined_confs = confs.squeeze(1).cpu()
+                        refined_cls   = clss.squeeze(1).cpu().long()
+                else:
+                    refined_confs = torch.tensor([], device='cpu')
+                    refined_cls = torch.tensor([], dtype=torch.long, device='cpu')
+                
                 # Optional visualization for first few images
                 if num_imgs < 3 and not early_stopping:
                     filename = f"img{target['image_id'].item():04d}.png"
@@ -561,15 +583,15 @@ class BikePartsTrainer:
                     save_detection_graph(
                         np_images[i],
                         det.boxes.xyxy,
-                        W,
-                        edge_index if src.numel() > 0 else None,
+                        W if num_boxes > 0 else None,
+                        edge_index if num_boxes > 0 and src.numel() > 0 else None,
                         output_path=save_path,
                         title=f"Image {target['image_id'].item()}"
                     )
                     num_imgs += 1
                 
                 keep = (refined_confs >= conf_threshold).nonzero().squeeze(1)
-                pred_labels = set(refined_cls[keep].tolist())
+                pred_labels = set(refined_cls[keep].tolist()) if keep.numel() > 0 else set()
                 true_missing = set(target['missing_labels'].tolist())
                 all_parts = set(part_to_idx.values())
                 
