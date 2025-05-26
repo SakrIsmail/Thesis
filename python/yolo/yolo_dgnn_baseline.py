@@ -211,58 +211,21 @@ test_loader = DataLoader(
 )
 
 
-class DGNNDetector(nn.Module):
-    def __init__(self, feat_dim=256, hidden_dim=512, num_parts=1,
-                 sigma=20.0, weight_thresh=1e-3):
+class SpatialDGNN(torch.nn.Module):
+    def __init__(self, feat_dim=256, hidden_dim=512):
         super().__init__()
         in_dim = feat_dim + 6
         self.conv1 = GCNConv(in_dim, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, in_dim)
-        self.proj = nn.Linear(in_dim, feat_dim)
-        self.sigma = sigma
-        self.weight_thresh = weight_thresh
 
-        self.classifier = nn.Sequential(
-            nn.Linear(feat_dim, feat_dim//2),
-            nn.ReLU(),
-            nn.Linear(feat_dim//2, num_parts)
-        )
-        self.regressor = nn.Sequential(
-            nn.Linear(feat_dim, feat_dim//2),
-            nn.ReLU(),
-            nn.Linear(feat_dim//2, 4)
-        )
-    def forward(self, feats, boxes, confs=None, clss=None):
-        # build node features
-        cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
-        cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
-        ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
-        hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
-        if confs is None:
-            confs = torch.zeros_like(cxs)
-        if clss is None:
-            clss = torch.zeros_like(cxs)
-        x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
-        # build adjacency
-        centers = torch.cat([cxs, cys], dim=1)
-        dist = torch.cdist(centers, centers)
-        W = torch.exp(-(dist**2) / (2 * self.sigma**2))
-        src, dst = (W > self.weight_thresh).nonzero(as_tuple=True)
-        edge_index = torch.stack([src, dst], dim=0)
-        edge_weight = W[src, dst]
-        # message passing
+    def forward(self, x, edge_index, edge_weight=None):
         h = nn.functional.relu(self.conv1(x, edge_index, edge_weight))
-        h = self.conv2(h, edge_index, edge_weight)
-        feats_ref = self.proj(h)
-        part_logits = self.classifier(feats_ref)
-        bbox_deltas = self.regressor(feats_ref)
-        return part_logits, bbox_deltas
+        return self.conv2(h, edge_index, edge_weight)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 stored_feats = []
-stored_targets = []
-dgnn_det = None
+dgnn = None
 gnn_opt = None
 
 batch_times, gpu_memories, cpu_memories = [], [], []
@@ -275,15 +238,13 @@ patience = 5
 
 
 def on_train_start(trainer):
-    global dgnn_det, gnn_opt, stored_feats
-    dgnn_det = DGNNDetector(feat_dim=256, hidden_dim=512, num_parts=len(train_dataset.all_parts)).to(device)
-    gnn_opt = torch.optim.AdamW(dgnn_det.parameters(), lr=1e-4)
-    stored_feats.clear()
-    stored_targets.clear()
+    global dgnn, gnn_opt, stored_feats
     head = trainer.model.model[-1]
-    def hook(m, inp, out):
-        stored_feats.append(out)
-    head.register_forward_hook(hook)
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
+    dgnn = SpatialDGNN().to(trainer.device)
+    gnn_opt = torch.optim.AdamW(dgnn.parameters(), lr=1e-4)
+    stored_feats.clear()
+
 
 def on_train_epoch_start(trainer):
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
@@ -298,54 +259,57 @@ def on_train_epoch_start(trainer):
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
 
 def on_train_batch_start(trainer):
-    global start_time, stored_feats, stored_targets
+    global start_time, stored_feats
     start_time = time.time()
-    if hasattr(trainer, 'batch'):
-        stored_targets.append(trainer.batch[1])
-    stored_feats.clear()
+    stored_feats.clear()  
 
-loss_bce = nn.BCEWithLogitsLoss()
-loss_l1  = nn.L1Loss()
-
-lambda_cls = 1.0
-lambda_reg = 1.0
 
 def on_before_zero_grad(trainer):
-    yolo_loss = trainer.loss
-    total_cls = total_reg = 0.0
-    count = 0
+    preds = trainer.predictions
+    total_gnn_loss = 0.0
+    device = trainer.device
 
-    for preds, targets in zip(stored_feats, stored_targets):
-        for det, target in zip(preds, targets):
-            feats = det.boxes.features
-            boxes = det.boxes.xyxy
-            confs = det.boxes.conf.unsqueeze(1)
-            clss  = det.boxes.cls.unsqueeze(1).float()
+    sigma_spatial = 20.0
+    gamma_appear = 5.0
+    alpha = 1.0 / (2 * sigma_spatial**2)
+    weight_threshold = 1e-3
 
-            logits, deltas = dgnn_det(feats, boxes, confs, clss)
-            N = boxes.size(0)
+    for feats, det in zip(stored_feats, preds):
+        Ni = feats.size(0)
+        if Ni < 2: continue
 
-            y_present = torch.zeros((N,1), device=boxes.device)
-            gt_labels = target['labels'].tolist()
-            for idx, cls_idx in enumerate(det.boxes.cls.cpu().tolist()):
-                if cls_idx in gt_labels:
-                    y_present[idx] = 1.0
+        boxes = det.boxes.xyxy.to(device)
+        confs = det.boxes.conf.to(device).unsqueeze(1)
+        clss  = det.boxes.cls.to(device).unsqueeze(1)
+        feats = feats.to(device)
 
-            total_cls += loss_bce(logits, y_present)
-            total_reg += loss_l1(deltas, torch.zeros_like(deltas))
-            count += 1
+        cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
+        cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
+        ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
+        hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+        x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
 
-    if count > 0:
-        total_cls /= count
-        total_reg /= count
-
-    combined = yolo_loss + lambda_cls * total_cls + lambda_reg * total_reg
-    trainer.optimizer.zero_grad()
-    gnn_opt.zero_grad()
-    combined.backward()
-    gnn_opt.step()
-    trainer.loss = combined.item()
-    stored_feats.clear()
+        centers = torch.cat([cxs, cys], dim=1)
+        dist_mat = torch.cdist(centers, centers, p=2)
+        w_spatial = torch.exp(-alpha * dist_mat**2)
+        sim_feats = nn.functional.cosine_similarity(feats.unsqueeze(1), feats.unsqueeze(0), dim=2)
+        w_appear = torch.exp(gamma_appear * sim_feats)
+        W = w_spatial * w_appear
+        src, dst = (W > weight_threshold).nonzero(as_tuple=True)
+        if src.numel() == 0:
+            continue
+        edge_index = torch.stack([src, dst], dim=0)
+        edge_weight = W[src, dst]
+        x_ref = dgnn(x, edge_index, edge_weight)
+        total_gnn_loss += nn.functional.mse_loss(x_ref[:, -256:], x[:, -256:])
+    if len(preds) > 0:
+        total_gnn_loss = total_gnn_loss / len(preds)
+        λ = 0.1
+        combined = trainer.loss + λ * total_gnn_loss
+        trainer.optimizer.zero_grad(); gnn_opt.zero_grad()
+        combined.backward()
+        gnn_opt.step()
+        trainer.loss = combined.item()
     
 def optimizer_step(trainer):
     trainer.optimizer.step()
@@ -393,16 +357,19 @@ def on_fit_epoch_end(trainer):
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_yolo = os.path.join(wdir, 'last.pt')
     last_dgnn = os.path.join(wdir, 'dgnn_last.pt')
-    torch.save(dgnn_det.state_dict(), last_dgnn)
+    torch.save(dgnn.state_dict(), last_dgnn)
 
     val_model = YOLO(last_yolo)
     val_model.to(trainer.device).eval()
-    dgnn_eval = DGNNDetector(feat_dim=256, hidden_dim=512, num_parts=len(train_dataset.all_parts)).to(device)
+    dgnn_eval = SpatialDGNN().to(trainer.device)
     dgnn_eval.load_state_dict(torch.load(last_dgnn, map_location=trainer.device))
     dgnn_eval.eval()
 
-    results = evaluate_dgnn(val_model, dgnn_eval, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
+    stored_feats.clear()
+    head = val_model.model.model[-1]
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
 
+    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -423,35 +390,77 @@ def on_fit_epoch_end(trainer):
             trainer.stop_training = True
 
 
-def evaluate_dgnn(yolo_model, dgnn_model, loader, part_to_idx, idx_to_part, device):
-    yolo_model.model.to(device).eval()
-    dgnn_model.to(device).eval()
+def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, sigma_spatial: float = 20.0, gamma_appear: float = 5.0, weight_threshold: float = 1e-3, conf_threshold: float = 0.5):
+
+    model.model.to(device).eval()
+    dgnn.to(device).eval()
+
+    alpha = 1.0 / (2 * sigma_spatial**2)
     results = []
-    backbone = yolo_model.model.model[:-1]
-    detect   = yolo_model.model.model[-1]
-    all_idxs = set(part_to_idx.values())
-    for images, targets in loader:
-        batch = yolo_model.model.transforms(images).to(device)
-        feats_list = backbone(batch)
-        preds_init = detect(feats_list)
-        for det, tgt in zip(preds_init, targets):
-            feats = det.boxes.features
-            boxes = det.boxes.xyxy
-            confs = det.boxes.conf.unsqueeze(1)
-            clss  = det.boxes.cls.unsqueeze(1).float()
-            logits, deltas = dgnn_model(feats, boxes, confs, clss)
-            pres = torch.sigmoid(logits).squeeze(1)
-            # optional NMS or confidence filtering
-            keep = pres > 0.5
-            final_boxes = boxes[keep] + deltas[keep]
-            final_pres  = pres[keep]
-            present_idxs = set(torch.nonzero(final_pres>0.5, as_tuple=True)[0].cpu().tolist())
-            missing_idxs = all_idxs - present_idxs
+
+    for images, targets in tqdm(loader, desc="DGNN Inference"):
+        stored_feats.clear()
+        # 1) run YOLO
+        np_images = []
+        for img in images:
+            arr = img.cpu().permute(1, 2, 0).numpy()
+            arr = (arr * 255).clip(0, 255).astype('uint8')
+            np_images.append(arr)
+        preds = model(np_images, device=device, verbose=False)
+
+        # 2) for each sample, build graph, run DGNN, re-score
+        for i, det in enumerate(preds):
+            feats = stored_feats[i].to(device)         # [Ni × feat_dim]
+            boxes = det.boxes.xyxy.to(device)          # [Ni × 4]
+            confs = det.boxes.conf.to(device).unsqueeze(1)
+            clss  = det.boxes.cls.to(device).unsqueeze(1)
+
+            # spatial metadata
+            cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
+            cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
+            ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
+            hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+
+            # node feature: [cx, cy, w, h, conf, cls, feat...]
+            x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
+
+            # adjacency
+            centers  = torch.cat([cxs, cys], dim=1)
+            dist_mat = torch.cdist(centers, centers, p=2)
+            w_spatial = torch.exp(-alpha * dist_mat**2)
+            sim_feats  = nn.functional.cosine_similarity(feats.unsqueeze(1),
+                                             feats.unsqueeze(0),
+                                             dim=2)
+            w_appear  = torch.exp(gamma_appear * sim_feats)
+            W = w_spatial * w_appear
+
+            src, dst = (W > weight_threshold).nonzero(as_tuple=True)
+            if src.numel() > 0:
+                edge_index  = torch.stack([src, dst], dim=0)
+                edge_weight = W[src, dst]
+                with torch.no_grad():
+                    x_ref = dgnn(x, edge_index, edge_weight)  # [Ni × (6+feat_dim)]
+
+                # pull out refined confidence & class
+                refined_confs = x_ref[:, 4].cpu()
+                refined_cls   = x_ref[:, 5].round().clamp(0, len(part_to_idx)-1).long().cpu()
+            else:
+                # fallback to raw YOLO if no edges
+                refined_confs = confs.squeeze(1).cpu()
+                refined_cls   = clss.squeeze(1).cpu().long()
+
+            keep = (refined_confs >= conf_threshold).nonzero().squeeze(1)
+            pred_labels = set(refined_cls[keep].tolist())
+
+
+            true_missing = set(targets[i]['missing_labels'].tolist())
+            all_parts    = set(part_to_idx.values())
             results.append({
-                'image_id': tgt['image_id'].item(),
-                'predicted_missing_parts': missing_idxs,
-                'true_missing_parts': set(tgt['missing_labels'].tolist())
+                'image_id': targets[i]['image_id'].item(),
+                'predicted_missing_parts': all_parts - pred_labels,
+                'true_missing_parts':      true_missing
             })
+
     return results
 
 
@@ -530,14 +539,29 @@ model.train(
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/best.pt").to(device).eval()
-dgnn_eval = DGNNDetector(feat_dim=256, hidden_dim=512, num_parts=len(train_dataset.all_parts)).to(device)
+dgnn_eval = SpatialDGNN().to(device)
 dgnn_eval.load_state_dict(torch.load("/var/scratch/sismail/models/yolo/runs/bikeparts_dgnn_euclid/weights/dgnn_best.pt", map_location=device))
 dgnn_eval.eval()
 
 
 
-val_results  = evaluate_dgnn(model, dgnn_eval, valid_loader,valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
-test_results = evaluate_dgnn(model, dgnn_eval, test_loader, test_dataset.part_to_idx, test_dataset.idx_to_part, device)
+val_results = run_yolo_inference(
+    model=model,
+    loader=valid_loader,
+    part_to_idx=valid_dataset.part_to_idx,
+    idx_to_part=valid_dataset.idx_to_part,
+    device=device,
+    dgnn=dgnn_eval
+)
+
+test_results = run_yolo_inference(
+    model=model,
+    loader=test_loader,
+    part_to_idx=test_dataset.part_to_idx,
+    idx_to_part=test_dataset.idx_to_part,
+    device=device,
+    dgnn=dgnn_eval
+)
 
 part_level_evaluation(val_results,  valid_dataset.part_to_idx,  valid_dataset.idx_to_part)
 part_level_evaluation(test_results, test_dataset.part_to_idx, test_dataset.idx_to_part)
