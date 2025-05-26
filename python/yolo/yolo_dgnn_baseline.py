@@ -241,7 +241,7 @@ patience = 5
 def on_train_start(trainer):
     global dgnn, gnn_opt, stored_feats
     head = trainer.model.model[-2]
-    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out[1]))
+    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
     dgnn = SpatialDGNN().to(trainer.device)
     gnn_opt = torch.optim.AdamW(dgnn.parameters(), lr=1e-4)
     stored_feats.clear()
@@ -445,7 +445,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, ea
 
     detect_layer = model.model.model[-2]
     hook_handle = detect_layer.register_forward_hook(
-        lambda m, inp, out: stored_feats.append(out[1].detach())
+        lambda m, inp, out: stored_feats.append(out.detach())
     )
 
     model.model.to(device).eval()
