@@ -446,6 +446,7 @@ class BikePartsTrainer:
         self.model = YOLO(model_path, verbose=False)
         
         self.dgnn = SpatialDGNN().to(device)
+        self.feat_reducer = nn.Linear(576, 256)
         
         self.callbacks = []
         
@@ -545,8 +546,8 @@ class BikePartsTrainer:
                     # Flatten pooled features to [num_boxes, C]
                     pooled_feats = pooled_feats.view(num_boxes, -1)
                     
-                    # Concatenate all per-box features and detection info
-                    x = torch.cat([cxs, cys, ws, hs, confs, clss, pooled_feats], dim=1)
+                    pooled_feats_reduced = self.feat_reducer(pooled_feats)
+                    x = torch.cat([cxs, cys, ws, hs, confs, clss, pooled_feats_reduced], dim=1)
                 else:
                     # No detections: create empty tensor with proper feature size
                     x = torch.empty((0, 6 + feats.shape[1]), device=self.device)
