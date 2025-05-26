@@ -365,11 +365,8 @@ def on_fit_epoch_end(trainer):
     dgnn_eval.load_state_dict(torch.load(last_dgnn, map_location=trainer.device))
     dgnn_eval.eval()
 
-    stored_feats.clear()
-    head = val_model.model.model[-1]
-    head.register_forward_hook(lambda m, inp, out: stored_feats.append(out))
 
-    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device)
+    results = run_yolo_inference(val_model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, trainer.device, dgnn_eval)
 
     parts = list(valid_dataset.part_to_idx.values())
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -400,7 +397,6 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, si
 
     for images, targets in tqdm(loader, desc="DGNN Inference"):
         stored_feats.clear()
-        # 1) run YOLO
         np_images = []
         for img in images:
             arr = img.cpu().permute(1, 2, 0).numpy()
@@ -408,23 +404,19 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, si
             np_images.append(arr)
         preds = model(np_images, device=device, verbose=False)
 
-        # 2) for each sample, build graph, run DGNN, re-score
         for i, det in enumerate(preds):
-            feats = stored_feats[i].to(device)         # [Ni × feat_dim]
-            boxes = det.boxes.xyxy.to(device)          # [Ni × 4]
+            feats = stored_feats[i].to(device)
+            boxes = det.boxes.xyxy.to(device)
             confs = det.boxes.conf.to(device).unsqueeze(1)
             clss  = det.boxes.cls.to(device).unsqueeze(1)
 
-            # spatial metadata
             cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
             cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
             ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
             hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
 
-            # node feature: [cx, cy, w, h, conf, cls, feat...]
             x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
 
-            # adjacency
             centers  = torch.cat([cxs, cys], dim=1)
             dist_mat = torch.cdist(centers, centers, p=2)
             w_spatial = torch.exp(-alpha * dist_mat**2)
@@ -439,13 +431,11 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device, dgnn, si
                 edge_index  = torch.stack([src, dst], dim=0)
                 edge_weight = W[src, dst]
                 with torch.no_grad():
-                    x_ref = dgnn(x, edge_index, edge_weight)  # [Ni × (6+feat_dim)]
+                    x_ref = dgnn(x, edge_index, edge_weight)
 
-                # pull out refined confidence & class
                 refined_confs = x_ref[:, 4].cpu()
                 refined_cls   = x_ref[:, 5].round().clamp(0, len(part_to_idx)-1).long().cpu()
             else:
-                # fallback to raw YOLO if no edges
                 refined_confs = confs.squeeze(1).cpu()
                 refined_cls   = clss.squeeze(1).cpu().long()
 
