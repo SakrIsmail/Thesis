@@ -622,14 +622,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 trainer = BikePartsTrainer(device)
 
 trainer.add_callbacks([
-    'on_train_start',
-    'on_train_epoch_start',
-    'on_train_batch_start',
-    'on_before_zero_grad',
-    'optimizer_step',
-    'on_train_batch_end',
-    'on_train_epoch_end',
-    'on_fit_epoch_end',
+    ('on_train_start', on_train_start),
+    ('on_train_epoch_start', on_train_epoch_start),
+    ('on_train_batch_start', on_train_batch_start),
+    ('on_before_zero_grad', on_before_zero_grad),
+    ('optimizer_step', optimizer_step),
+    ('on_train_batch_end', on_train_batch_end),
+    ('on_train_epoch_end', on_train_epoch_end),
+    ('on_fit_epoch_end', on_fit_epoch_end),
 ])
 
 
