@@ -501,7 +501,7 @@ class BikePartsTrainer:
         detect_layer = self.model.model.model[-2]
         
         hook_handle = detect_layer.register_forward_hook(
-            lambda m, inp, out: stored_feats.append(out.detach())
+            lambda m, inp, out: stored_feats.append(out)
         )
         
         alpha = 1.0 / (2 * sigma_spatial**2)
