@@ -449,8 +449,8 @@ class BikePartsTrainer:
         
     def add_callbacks(self, callbacks):
         """Add callbacks for training."""
-        for cb in callbacks:
-            self.model.add_callback(cb)
+        for event_name, func in callbacks:
+            self.model.add_callback(event_name, func)
         self.callbacks.extend(callbacks)
         
     def train(self, data_yaml, epochs=50, batch=16, imgsz=640, project_path=None, run_name=None):
