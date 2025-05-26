@@ -524,6 +524,14 @@ class BikePartsTrainer:
                 cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
                 ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
                 hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+
+                print("cxs:", cxs.shape)
+                print("cys:", cys.shape)
+                print("ws:", ws.shape)
+                print("hs:", hs.shape)
+                print("confs:", confs.shape)
+                print("clss:", clss.shape)
+                print("feats:", feats.shape)
                 
                 x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
                 centers = torch.cat([cxs, cys], dim=1)
