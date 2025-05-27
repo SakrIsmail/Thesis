@@ -257,7 +257,7 @@ class YOLOv8Wrapper(nn.Module):
 
         loss = None
         if self.model.training and targets is not None:
-            loss, _ = self.loss_fn(results, targets)[0]
+            loss, _ = self.loss_fn(results, targets)
 
         # Extract spatial features and pool to (N_detections, feat_dim)
         pooled_feats = []
