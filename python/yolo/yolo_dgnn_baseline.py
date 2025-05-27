@@ -268,6 +268,9 @@ def on_train_batch_start(trainer):
 
 
 def on_before_zero_grad(trainer):
+    print(">> trainer.loss:", trainer.loss, 
+        "  requires_grad:", getattr(trainer.loss, "requires_grad", None),
+        "  grad_fn:", getattr(trainer.loss, "grad_fn", None))
     preds = trainer.predictions
     total_gnn_loss = 0.0
     device = trainer.device
