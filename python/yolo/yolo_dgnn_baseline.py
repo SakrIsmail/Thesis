@@ -266,8 +266,10 @@ def on_train_batch_start(trainer):
     start_time = time.time()
     stored_feats.clear()  
     
-def optimizer_step(trainer):
-    global stored_feats, dgnn, gnn_opt
+
+def on_train_batch_end(trainer):
+    global batch_count, stored_feats, dgnn, gnn_opt
+
     preds = trainer.predictions
     total_gnn_loss = 0.0
     device = trainer.device
@@ -318,8 +320,7 @@ def optimizer_step(trainer):
         gnn_opt.step()
         trainer.optimizer.step()
 
-def on_train_batch_end(trainer):
-    global batch_count
+
     batch_count += 1
     end_time = time.time()
     inference_time = end_time - start_time
@@ -640,9 +641,6 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-def debug_before_zero_grad(trainer):
-    print("🛑 on_before_zero_grad fired — current loss:", trainer.loss)
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 trainer = BikePartsTrainer(device)
 
@@ -650,7 +648,6 @@ trainer.add_callbacks([
     ('on_train_start', on_train_start),
     ('on_train_epoch_start', on_train_epoch_start),
     ('on_train_batch_start', on_train_batch_start),
-    ('optimizer_step', debug_before_zero_grad),
     ('on_train_batch_end', on_train_batch_end),
     ('on_train_epoch_end', on_train_epoch_end),
     ('on_fit_epoch_end', partial(on_fit_epoch_end, wrapper=trainer)),
