@@ -403,7 +403,7 @@ def run_inference(yolo_model, dgnn, reducer, loader, part_to_idx, idx_to_part, d
     hook.remove()
     return results
 
-def train_and_validate(yolo_backbone='yolov11n.pt', project_dir='/var/scratch/sismail/models/yolo/runs', run_name='bikeparts_dgnn_euclid',
+def train_and_validate(yolo_backbone='yolov8m.pt', project_dir='/var/scratch/sismail/models/yolo/runs', run_name='bikeparts_dgnn_euclid',
     epochs=50, patience=5, lr_yolo=1e-4, lr_gnn=1e-4, weight_decay=1e-4, device='cuda'):
     yolo = YOLO(yolo_backbone, verbose=False).to(device)
     optim_yolo = torch.optim.AdamW(yolo.model.parameters(), lr=lr_yolo, weight_decay=weight_decay)
