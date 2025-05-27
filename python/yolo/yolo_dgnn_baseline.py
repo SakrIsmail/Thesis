@@ -229,6 +229,12 @@ class YOLOv8Wrapper(nn.Module):
         self.model.model.model[8].register_forward_hook(self.hook_fn)
         self._features = []
 
+    def train(self, mode: bool = True):
+        self.training = mode
+        self.model.training = mode
+        self.model.model.model.train(mode)
+        return self
+
     def hook_fn(self, module, input, output):
         # This assumes output is [B, C, H, W]
         self._features.append(output)
