@@ -19,7 +19,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from ultralytics import YOLO
-from ultralytics.utils.loss import ComputeLoss
+from ultralytics.utils.loss import v8DetectionLoss
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 from torch_geometric.nn import GCNConv
@@ -230,7 +230,8 @@ class YOLOv8Wrapper(nn.Module):
         self.model.model.model[8].register_forward_hook(self.hook_fn)
         self._features = []
 
-        self.loss_fn = ComputeLoss(self.model.model)
+        self.loss_fn = v8DetectionLoss(self.model.model)
+
 
     def train(self, mode: bool = True):
         self.training = mode
@@ -256,7 +257,7 @@ class YOLOv8Wrapper(nn.Module):
 
         loss = None
         if self.model.training and targets is not None:
-            loss = self.loss_fn(results, targets)[0]
+            loss, _ = self.loss_fn(results, targets)[0]
 
         # Extract spatial features and pool to (N_detections, feat_dim)
         pooled_feats = []
