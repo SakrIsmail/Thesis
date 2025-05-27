@@ -313,7 +313,7 @@ def on_before_zero_grad(trainer):
         gnn_opt.zero_grad()
         combined.backward()
         gnn_opt.step()
-        trainer.loss = combined.item()
+        trainer.loss = combined
     
 def optimizer_step(trainer):
     trainer.optimizer.step()
