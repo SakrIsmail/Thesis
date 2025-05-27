@@ -234,8 +234,8 @@ class YOLOv8Wrapper(nn.Module):
 
 
     def train(self, mode: bool = True):
-        self.training = mode
-        self.model.training = mode
+        super().train(mode)
+        self.model.model.training = mode
         self.model.model.model.train(mode)
         return self
 
