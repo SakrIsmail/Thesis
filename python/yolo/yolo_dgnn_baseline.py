@@ -299,21 +299,24 @@ def on_before_zero_grad(trainer):
         w_appear = torch.exp(gamma_appear * sim_feats)
         W = w_spatial * w_appear
         src, dst = (W > weight_threshold).nonzero(as_tuple=True)
+
         if src.numel() == 0:
             continue
+
         edge_index = torch.stack([src, dst], dim=0)
         edge_weight = W[src, dst]
         x_ref = dgnn(x, edge_index, edge_weight)
         total_gnn_loss += nn.functional.mse_loss(x_ref[:, -256:], x[:, -256:])
+
     if len(preds) > 0:
         total_gnn_loss = total_gnn_loss / len(preds)
-        lmbda = 0.1
+        lmbda = 1
         combined = trainer.loss + lmbda * total_gnn_loss
         trainer.optimizer.zero_grad()
         gnn_opt.zero_grad()
         combined.backward()
         gnn_opt.step()
-        trainer.loss = combined
+
     
 def optimizer_step(trainer):
     trainer.optimizer.step()
@@ -324,11 +327,13 @@ def on_train_batch_end(trainer):
     end_time = time.time()
     inference_time = end_time - start_time
     batch_times.append(inference_time)
+
     if nvml_handle:
         mi = nvmlDeviceGetMemoryInfo(nvml_handle)
         gpu_memories.append(mi.used / 1024**2)
     else:
         gpu_memories.append(0)
+
     cpu_memories.append(psutil.virtual_memory().used / 1024**2)
     print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
           f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
@@ -508,7 +513,7 @@ class BikePartsTrainer:
         results = []
         num_imgs = 0
         
-        stride = 32  # Adjust this if your feature map stride differs
+        stride = 32
         with torch.no_grad():
             for images, targets in tqdm(loader, desc="DGNN Inference"):
                 stored_feats.clear()
@@ -519,37 +524,28 @@ class BikePartsTrainer:
                 preds = self.model(np_images, device=self.device, verbose=False)
                 
                 for i, (feat_tensor, det, target) in enumerate(zip(stored_feats, preds, targets)):
-                    feats = feat_tensor.to(self.device)  # shape [1, C, H, W]
+                    feats = feat_tensor.to(self.device)
                     
-                    boxes = det.boxes.xyxy.to(self.device)  # [num_boxes, 4]
-                    confs = det.boxes.conf.to(self.device).unsqueeze(1)  # [num_boxes, 1]
-                    clss  = det.boxes.cls.to(self.device).unsqueeze(1)  # [num_boxes, 1]
-                    cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)  # [num_boxes, 1]
-                    cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)  # [num_boxes, 1]
-                    ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)        # [num_boxes, 1]
-                    hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)        # [num_boxes, 1]
+                    boxes = det.boxes.xyxy.to(self.device)
+                    confs = det.boxes.conf.to(self.device).unsqueeze(1)
+                    clss  = det.boxes.cls.to(self.device).unsqueeze(1)  
+                    cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)  
+                    cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)  
+                    ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)        
+                    hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
                     
                     num_boxes = boxes.shape[0]
                     if num_boxes > 0:
-                        # Scale boxes for roi_align (x1,y1,x2,y2) / stride
                         boxes_scaled = boxes / stride
-                        
-                        # Batch indices for roi_align: all zeros since one image at a time
                         batch_indices = torch.zeros(num_boxes, 1, device=self.device)
-                        
-                        # Boxes for roi_align [num_boxes, 5]: (batch_idx, x1, y1, x2, y2)
                         boxes_for_roi = torch.cat([batch_indices, boxes_scaled], dim=1)
-                        
-                        # ROI align to get pooled features of size 1x1 per box
                         pooled_feats = roi_align(feats, boxes_for_roi, output_size=(1, 1))
                         
-                        # Flatten pooled features to [num_boxes, C]
                         pooled_feats = pooled_feats.view(num_boxes, -1)
                         
                         pooled_feats_reduced = self.feat_reducer(pooled_feats)
                         x = torch.cat([cxs, cys, ws, hs, confs, clss, pooled_feats_reduced], dim=1)
                     else:
-                        # No detections: create empty tensor with proper feature size
                         x = torch.empty((0, 6 + feats.shape[1]), device=self.device)
                     
                     centers = torch.cat([cxs, cys], dim=1)
@@ -577,10 +573,9 @@ class BikePartsTrainer:
                         refined_confs = torch.tensor([], device='cpu')
                         refined_cls = torch.tensor([], dtype=torch.long, device='cpu')
                     
-                    # Optional visualization for first few images
                     if num_imgs < 3 and not early_stopping:
                         filename = f"img{target['image_id'].item():04d}.png"
-                        save_path = os.path.join('/home/$USER/Thesis/visualisations', filename)
+                        save_path = os.path.join('/home/sismail/Thesis/visualisations', filename)
                         save_detection_graph(
                             np_images[i],
                             det.boxes.xyxy,
@@ -685,7 +680,6 @@ val_results = trainer.run_inference(
     idx_to_part=valid_dataset.idx_to_part
 )
 
-# Run inference on test set
 test_results = trainer.run_inference(
     loader=test_loader,
     part_to_idx=test_dataset.part_to_idx,
