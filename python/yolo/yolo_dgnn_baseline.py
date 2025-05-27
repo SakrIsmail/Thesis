@@ -241,7 +241,15 @@ class YOLOv8Wrapper(nn.Module):
 
     def forward(self, images, targets=None):
         self._features.clear()
-        results = self.model(images, verbose=False)
+
+        np_images = []
+        for img in images:
+            # img is [C, H, W], float [0..1] (because you did to_tensor)
+            im = (img.detach().cpu() * 255).permute(1, 2, 0).numpy().astype('uint8')
+            np_images.append(im)
+
+        # now call the Ultralytics API with numpy images
+        results = self.model(np_images, verbose=False)
 
         loss = None
         if self.model.training and targets is not None:
