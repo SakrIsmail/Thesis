@@ -403,7 +403,7 @@ def run_inference(yolo_model, dgnn, reducer, loader, part_to_idx, idx_to_part, d
     hook.remove()
     return results
 
-def train_and_validate(yolo_backbone='yolov8m.pt', project_dir='/var/scratch/sismail/models/yolo/runs', run_name='bikeparts_dgnn_euclid',
+def train_and_validate(yolo_backbone='yolov11n.pt', project_dir='/var/scratch/sismail/models/yolo/runs', run_name='bikeparts_dgnn_euclid',
     epochs=50, patience=5, lr_yolo=1e-4, lr_gnn=1e-4, weight_decay=1e-4, device='cuda'):
     yolo = YOLO(yolo_backbone, verbose=False).to(device)
     optim_yolo = torch.optim.AdamW(yolo.model.parameters(), lr=lr_yolo, weight_decay=weight_decay)
@@ -433,15 +433,17 @@ def train_and_validate(yolo_backbone='yolov8m.pt', project_dir='/var/scratch/sis
         hook = yolo.model.model[-2].register_forward_hook(lambda m,i,o: stored_feats.append(o))
 
         with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-            for imgs, tgts in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
-                np_imgs = [(img.cpu().permute(1,2,0).numpy()*255).astype('uint8') for img in imgs]
+            for images, targets in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
+                np_imgs = [(img.cpu().permute(1,2,0).numpy()*255).astype('uint8') for img in images]
                 start_time = time.time()
 
                 preds = yolo(np_imgs, device=device, verbose=False)
-                det_loss = yolo.model.get_loss(preds, tgts).loss
+                imgs_tensor = torch.stack(images, dim=0).to(device)
+                batch = {"img": imgs_tensor, **targets}
+                det_loss = yolo.model.loss(batch, preds)
 
                 total_gnn = 0.0
-                for feats, det, tgt in zip(stored_feats, preds, tgts):
+                for feats, det, tgt in zip(stored_feats, preds, targets):
                     feats = feats.to(device)
                     boxes = det.boxes.xyxy.to(device)
                     confs = det.boxes.conf.to(device).unsqueeze(1)
