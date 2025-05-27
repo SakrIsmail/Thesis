@@ -226,9 +226,7 @@ class YOLOv8Wrapper(nn.Module):
     def __init__(self, model_path='yolov8n.pt'):
         super().__init__()
         self.model = YOLO(model_path)
-        for i, m in enumerate(self.model.model.modules()):
-            print(i, type(m), m)
-        self.model.model[-2].register_forward_hook(self.hook_fn)
+        self.model.model[8].register_forward_hook(self.hook_fn)
         self._features = []
 
     def hook_fn(self, module, input, output):
