@@ -8,19 +8,21 @@ import time
 import psutil
 import gc
 import numpy as np
+import networkx as nx
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
-import torch
 import sys
+import torch
+import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-from torch_geometric.nn import GCNConv
 from torchvision import transforms
-from torch import nn
 from ultralytics import YOLO
+from ultralytics.utils.loss import v8DetectionLoss
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
+from torch_geometric.nn import GCNConv
 
 logging.getLogger("ultralytics").setLevel(logging.ERROR)
 logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
@@ -210,7 +212,7 @@ test_loader = DataLoader(
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-class SpatialGNN(torch.nn.Module):
+class SpatialDGNN(torch.nn.Module):
     def __init__(self, feat_dim=256, hidden_dim=512):
         super().__init__()
         in_dim = feat_dim + 6
@@ -220,6 +222,70 @@ class SpatialGNN(torch.nn.Module):
     def forward(self, x, edge_index, edge_weight=None):
         h = nn.functional.relu(self.conv1(x, edge_index, edge_weight))
         return self.conv2(h, edge_index, edge_weight)
+
+class YOLOv8Wrapper(nn.Module):
+    def __init__(self, model_path='yolov8n.pt'):
+        super().__init__()
+        self.yolo = YOLO(model_path)            # high‐level wrapper
+        self.backbone = self.yolo.model.model   # the raw nn.Module
+        self.backbone[8].register_forward_hook(self.hook_fn)
+        self._features = []
+        self.loss_fn = v8DetectionLoss(self.yolo.model)
+
+
+    def train(self, mode: bool = True):
+        self.training = mode
+        self.yolo.model.training = mode
+        self.backbone.train(mode)
+        return self
+
+    def hook_fn(self, module, input, output):
+        # This assumes output is [B, C, H, W]
+        self._features.append(output)
+
+    def forward(self, images, targets=None):
+        self._features.clear()
+
+        batch = torch.stack(images).to(next(self.backbone.parameters()).device)
+
+        # 2) raw forward: get pre‐NMS predictions
+        raw_preds = self.backbone(batch)   
+
+        loss = None
+        if self.model.training and targets is not None:
+            loss, _ = self.loss_fn(raw_preds, targets)
+        # now call the Ultralytics API with numpy images
+
+        results = self.yolo.predictor.postprocess(raw_preds, batch)
+
+
+        # Extract spatial features and pool to (N_detections, feat_dim)
+        pooled_feats = []
+        for i, det in enumerate(results):
+            boxes = det.boxes.xyxy  # in (x1, y1, x2, y2) format
+            fmap = self._features[0][i]  # [C, H, W]
+            if boxes.numel() == 0:
+                pooled_feats.append(torch.zeros((0, fmap.shape[0]), device=fmap.device))
+                continue
+            H, W = fmap.shape[1:]
+            feat_per_box = []
+            for box in boxes:
+                x1, y1, x2, y2 = box
+                x1 = int((x1 / 640) * W)
+                x2 = int((x2 / 640) * W)
+                y1 = int((y1 / 640) * H)
+                y2 = int((y2 / 640) * H)
+                region = fmap[:, y1:y2, x1:x2]
+                if region.numel() == 0:
+                    pooled = torch.zeros((fmap.shape[0],), device=fmap.device)
+                else:
+                    pooled = torch.mean(region.view(fmap.shape[0], -1), dim=1)
+                feat_per_box.append(pooled)
+            pooled_feats.append(torch.stack(feat_per_box))
+
+        return results, pooled_feats, loss
+
+    
 
 def construct_graph_inputs(stored_feats, predictions, device):
     sigma_spatial = 20.0
@@ -258,176 +324,136 @@ def construct_graph_inputs(stored_feats, predictions, device):
 
     return graph_data
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-batch_times, gpu_memories, cpu_memories = [], [], []
-batch_count = 0
-nvml_handle, em_tracker = None, None
-start_time = 0
-best_macro_f1 = 0.0
-no_improve_epochs = 0
-patience = 5
 
-def on_train_epoch_start(trainer):
-    global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
-    batch_times.clear()
-    gpu_memories.clear()
-    cpu_memories.clear()
-    batch_count = 0
-    em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
-    em_tracker.__enter__()
-    if trainer.device.type == 'cuda':
-        nvmlInit()
-        nvml_handle = nvmlDeviceGetHandleByIndex(0)
+class CombinedModel(nn.Module):
+    def __init__(self, yolo_model_path='yolov8n.pt', feat_dim=256, hidden_dim=512):
+        super().__init__()
+        self.yolo_wrapper = YOLOv8Wrapper(yolo_model_path)
+        self.dgnn = SpatialDGNN(feat_dim=feat_dim, hidden_dim=hidden_dim)
 
-def on_train_batch_start(trainer):
-    global start_time
+    def forward(self, images, targets=None, device='cuda'):
+        yolo_results, features = self.yolo_wrapper(images, targets)
 
-    start_time = time.time()   
-    
+        with torch.no_grad():
+            graph_data = construct_graph_inputs(features, yolo_results, device)
+        total_gnn_loss = 0.0
 
-def on_train_batch_end(trainer):
-    global batch_count, start_time
-    batch_count += 1
-    end_time = time.time()
-    inference_time = end_time - start_time
-    batch_times.append(inference_time)
-    if nvml_handle:
-        mi = nvmlDeviceGetMemoryInfo(nvml_handle)
-        gpu_memories.append(mi.used / 1024**2)
-    else:
-        gpu_memories.append(0)
-    cpu_memories.append(psutil.virtual_memory().used / 1024**2)
+        for x, edge_index, edge_weight in graph_data:
+            refined_features = self.dgnn(x, edge_index, edge_weight)
+            total_gnn_loss += nn.functional.mse_loss(refined_features, x)
 
-    print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
-          f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
-    gc.collect()
+        gnn_loss = total_gnn_loss / len(graph_data) if graph_data else torch.tensor(0.0, device=device)
 
 
-def on_train_epoch_end(trainer):
-    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
+        yolo_results, features, yolo_loss = self.yolo_wrapper(images, targets)
 
-    em_tracker.__exit__(None, None, None)
-    energy = em_tracker.final_emissions_data.energy_consumed
-    co2 = em_tracker.final_emissions
-
-    if nvml_handle:
-        nvmlShutdown()
-    table = [
-        ['YOLO Epoch', trainer.epoch],
-        ['Final Loss', f"{trainer.loss:.4f}"],
-        ['Avg Batch Time (s)', f"{np.mean(batch_times):.4f}"],
-        ['Max GPU Mem (MB)', f"{np.max(gpu_memories):.1f}"],
-        ['Max CPU Mem (MB)', f"{np.max(cpu_memories):.1f}"],
-        ['Energy (kWh)', f"{energy:.4f}"],
-        ['CO₂ (kg)', f"{co2:.4f}"],
-    ]
-    print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
-
-    trainer.save_model()
-
-    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    last_path = os.path.join(wdir, 'last.pt')  
-    model = YOLO(last_path)  
-    model.to(device).eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
-
-    parts = list(valid_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        no_improve_epochs = 0
-        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
-    else:
-        no_improve_epochs += 1
-        if no_improve_epochs >= patience:
-            print(f"Early stopping at epoch {trainer.epoch + 1}")
-            trainer.stop_training = True
+        total_loss = yolo_loss + 0.1 * gnn_loss
+        return total_loss, yolo_results
 
 
-def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
-    model.model.to(device).eval()
+
+def save_detection_graph(
+    np_image,
+    boxes,
+    W,
+    edge_index,
+    output_path: str,
+    title: str = None,
+    dpi: int = 150
+):
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    centers = ((boxes[:, :2] + boxes[:, 2:]) / 2).cpu().numpy()
+
+    G = nx.Graph()
+    for i, (x, y) in enumerate(centers):
+        G.add_node(i, pos=(x, y))
+
+    for src, dst in edge_index.t().cpu().numpy():
+        w = float(W[src, dst].cpu())
+        G.add_edge(int(src), int(dst), weight=w)
+
+    fig, ax = plt.subplots(figsize=(8, 8), dpi=dpi)
+    ax.imshow(np_image)
+    ax.axis('off')
+
+    pos = nx.get_node_attributes(G, 'pos')
+    weights = [d['weight'] for _, _, d in G.edges(data=True)]
+
+    nx.draw_networkx_edges(
+        G, pos, ax=ax,
+        width=[2.0 * w for w in weights],
+        alpha=0.7,
+        edge_color='yellow'
+    )
+    nx.draw_networkx_nodes(
+        G, pos, ax=ax,
+        node_size=50,
+        node_color='red'
+    )
+    if title:
+        ax.set_title(title)
+
+    plt.tight_layout(pad=0)
+    plt.savefig(output_path, bbox_inches='tight')
+    plt.close(fig)
+
+def convert_to_yolo_format(targets, image_size=(640, 640)):
+    yolo_targets = []
+    img_w, img_h = image_size
+
+    for target in targets:
+        boxes = target['boxes']
+        labels = target['labels']
+
+        cx = (boxes[:, 0] + boxes[:, 2]) / 2
+        cy = (boxes[:, 1] + boxes[:, 3]) / 2
+        w = boxes[:, 2] - boxes[:, 0]
+        h = boxes[:, 3] - boxes[:, 1]
+
+        cx /= img_w
+        cy /= img_h
+        w /= img_w
+        h /= img_h
+
+        norm_boxes = torch.stack([cx, cy, w, h], dim=1)
+
+        yolo_targets.append({
+            "cls": labels,
+            "bboxes": norm_boxes
+        })
+
+    return yolo_targets
+
+def evaluate_model(model, dataloader, part_to_idx, device):
+    model.eval()
     results = []
 
-    for images, targets in tqdm(loader, desc="Eval"):
-        np_images = []
-        for img in images:
-            arr = img.cpu().permute(1, 2, 0).numpy()
-            arr = (arr * 255).clip(0, 255).astype(np.uint8)
-            np_images.append(arr)
-
-        preds = model(np_images, device=device, verbose=False)
-
-        for i, det in enumerate(preds):
-            pred_labels = set(det.boxes.cls.cpu().numpy().astype(int).tolist())
-            true_missing = set(targets[i]['missing_labels'].tolist())
-            all_parts   = set(part_to_idx.values())
-            results.append({
-                'image_id':             targets[i]['image_id'].item(),
-                'predicted_missing_parts':    all_parts - pred_labels,
-                'true_missing_parts':         true_missing
-            })
-    return results
-
-def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
-
-    yolo_model.to(device).eval()
-    dgnn.to(device).eval()
-
-    all_parts_set = set(part_to_idx.values())
-    results_per_image = []
-
-    features = []
-    def hook_fn(module, inp, out):
-        features.append(out)
-    handle = yolo_model.model.model[8].register_forward_hook(hook_fn)
-
     with torch.no_grad():
-        for images, targets in tqdm(data_loader, desc="GNN Evaluating"):
+        for images, targets in tqdm(dataloader, desc="Evaluating", unit="batch"):
             images = [img.to(device) for img in images]
-            targets = [{k: v.to(device) for k,v in t.items()} for t in targets]
+            true_missing = [t["missing_labels"].tolist() for t in targets]
 
-            features.clear()
+            yolo_results, stored_feats, _ = model.yolo_wrapper(images)
+            graph_inputs = construct_graph_inputs(stored_feats, yolo_results, device)
+            predicted_missing_parts = []
 
-            np_imgs = []
-            for img in images:
-                arr = (img.cpu().permute(1,2,0).numpy() * 255).clip(0,255).astype('uint8')
-                np_imgs.append(arr)
-            detections = yolo_model(np_imgs, verbose=False)
+            for (x, edge_index, edge_weight), det in zip(graph_inputs, yolo_results):
+                refined_feats = model.dgnn(x, edge_index, edge_weight)
+                part_logits = refined_feats[:, -len(part_to_idx):]
+                part_probs = torch.sigmoid(part_logits).mean(dim=0)
+                pred_parts = (part_probs < 0.5).nonzero(as_tuple=True)[0].tolist()
+                predicted_missing_parts.append(pred_parts)
 
-            fmap_batch = features.pop()
-            graph_list = construct_graph_inputs(fmap_batch, detections, device)
-
-            gi = 0
             for i in range(len(images)):
-                image_id = targets[i]['image_id'].item()
-                true_missing = set(targets[i]['missing_labels'].cpu().tolist())
-
-                det = detections[i]
-                detected_parts = set(det.boxes.cls.cpu().tolist())
-
-                if det.boxes.size(0) >= 2:
-                    x, edge_index, edge_weight = graph_list[gi]
-                    gi += 1
-                    refined = dgnn(x, edge_index, edge_weight)
-                    logits = refined[:, -len(all_parts_set):]
-                    probs  = torch.sigmoid(logits).mean(dim=0)
-                    pred_missing = {p for p,v in enumerate(probs) if v < 0.5}
-                else:
-                    pred_missing = set()
-
-                results_per_image.append({
-                    'image_id': image_id,
-                    'predicted_missing_parts': pred_missing,
-                    'true_missing_parts': true_missing
+                results.append({
+                    "true_missing_parts": true_missing[i],
+                    "predicted_missing_parts": predicted_missing_parts[i]
                 })
 
-    handle.remove()
-    return results_per_image
+    return results
+
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
@@ -472,112 +498,71 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = CombinedModel(yolo_model_path='yolov8n.pt').to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-yolo = YOLO('yolov8m.pt', verbose=False)
-yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
-yolo.add_callback("on_train_batch_start", on_train_batch_start)
-yolo.add_callback("on_train_batch_end",   on_train_batch_end)
-yolo.add_callback("on_train_epoch_end",   on_train_epoch_end)
-yolo.to(device)
-
-yolo.train(
-    data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=20,
-    batch=16,
-    imgsz=640,
-    optimizer='AdamW',
-    lr0=1e-4,
-    weight_decay=1e-4,
-    workers=4,
-    device=device,
-    seed=42,
-    verbose=False,
-    plots=False,
-    project='/var/scratch/sismail/models/yolo/runs',
-    name='bikeparts_gnn_baseline',
-    exist_ok=True
-)
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_baseline/weights/best.pt").eval()
-model.to(device)
-
-for p in yolo.model.parameters():
-    p.requires_grad = False
-
-features = []
-def hook_fn(m, i, o):   
-    features.append(o)
-yolo.model.model[8].register_forward_hook(hook_fn)
-
-gnn = SpatialGNN(feat_dim=256, hidden_dim=512).to(device)
-opt  = torch.optim.Adam(gnn.parameters(), lr=1e-3)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 30
+epochs = 50
 patience = 5
 best_macro_f1 = 0
 no_improve = 0
 
-for epoch in range(1, num_epochs+1):
+for epoch in range(1, epochs + 1):
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
-        gnn.train()
-        total_loss = 0
-        batch_times, gpu_memories, cpu_memories = [], [], []
-        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{num_epochs}") as tepoch:
-            
+        model.train()
+
+        batch_times = []
+        gpu_memories = []
+        cpu_memories = []
+
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
             for images, targets in tepoch:
-                features.clear()
+                images = [img.to(device) for img in images]
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+                yolo_targets = convert_to_yolo_format(targets)
+
                 start_time = time.time()
-                results = yolo([img.cpu().numpy() for img in images], verbose=False)
-                fmap_batch = features.pop()
 
-                graphs = construct_graph_inputs(fmap_batch, results, device)
-
-                opt.zero_grad()
-                loss = torch.tensor(0., device=device)
-                count = 0
-                for x, edge_index, edge_weight in graphs:
-                    refined = gnn(x, edge_index, edge_weight)
-                    loss += nn.functional.mse_loss(refined, x)
-                    count += 1
-                loss = loss / count if count else loss
-
+                optimizer.zero_grad()
+                loss, _ = model(images, yolo_targets, device=device)
                 loss.backward()
-                opt.step()
-                total_loss += loss.item()
+                optimizer.step()
 
                 end_time = time.time()
                 inference_time = end_time - start_time
-
                 batch_times.append(inference_time)
+
                 if torch.cuda.is_available():
-                    gpu_mem_used = nvmlDeviceGetMemoryInfo(handle).used / 1024**2
+                    mem_info = nvmlDeviceGetMemoryInfo(handle)
+                    gpu_mem_used = mem_info.used / (1024 ** 2)
                     gpu_memories.append(gpu_mem_used)
                 else:
                     gpu_mem_used = 0
-                
-                cpu_mem_used = psutil.virtual_memory().used / 1024**2
+
+                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
                 cpu_memories.append(cpu_mem_used)
 
-
                 tepoch.set_postfix({
-                "loss": f"{total_loss.item():.4f}",
-                "time (s)": f"{inference_time:.3f}",
-                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
+                    "loss": f"{loss.item():.4f}",
+                    "time (s)": f"{inference_time:.3f}",
+                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
                 })
 
+                del loss, images, targets, yolo_targets
                 gc.collect()
-                if torch.cuda.is_available(): 
+                if torch.cuda.is_available():
                     torch.cuda.empty_cache()
 
         model.eval()
-        results = evaluate_gnn(yolo, gnn, valid_loader, valid_dataset.part_to_idx, device)
-        parts = list(valid_dataset.part_to_idx.values())
+        results = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+        parts = list(train_dataset.part_to_idx.values())
         Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
         Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
         macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
@@ -585,13 +570,14 @@ for epoch in range(1, num_epochs+1):
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
             no_improve = 0
-            torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_gnn_baseline_model.pth")
+            torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo_gnn_baseline_model.pth")
         else:
             no_improve += 1
             if no_improve >= patience:
                 print(f"Early stopping at epoch {epoch}")
                 break
-    
+
+
     energy_consumption = tracker.final_emissions_data.energy_consumed
     co2_emissions = tracker.final_emissions
 
@@ -601,12 +587,12 @@ for epoch in range(1, num_epochs+1):
 
     table = [
         ["Epoch", epoch],
-        ["Final Loss", f"{total_loss.item():.4f}"],
+        ["Best Macro F1", f"{best_macro_f1:.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
         ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
-        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
-        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
+        ["Energy Consumption (kWh)", f"{energy_consumption:.4f}"],
+        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f}"],
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
@@ -615,10 +601,15 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.eval()
 
-val_results  = evaluate_gnn(yolo, gnn, valid_loader, valid_dataset.part_to_idx, device)
-test_results = evaluate_gnn(yolo, gnn, test_loader, test_dataset.part_to_idx, device)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = CombinedModel(yolo_model_path='yolov8n.pt').to(device)
+model.load_state_dict(torch.load("/var/scratch/sismail/models/yolo_gnn_baseline_model.pth"))
+
+
+val_results = evaluate_model(model, valid_loader, valid_dataset.part_to_idx, device)
+test_results = evaluate_model(model, valid_loader, valid_dataset.part_to_idx, device)
+
 
 part_level_evaluation(val_results,  valid_dataset.part_to_idx,  valid_dataset.idx_to_part)
 part_level_evaluation(test_results, test_dataset.part_to_idx, test_dataset.idx_to_part)
