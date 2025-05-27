@@ -265,12 +265,9 @@ def on_train_batch_start(trainer):
     global start_time, stored_feats
     start_time = time.time()
     stored_feats.clear()  
-
-
-def on_before_zero_grad(trainer):
-    print(">> trainer.loss:", trainer.loss, 
-        "  requires_grad:", getattr(trainer.loss, "requires_grad", None),
-        "  grad_fn:", getattr(trainer.loss, "grad_fn", None))
+    
+def optimizer_step(trainer):
+    global stored_feats, dgnn, gnn_opt
     preds = trainer.predictions
     total_gnn_loss = 0.0
     device = trainer.device
@@ -319,10 +316,7 @@ def on_before_zero_grad(trainer):
         gnn_opt.zero_grad()
         combined.backward()
         gnn_opt.step()
-
-    
-def optimizer_step(trainer):
-    trainer.optimizer.step()
+        trainer.optimizer.step()
 
 def on_train_batch_end(trainer):
     global batch_count
@@ -656,8 +650,7 @@ trainer.add_callbacks([
     ('on_train_start', on_train_start),
     ('on_train_epoch_start', on_train_epoch_start),
     ('on_train_batch_start', on_train_batch_start),
-    ('on_before_zero_grad', debug_before_zero_grad),
-    ('optimizer_step', optimizer_step),
+    ('optimizer_step', debug_before_zero_grad),
     ('on_train_batch_end', on_train_batch_end),
     ('on_train_epoch_end', on_train_epoch_end),
     ('on_fit_epoch_end', partial(on_fit_epoch_end, wrapper=trainer)),
