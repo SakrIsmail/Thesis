@@ -226,11 +226,11 @@ class SpatialDGNN(torch.nn.Module):
 class YOLOv8Wrapper(nn.Module):
     def __init__(self, model_path='yolov8n.pt'):
         super().__init__()
-        self.model = YOLO(model_path)
-        self.model.model.model[8].register_forward_hook(self.hook_fn)
+        self.yolo = YOLO(model_path)            # high‐level wrapper
+        self.backbone = self.yolo.model.model   # the raw nn.Module
+        self.backbone[8].register_forward_hook(self.hook_fn)
         self._features = []
-
-        self.loss_fn = v8DetectionLoss(self.model.model)
+        self.loss_fn = v8DetectionLoss(self.yolo.model)
 
 
     def train(self, mode: bool = True):
