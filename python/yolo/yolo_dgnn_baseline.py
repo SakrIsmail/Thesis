@@ -445,6 +445,7 @@ def save_detection_graph(
     plt.tight_layout(pad=0)
     plt.savefig(output_path, bbox_inches='tight')
     plt.close(fig)
+    
 
 
 class BikePartsTrainer:
@@ -461,6 +462,7 @@ class BikePartsTrainer:
     def add_callbacks(self, callbacks):
         """Add callbacks for training."""
         for event_name, func in callbacks:
+            print(f"Adding callback for event: {event_name}")
             self.model.add_callback(event_name, func)
         self.callbacks.extend(callbacks)
         
@@ -646,13 +648,14 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-
+def ping(trainer):
+    print("🔔 ping:", trainer.__class__.__name__, "– event fired!")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 trainer = BikePartsTrainer(device)
 
 trainer.add_callbacks([
-    ('on_train_start', on_train_start),
+    ('on_train_start', ping),
     ('on_train_epoch_start', on_train_epoch_start),
     ('on_train_batch_start', on_train_batch_start),
     ('on_before_zero_grad', on_before_zero_grad),
