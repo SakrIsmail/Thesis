@@ -482,7 +482,7 @@ yolo.to(device)
 
 yolo.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=20,
+    epochs=1,
     batch=16,
     imgsz=640,
     optimizer='AdamW',
