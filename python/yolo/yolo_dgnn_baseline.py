@@ -234,9 +234,9 @@ class YOLOv8Wrapper(nn.Module):
 
 
     def train(self, mode: bool = True):
-        super().train(mode)
-        self.model.model.training = mode
-        self.model.model.model.train(mode)
+        self.training = mode
+        self.yolo.model.training = mode
+        self.backbone.train(mode)
         return self
 
     def hook_fn(self, module, input, output):
