@@ -246,18 +246,18 @@ class YOLOv8Wrapper(nn.Module):
     def forward(self, images, targets=None):
         self._features.clear()
 
-        np_images = []
-        for img in images:
-            # img is [C, H, W], float [0..1] (because you did to_tensor)
-            im = (img.detach().cpu() * 255).permute(1, 2, 0).numpy().astype('uint8')
-            np_images.append(im)
+        batch = torch.stack(images).to(next(self.backbone.parameters()).device)
 
-        # now call the Ultralytics API with numpy images
-        results = self.model(np_images, verbose=False)
+        # 2) raw forward: get pre‐NMS predictions
+        raw_preds = self.backbone(batch)   
 
         loss = None
         if self.model.training and targets is not None:
-            loss, _ = self.loss_fn(results, targets)
+            loss, _ = self.loss_fn(raw_preds, targets)
+        # now call the Ultralytics API with numpy images
+
+        results = self.yolo.predictor.postprocess(raw_preds, batch)
+
 
         # Extract spatial features and pool to (N_detections, feat_dim)
         pooled_feats = []
