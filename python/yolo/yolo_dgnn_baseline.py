@@ -361,7 +361,7 @@ def run_inference(yolo_model, dgnn, reducer, loader, part_to_idx, idx_to_part, d
                     centers = torch.cat([cxs, cys], dim=1)
                     D = torch.cdist(centers, centers)
                     Wsp = torch.exp(-alpha * D**2)
-                    S   = nn.functional.cosine_similarity(pooled.unsqueeze(1),
+                    S = nn.functional.cosine_similarity(pooled.unsqueeze(1),
                                                          pooled.unsqueeze(0), dim=2)
                     Wap = torch.exp(gamma_appear * S)
                     W   = Wsp * Wap
@@ -403,14 +403,12 @@ def run_inference(yolo_model, dgnn, reducer, loader, part_to_idx, idx_to_part, d
     hook.remove()
     return results
 
-
-
 def train_and_validate(yolo_backbone='yolov8m.pt', project_dir='/var/scratch/sismail/models/yolo/runs', run_name='bikeparts_dgnn_euclid',
     epochs=50, patience=5, lr_yolo=1e-4, lr_gnn=1e-4, weight_decay=1e-4, device='cuda'):
     yolo = YOLO(yolo_backbone, verbose=False).to(device)
     optim_yolo = torch.optim.AdamW(yolo.model.parameters(), lr=lr_yolo, weight_decay=weight_decay)
 
-    dgnn    = SpatialDGNN().to(device)
+    dgnn = SpatialDGNN().to(device)
     reducer = nn.Linear(576,256).to(device)
     optim_gnn = torch.optim.AdamW(
         list(dgnn.parameters())+list(reducer.parameters()),
@@ -422,7 +420,7 @@ def train_and_validate(yolo_backbone='yolov8m.pt', project_dir='/var/scratch/sis
         handle = nvmlDeviceGetHandleByIndex(0)
 
     for epoch in range(1, epochs+1):
-        yolo.train()
+        yolo.model.train()
         dgnn.train()
         reducer.train()
         running_loss = 0.0
