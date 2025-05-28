@@ -223,50 +223,65 @@ class SpatialGNN(torch.nn.Module):
         h = nn.functional.relu(self.conv1(x, edge_index, edge_weight))
         return self.conv2(h, edge_index, edge_weight)
 
-def construct_graph_inputs(stored_feats, predictions, device):
+def construct_graph_inputs(fmap_batch, predictions, device):
+    """
+    fmap_batch: Tensor[B, C, Hf, Wf]
+    predictions: list of length B of YOLO detections
+    """
+    B, C, Hf, Wf = fmap_batch.shape
+    print(f"[GraphInputs] fmap_batch.shape = {fmap_batch.shape}")
 
-    print(f"[GraphInputs] fmap_batch.shape = {stored_feats.shape}, dtype={stored_feats.dtype}")
-
-    
-    sigma_spatial = 20.0
-    gamma_appear = 5.0
+    sigma_spatial, gamma_appear = 20.0, 5.0
     alpha = 1.0 / (2 * sigma_spatial**2)
-    weight_threshold = 1e-3
+    threshold = 1e-3
 
     graph_data = []
-
-    for i, (feats, det) in enumerate(zip(stored_feats, predictions)):
-        Ni = feats.size(0)
+    for i, det in enumerate(predictions):
+        boxes = det.boxes.xyxy.to(device)
+        Ni = boxes.size(0)
         print(f"[GraphInputs] image {i}: Ni detections = {Ni}")
-        if Ni < 2: 
-            print(f"[GraphInputs] skipping image {i} (less than 2 detections)")
+
+        if Ni < 2:
+            print(f"[GraphInputs] skipping image {i} (Ni<2)")
             continue
 
-        boxes = det.boxes.xyxy.to(device)
-        confs = det.boxes.conf.to(device).unsqueeze(1)
-        clss  = det.boxes.cls.to(device).unsqueeze(1)
-        feats = feats.to(device)
+        cx = ((boxes[:,0] + boxes[:,2]) / 2) * (Wf / 640)
+        cy = ((boxes[:,1] + boxes[:,3]) / 2) * (Hf / 640)
+        ix, iy = cx.clamp(0, Wf-1).long(), cy.clamp(0, Hf-1).long()
+
+        feat_map = fmap_batch[i]
+        feats = feat_map[:, iy, ix].permute(1, 0).contiguous()
         print(f"[GraphInputs] image {i}: pooled feats.shape = {feats.shape}")
 
-        cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
-        cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
-        ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
-        hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
+
+        confs = det.boxes.conf.to(device).unsqueeze(1)
+        clss  = det.boxes.cls.to(device).unsqueeze(1)
+        cxs   = cx.unsqueeze(1)
+        cys   = cy.unsqueeze(1)
+        ws    = ((boxes[:,2] - boxes[:,0]) * (Wf/640)).unsqueeze(1)
+        hs    = ((boxes[:,3] - boxes[:,1]) * (Hf/640)).unsqueeze(1)
+
         x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
         print(f"[GraphInputs] image {i}: x.shape = {x.shape}")
 
         centers = torch.cat([cxs, cys], dim=1)
         dist_mat = torch.cdist(centers, centers, p=2)
-        w_spatial = torch.exp(-alpha * dist_mat**2)
-        sim_feats = torch.nn.functional.cosine_similarity(feats.unsqueeze(1), feats.unsqueeze(0), dim=2)
-        w_appear = torch.exp(gamma_appear * sim_feats)
-        W = w_spatial * w_appear
-        src, dst = (W > weight_threshold).nonzero(as_tuple=True)
-        if src.numel() == 0: 
-            print(f"[GraphInputs] image {i}: no edges above threshold, skipping")
+        W_spatial = torch.exp(-alpha * dist_mat**2)
+        sim_feats = torch.nn.functional.cosine_similarity(
+            feats.unsqueeze(1), feats.unsqueeze(0), dim=2
+        )
+        W_appear = torch.exp(gamma_appear * sim_feats)
+        W = W_spatial * W_appear
+
+        src, dst = (W > threshold).nonzero(as_tuple=True)
+        if src.numel() == 0:
+            print(f"[GraphInputs] image {i}: no edges, skipping")
             continue
-        edge_index = torch.stack([src, dst], dim=0)
+
+        edge_index  = torch.stack([src, dst], dim=0)
         edge_weight = W[src, dst]
+        print(f"[GraphInputs] image {i}: edge_index={edge_index.shape}, edge_weight={edge_weight.shape}")
+
         graph_data.append((x, edge_index, edge_weight))
 
     print(f"[GraphInputs] total graphs returned = {len(graph_data)}")
@@ -429,7 +444,7 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
                     gi += 1
                     refined = dgnn(x, edge_index, edge_weight)
                     print(f"[Eval] image {i}: refined.shape = {refined.shape}")
-                    
+
                     logits = refined[:, -len(all_parts_set):]
                     probs  = torch.sigmoid(logits).mean(dim=0)
                     pred_missing = {p for p,v in enumerate(probs) if v < 0.5}
