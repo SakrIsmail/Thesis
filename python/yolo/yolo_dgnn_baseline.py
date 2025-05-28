@@ -261,7 +261,6 @@ def construct_graph_inputs(stored_feats, predictions, device):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_times, gpu_memories, cpu_memories = [], [], []
 batch_count = 0
-epoch_count = 0
 nvml_handle, em_tracker = None, None
 start_time = 0
 best_macro_f1 = 0.0
@@ -305,7 +304,7 @@ def on_train_batch_end(trainer):
 
 
 def on_train_epoch_end(trainer):
-    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device, epoch_count
+    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
 
     em_tracker.__exit__(None, None, None)
     energy = em_tracker.final_emissions_data.energy_consumed
@@ -324,33 +323,32 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    if epoch_count >= 1:
-        trainer.save_model()
+def on_model_save(trainer):
 
-        wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-        last_path = os.path.join(wdir, 'last.pt')  
-        model = YOLO(last_path)  
-        model.to(device).eval()
-        results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    last_path = os.path.join(wdir, 'last.pt')  
+    model = YOLO(last_path)  
+    model.to(device).eval()
+    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
 
-        parts = list(valid_dataset.part_to_idx.values())
-        Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-        Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-        macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+    parts = list(valid_dataset.part_to_idx.values())
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
 
-        print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
+    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
 
-        if macro_f1 > best_macro_f1:
-            best_macro_f1 = macro_f1
-            no_improve_epochs = 0
-            shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
-        else:
-            no_improve_epochs += 1
-            if no_improve_epochs >= patience:
-                print(f"Early stopping at epoch {trainer.epoch + 1}")
-                trainer.stop_training = True
+    if macro_f1 > best_macro_f1:
+        best_macro_f1 = macro_f1
+        no_improve_epochs = 0
+        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
+    else:
+        no_improve_epochs += 1
+        if no_improve_epochs >= patience:
+            print(f"Early stopping at epoch {trainer.epoch + 1}")
+            trainer.stop_training = True
 
-    epoch_count += 1
+
 
 
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
@@ -480,8 +478,9 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 yolo = YOLO('yolov8m.pt', verbose=False)
 yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
 yolo.add_callback("on_train_batch_start", on_train_batch_start)
-yolo.add_callback("on_train_batch_end",   on_train_batch_end)
-yolo.add_callback("on_train_epoch_end",   on_train_epoch_end)
+yolo.add_callback("on_train_batch_end", on_train_batch_end)
+yolo.add_callback("on_train_epoch_end", on_train_epoch_end)
+yolo.add_callback("on_model_save", on_model_save)
 yolo.to(device)
 
 yolo.train(
