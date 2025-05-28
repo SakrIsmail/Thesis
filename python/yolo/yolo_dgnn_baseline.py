@@ -542,7 +542,7 @@ def hook_fn(m, i, o):
     features.append(o)
 yolo.model.model[8].register_forward_hook(hook_fn)
 
-gnn = SpatialGNN(feat_dim=256, hidden_dim=512).to(device)
+gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
 opt  = torch.optim.Adam(gnn.parameters(), lr=1e-3)
 
 if torch.cuda.is_available():
