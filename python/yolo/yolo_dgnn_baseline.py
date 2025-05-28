@@ -600,7 +600,7 @@ for epoch in range(1, num_epochs+1):
 
 
                 tepoch.set_postfix({
-                "loss": f"{total_loss.item():.4f}",
+                "loss": f"{total_loss:.4f}",
                 "time (s)": f"{inference_time:.3f}",
                 "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                 "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
