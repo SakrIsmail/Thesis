@@ -637,7 +637,7 @@ for epoch in range(1, num_epochs+1):
 
     table = [
         ["Epoch", epoch],
-        ["Final Loss", f"{total_loss.item():.4f}"],
+        ["Final Loss", f"{total_loss / len(batch_times):.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
         ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
