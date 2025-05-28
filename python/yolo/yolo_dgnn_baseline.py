@@ -350,8 +350,6 @@ def on_model_save(trainer):
             trainer.stop_training = True
 
 
-
-
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     model.model.to(device).eval()
     results = []
@@ -536,7 +534,13 @@ for epoch in range(1, num_epochs+1):
             for images, targets in tepoch:
                 features.clear()
                 start_time = time.time()
-                results = yolo([img.cpu().numpy() for img in images], verbose=False)
+
+                np_imgs = []
+                for img in images:
+                    arr = (img.cpu().permute(1,2,0).numpy() * 255).clip(0,255).astype('uint8')
+                    np_imgs.append(arr)
+
+                results = yolo(np_imgs, device=device, verbose=False)
                 fmap_batch = features.pop()
 
                 graphs = construct_graph_inputs(fmap_batch, results, device)
