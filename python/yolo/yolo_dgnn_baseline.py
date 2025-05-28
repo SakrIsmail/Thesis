@@ -157,6 +157,8 @@ class BikePartsDetectionDataset(Dataset):
             dtype=torch.int64
         )
 
+        print(f"[Dataset] idx={idx} → image.shape={image.shape}, boxes.shape={boxes.shape}, labels.shape={labels.shape}")
+
         target = {
             'boxes': boxes,
             'labels': labels,
@@ -222,6 +224,10 @@ class SpatialGNN(torch.nn.Module):
         return self.conv2(h, edge_index, edge_weight)
 
 def construct_graph_inputs(stored_feats, predictions, device):
+
+    print(f"[GraphInputs] fmap_batch.shape = {stored_feats.shape}, dtype={stored_feats.dtype}")
+
+    
     sigma_spatial = 20.0
     gamma_appear = 5.0
     alpha = 1.0 / (2 * sigma_spatial**2)
@@ -229,20 +235,25 @@ def construct_graph_inputs(stored_feats, predictions, device):
 
     graph_data = []
 
-    for feats, det in zip(stored_feats, predictions):
+    for i, (feats, det) in enumerate(zip(stored_feats, predictions)):
         Ni = feats.size(0)
-        if Ni < 2: continue
+        print(f"[GraphInputs] image {i}: Ni detections = {Ni}")
+        if Ni < 2: 
+            print(f"[GraphInputs] skipping image {i} (less than 2 detections)")
+            continue
 
         boxes = det.boxes.xyxy.to(device)
         confs = det.boxes.conf.to(device).unsqueeze(1)
         clss  = det.boxes.cls.to(device).unsqueeze(1)
         feats = feats.to(device)
+        print(f"[GraphInputs] image {i}: pooled feats.shape = {feats.shape}")
 
         cxs = ((boxes[:,0] + boxes[:,2]) / 2).unsqueeze(1)
         cys = ((boxes[:,1] + boxes[:,3]) / 2).unsqueeze(1)
         ws  = (boxes[:,2] - boxes[:,0]).unsqueeze(1)
         hs  = (boxes[:,3] - boxes[:,1]).unsqueeze(1)
         x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
+        print(f"[GraphInputs] image {i}: x.shape = {x.shape}")
 
         centers = torch.cat([cxs, cys], dim=1)
         dist_mat = torch.cdist(centers, centers, p=2)
@@ -251,11 +262,14 @@ def construct_graph_inputs(stored_feats, predictions, device):
         w_appear = torch.exp(gamma_appear * sim_feats)
         W = w_spatial * w_appear
         src, dst = (W > weight_threshold).nonzero(as_tuple=True)
-        if src.numel() == 0: continue
+        if src.numel() == 0: 
+            print(f"[GraphInputs] image {i}: no edges above threshold, skipping")
+            continue
         edge_index = torch.stack([src, dst], dim=0)
         edge_weight = W[src, dst]
         graph_data.append((x, edge_index, edge_weight))
 
+    print(f"[GraphInputs] total graphs returned = {len(graph_data)}")
     return graph_data
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -395,9 +409,11 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
             features.clear()
 
             batch = torch.stack(images, dim=0).to(device)
+            print(f"[Eval] batch shape = {batch.shape}, dtype = {batch.dtype}")
 
             detections = yolo_model(batch, device=device, verbose=False)
             fmap_batch = features.pop()
+            print(f"[Eval] fmap_batch.shape = {fmap_batch.shape}")
             graph_list = construct_graph_inputs(fmap_batch, detections, device)
 
             gi = 0
@@ -412,6 +428,8 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
                     x, edge_index, edge_weight = graph_list[gi]
                     gi += 1
                     refined = dgnn(x, edge_index, edge_weight)
+                    print(f"[Eval] image {i}: refined.shape = {refined.shape}")
+                    
                     logits = refined[:, -len(all_parts_set):]
                     probs  = torch.sigmoid(logits).mean(dim=0)
                     pred_missing = {p for p,v in enumerate(probs) if v < 0.5}
