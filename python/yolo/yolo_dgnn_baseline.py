@@ -41,8 +41,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json='/var/scratch/$USER/data/processed/final_annotations_without_occluded.json'
-image_directory = '/var/scratch/$USER/data/images'
+final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
+image_directory = '/var/scratch/sismail/data/images'
 
 test_ratio = 0.2
 valid_ratio = 0.1
@@ -349,7 +349,7 @@ def on_train_epoch_end(trainer):
             if no_improve_epochs >= patience:
                 print(f"Early stopping at epoch {trainer.epoch + 1}")
                 trainer.stop_training = True
-                
+
     epoch_count += 1
 
 
@@ -485,7 +485,7 @@ yolo.add_callback("on_train_epoch_end",   on_train_epoch_end)
 yolo.to(device)
 
 yolo.train(
-    data='/var/scratch/$USER/data/yolo_format/noaug/data.yaml',
+    data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
     epochs=1,
     batch=16,
     imgsz=640,
@@ -497,13 +497,13 @@ yolo.train(
     seed=42,
     verbose=False,
     plots=False,
-    project='/var/scratch/$USER/models/yolo/runs',
+    project='/var/scratch/sismail/models/yolo/runs',
     name='bikeparts_gnn_baseline',
     exist_ok=True
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/$USER/models/yolo/runs/bikeparts_gnn_baseline/weights/best.pt").eval()
+model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_baseline/weights/best.pt").eval()
 model.to(device)
 
 for p in yolo.model.parameters():
@@ -589,7 +589,7 @@ for epoch in range(1, num_epochs+1):
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
             no_improve = 0
-            torch.save(model.state_dict(), "/var/scratch/$USER/models/yolo/yolo_gnn_baseline_model.pth")
+            torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_gnn_baseline_model.pth")
         else:
             no_improve += 1
             if no_improve >= patience:
