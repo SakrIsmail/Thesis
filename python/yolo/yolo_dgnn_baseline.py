@@ -324,6 +324,7 @@ def on_train_epoch_end(trainer):
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
 def on_model_save(trainer):
+    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
 
     wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
     last_path = os.path.join(wdir, 'last.pt')  
