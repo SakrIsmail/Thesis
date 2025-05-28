@@ -437,9 +437,10 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
                 true_missing = set(targets[i]['missing_labels'].cpu().tolist())
 
                 det = detections[i]
+                Ni = det.boxes.xyxy.shape[0]
                 detected_parts = set(det.boxes.cls.cpu().tolist())
 
-                if det.boxes.size(0) >= 2:
+                if Ni >= 2:
                     x, edge_index, edge_weight = graph_list[gi]
                     gi += 1
                     refined = dgnn(x, edge_index, edge_weight)
@@ -600,7 +601,7 @@ for epoch in range(1, num_epochs+1):
 
 
                 tepoch.set_postfix({
-                "loss": f"{total_loss:.4f}",
+                "loss": f"{total_loss / len(batch_times):.4f}",
                 "time (s)": f"{inference_time:.3f}",
                 "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
                 "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
