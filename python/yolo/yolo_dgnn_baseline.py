@@ -394,12 +394,9 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
 
             features.clear()
 
-            np_imgs = []
-            for img in images:
-                arr = (img.cpu().permute(1,2,0).numpy() * 255).clip(0,255).astype('uint8')
-                np_imgs.append(arr)
-            detections = yolo_model(np_imgs, verbose=False)
+            batch = torch.stack(images, dim=0).to(device)
 
+            detections = yolo_model(batch, device=device, verbose=False)
             fmap_batch = features.pop()
             graph_list = construct_graph_inputs(fmap_batch, detections, device)
 
@@ -535,12 +532,9 @@ for epoch in range(1, num_epochs+1):
                 features.clear()
                 start_time = time.time()
 
-                np_imgs = []
-                for img in images:
-                    arr = (img.cpu().permute(1,2,0).numpy() * 255).clip(0,255).astype('uint8')
-                    np_imgs.append(arr)
+                batch = torch.stack(images, dim=0).to(device)
 
-                results = yolo(np_imgs, device=device, verbose=False)
+                results = yolo(batch, device=device, verbose=False)
                 fmap_batch = features.pop()
 
                 graphs = construct_graph_inputs(fmap_batch, results, device)
