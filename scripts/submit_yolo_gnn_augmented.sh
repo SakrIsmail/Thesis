@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=yolo_gnn_baseline
-#SBATCH --output=outputs/yolo/output_yolo_gnn_baseline
-#SBATCH --error=outputs/yolo/error_yolo_gnn_baseline
+#SBATCH --job-name=yolo_gnn_augmented
+#SBATCH --output=outputs/yolo/output_yolo_gnn_augmented
+#SBATCH --error=outputs/yolo/error_yolo_gnn_augmented
 #SBATCH --time=24:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
@@ -18,6 +18,6 @@ eval "$(conda shell.bash hook)"
 conda activate /var/scratch/sismail/my_env
 
 # Run your Python script
-python python/yolo/yolo_gnn_baseline.py 
+python python/yolo/yolo_gnn_augmented.py 
 
 conda deactivate
