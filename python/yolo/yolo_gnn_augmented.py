@@ -286,7 +286,7 @@ yolo_scheduler = None
 start_time = 0
 best_macro_f1 = 0.0
 no_improve_epochs = 0
-patience = 5
+patience = 8
 
 def on_train_start(trainer):
     global yolo_scheduler
@@ -297,7 +297,7 @@ def on_train_start(trainer):
             optim,
             mode='max',
             factor=0.5,
-            patience=5,
+            patience=3,
             min_lr=1e-6,
             verbose=False,
         )
@@ -552,7 +552,7 @@ gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
-    factor=0.5, patience=5,
+    factor=0.5, patience=3,
     min_lr=1e-6, verbose=True
 )
 
@@ -561,7 +561,7 @@ if torch.cuda.is_available():
     handle = nvmlDeviceGetHandleByIndex(0)
 
 num_epochs = 50
-patience = 5
+patience = 8
 best_macro_f1 = 0
 no_improve = 0
 

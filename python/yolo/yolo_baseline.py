@@ -217,7 +217,7 @@ yolo_scheduler = None
 start_time = 0
 best_macro_f1 = 0.0
 no_improve_epochs = 0
-patience = 5
+patience = 8
 
 def on_train_start(trainer):
     global yolo_scheduler
@@ -228,7 +228,7 @@ def on_train_start(trainer):
             optim,
             mode='max',
             factor=0.5,
-            patience=5,
+            patience=3,
             min_lr=1e-6,
             verbose=False,
         )

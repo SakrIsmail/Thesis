@@ -438,7 +438,7 @@ graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
 sched_det = ReduceLROnPlateau(
     opt_det, mode='max',
-    factor=0.5, patience=5,
+    factor=0.5, patience=3,
     min_lr=1e-6, verbose=True
 )
 
@@ -446,13 +446,13 @@ opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
 
 sched_graph = ReduceLROnPlateau(
     opt_graph, mode='max',
-    factor=0.5, patience=5,
+    factor=0.5, patience=3,
     min_lr=1e-6, verbose=True
 )
 
 epochs = 100
 freeze_epoch = 50
-patience = 5
+patience = 8
 detector_best_macro_f1 = 0
 detector_no_improve = 0
 joint_best_macro_f1 = 0

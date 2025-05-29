@@ -291,7 +291,7 @@ model.to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
-    factor=0.5, patience=5,
+    factor=0.5, patience=3,
     min_lr=1e-6, verbose=True
 )
 
@@ -300,7 +300,7 @@ if torch.cuda.is_available():
     handle = nvmlDeviceGetHandleByIndex(0)
 
 epochs = 100
-patience = 5
+patience = 8
 best_macro_f1 = 0
 no_improve = 0
 
