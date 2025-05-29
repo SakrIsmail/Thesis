@@ -1,11 +1,11 @@
 #!/bin/bash
 
-sbatch submit_yolo_gnn_baseline.sh
-sbatch submit_yolo_gnn_augmented.sh
-sbatch submit_yolo_baseline.sh
-sbatch submit_yolo_augmented.sh
-sbatch submit_faster_rcnn_MobileNet_baseline.sh
-sbatch submit_faster_rcnn_MobileNet_augmented.sh
-sbatch submit_graph_rcnn_MobileNet_baseline.sh
-sbatch submit_graph_rcnn_MobileNet_augmented.sh
+sbatch scripts/submit_yolo_gnn_baseline.sh
+sbatch scripts/submit_yolo_gnn_augmented.sh
+sbatch scripts/submit_yolo_baseline.sh
+sbatch scripts/submit_yolo_augmented.sh
+sbatch scripts/submit_faster_rcnn_MobileNet_baseline.sh
+sbatch scripts/submit_faster_rcnn_MobileNet_augmented.sh
+sbatch scripts/submit_graph_rcnn_MobileNet_baseline.sh
+sbatch scripts/submit_graph_rcnn_MobileNet_augmented.sh
 
