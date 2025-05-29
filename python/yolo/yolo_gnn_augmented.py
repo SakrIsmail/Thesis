@@ -282,10 +282,25 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_times, gpu_memories, cpu_memories = [], [], []
 batch_count = 0
 nvml_handle, em_tracker = None, None
+yolo_scheduler = None
 start_time = 0
 best_macro_f1 = 0.0
 no_improve_epochs = 0
 patience = 5
+
+def on_train_start(trainer):
+    global yolo_scheduler
+    optim = trainer.optimizer
+
+    if yolo_scheduler is None:
+        yolo_scheduler = ReduceLROnPlateau(
+            optim,
+            mode='max',
+            factor=0.5,
+            patience=5,
+            min_lr=1e-6,
+            verbose=False,
+        )
 
 def on_train_epoch_start(trainer):
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
@@ -342,6 +357,34 @@ def on_train_epoch_end(trainer):
         ['CO₂ (kg)', f"{co2:.4f}"],
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
+
+def on_model_save(trainer):
+    global best_macro_f1, no_improve_epochs, yolo_scheduler, patience, valid_loader, device
+
+    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    last_path = os.path.join(wdir, 'last.pt')  
+    model = YOLO(last_path)  
+    model.to(device).eval()
+    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+
+    parts = list(valid_dataset.part_to_idx.values())
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+    yolo_scheduler.step(macro_f1)
+
+    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
+
+    if macro_f1 > best_macro_f1:
+        best_macro_f1 = macro_f1
+        no_improve_epochs = 0
+        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
+    else:
+        no_improve_epochs += 1
+        if no_improve_epochs >= patience:
+            print(f"Early stopping at epoch {trainer.epoch + 1}")
+            trainer.stop_training = True
 
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     model.model.to(device).eval()
@@ -468,42 +511,7 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 yolo = YOLO('yolov8m.pt', verbose=False).to(device)
-
-optimizer = torch.optim.AdamW(yolo.model.parameters(), lr=1e-3, weight_decay=1e-4)
-sched = ReduceLROnPlateau(
-    optimizer, mode='max',
-    factor=0.5, patience=5,
-    min_lr=1e-6, verbose=True
-)
-
-def on_model_save(trainer):
-    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
-
-    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    last_path = os.path.join(wdir, 'last.pt')  
-    model = YOLO(last_path)  
-    model.to(device).eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
-
-    parts = list(valid_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    sched.step(macro_f1)
-
-    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        no_improve_epochs = 0
-        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
-    else:
-        no_improve_epochs += 1
-        if no_improve_epochs >= patience:
-            print(f"Early stopping at epoch {trainer.epoch + 1}")
-            trainer.stop_training = True
-
+yolo.add_callback("on_train_start", on_train_start)
 yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
 yolo.add_callback("on_train_batch_start", on_train_batch_start)
 yolo.add_callback("on_train_batch_end", on_train_batch_end)
@@ -515,7 +523,9 @@ yolo.train(
     epochs=50,
     batch=16,
     imgsz=640,
-    optimizer=optimizer,
+    optimizer="AdamW",
+    lr0=1e-4,
+    weight_decay=1e-4,
     workers=4,
     device=device,
     seed=42,
