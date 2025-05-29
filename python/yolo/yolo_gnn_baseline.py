@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import sys
 from torch.utils.data import Dataset, DataLoader
 from torch_geometric.nn import GCNConv
@@ -157,8 +158,6 @@ class BikePartsDetectionDataset(Dataset):
             dtype=torch.int64
         )
 
-        print(f"[Dataset] idx={idx} → image.shape={image.shape}, boxes.shape={boxes.shape}, labels.shape={labels.shape}")
-
         target = {
             'boxes': boxes,
             'labels': labels,
@@ -229,7 +228,6 @@ def construct_graph_inputs(fmap_batch, predictions, device):
     predictions: list of length B of YOLO detections
     """
     B, C, Hf, Wf = fmap_batch.shape
-    print(f"[GraphInputs] fmap_batch.shape = {fmap_batch.shape}")
 
     sigma_spatial, gamma_appear = 20.0, 5.0
     alpha = 1.0 / (2 * sigma_spatial**2)
@@ -239,10 +237,8 @@ def construct_graph_inputs(fmap_batch, predictions, device):
     for i, det in enumerate(predictions):
         boxes = det.boxes.xyxy.to(device)
         Ni = boxes.size(0)
-        print(f"[GraphInputs] image {i}: Ni detections = {Ni}")
 
         if Ni < 2:
-            print(f"[GraphInputs] skipping image {i} (Ni<2)")
             continue
 
         cx = ((boxes[:,0] + boxes[:,2]) / 2) * (Wf / 640)
@@ -251,7 +247,6 @@ def construct_graph_inputs(fmap_batch, predictions, device):
 
         feat_map = fmap_batch[i]
         feats = feat_map[:, iy, ix].permute(1, 0).contiguous()
-        print(f"[GraphInputs] image {i}: pooled feats.shape = {feats.shape}")
 
 
         confs = det.boxes.conf.to(device).unsqueeze(1)
@@ -262,7 +257,6 @@ def construct_graph_inputs(fmap_batch, predictions, device):
         hs    = ((boxes[:,3] - boxes[:,1]) * (Hf/640)).unsqueeze(1)
 
         x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
-        print(f"[GraphInputs] image {i}: x.shape = {x.shape}")
 
         centers = torch.cat([cxs, cys], dim=1)
         dist_mat = torch.cdist(centers, centers, p=2)
@@ -275,16 +269,13 @@ def construct_graph_inputs(fmap_batch, predictions, device):
 
         src, dst = (W > threshold).nonzero(as_tuple=True)
         if src.numel() == 0:
-            print(f"[GraphInputs] image {i}: no edges, skipping")
             continue
 
         edge_index  = torch.stack([src, dst], dim=0)
         edge_weight = W[src, dst]
-        print(f"[GraphInputs] image {i}: edge_index={edge_index.shape}, edge_weight={edge_weight.shape}")
 
         graph_data.append((x, edge_index, edge_weight))
 
-    print(f"[GraphInputs] total graphs returned = {len(graph_data)}")
     return graph_data
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -352,33 +343,6 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-def on_model_save(trainer):
-    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
-
-    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    last_path = os.path.join(wdir, 'last.pt')  
-    model = YOLO(last_path)  
-    model.to(device).eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
-
-    parts = list(valid_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        no_improve_epochs = 0
-        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
-    else:
-        no_improve_epochs += 1
-        if no_improve_epochs >= patience:
-            print(f"Early stopping at epoch {trainer.epoch + 1}")
-            trainer.stop_training = True
-
-
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     model.model.to(device).eval()
     results = []
@@ -424,11 +388,9 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
             features.clear()
 
             batch = torch.stack(images, dim=0).to(device)
-            print(f"[Eval] batch shape = {batch.shape}, dtype = {batch.dtype}")
 
             detections = yolo_model(batch, device=device, verbose=False)
             fmap_batch = features.pop()
-            print(f"[Eval] fmap_batch.shape = {fmap_batch.shape}")
             graph_list = construct_graph_inputs(fmap_batch, detections, device)
 
             gi = 0
@@ -505,22 +467,55 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 
-yolo = YOLO('yolov8m.pt', verbose=False)
+yolo = YOLO('yolov8m.pt', verbose=False).to(device)
+
+optimizer = torch.optim.AdamW(yolo.model.parameters(), lr=1e-3, weight_decay=1e-4)
+sched = ReduceLROnPlateau(
+    optimizer, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
+
+def on_model_save(trainer):
+    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
+
+    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    last_path = os.path.join(wdir, 'last.pt')  
+    model = YOLO(last_path)  
+    model.to(device).eval()
+    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+
+    parts = list(valid_dataset.part_to_idx.values())
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+    sched.step(macro_f1)
+
+    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
+
+    if macro_f1 > best_macro_f1:
+        best_macro_f1 = macro_f1
+        no_improve_epochs = 0
+        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
+    else:
+        no_improve_epochs += 1
+        if no_improve_epochs >= patience:
+            print(f"Early stopping at epoch {trainer.epoch + 1}")
+            trainer.stop_training = True
+
 yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
 yolo.add_callback("on_train_batch_start", on_train_batch_start)
 yolo.add_callback("on_train_batch_end", on_train_batch_end)
 yolo.add_callback("on_train_epoch_end", on_train_epoch_end)
 yolo.add_callback("on_model_save", on_model_save)
-yolo.to(device)
 
 yolo.train(
     data='/var/scratch/sismail/data/yolo_format/noaug/data.yaml',
-    epochs=1,
+    epochs=50,
     batch=16,
     imgsz=640,
-    optimizer='AdamW',
-    lr0=1e-4,
-    weight_decay=1e-4,
+    optimizer=optimizer,
     workers=4,
     device=device,
     seed=42,
@@ -544,13 +539,18 @@ def hook_fn(m, i, o):
 yolo.model.model[8].register_forward_hook(hook_fn)
 
 gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
-opt  = torch.optim.Adam(gnn.parameters(), lr=1e-3)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+sched = ReduceLROnPlateau(
+    optimizer, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-num_epochs = 1
+num_epochs = 50
 patience = 5
 best_macro_f1 = 0
 no_improve = 0
@@ -573,7 +573,7 @@ for epoch in range(1, num_epochs+1):
 
                 graphs = construct_graph_inputs(fmap_batch, results, device)
 
-                opt.zero_grad()
+                optimizer.zero_grad()
                 loss = torch.tensor(0., device=device)
                 count = 0
                 for x, edge_index, edge_weight in graphs:
@@ -583,7 +583,7 @@ for epoch in range(1, num_epochs+1):
                 loss = loss / count if count else loss
 
                 loss.backward()
-                opt.step()
+                optimizer.step()
                 total_loss += loss.item()
 
                 end_time = time.time()
@@ -617,6 +617,8 @@ for epoch in range(1, num_epochs+1):
         Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
         Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
         macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+        sched.step(macro_f1)
 
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1

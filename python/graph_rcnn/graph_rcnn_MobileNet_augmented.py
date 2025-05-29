@@ -18,6 +18,7 @@ from torchvision import transforms
 from torchvision.ops import nms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch_geometric.nn import GATConv
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
@@ -173,7 +174,7 @@ class BikePartsDetectionDataset(Dataset):
 train_dataset = BikePartsDetectionDataset(
     annotations_dict=train_annotations,
     image_dir=image_directory,
-    augment=False
+    augment=True
 )
 
 valid_dataset = BikePartsDetectionDataset(
@@ -435,10 +436,22 @@ detector_params = list(model.detector.backbone.parameters()) \
 graph_params    = list(model.repn.parameters()) + list(model.agcn.parameters())
 
 opt_det   = torch.optim.AdamW(detector_params, lr=1e-4, weight_decay=1e-4)
+sched_det = ReduceLROnPlateau(
+    opt_det, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
+
 opt_graph = torch.optim.AdamW(graph_params,   lr=1e-4, weight_decay=1e-4)
 
-epochs = 50
-freeze_epoch = 20
+sched_graph = ReduceLROnPlateau(
+    opt_graph, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
+
+epochs = 100
+freeze_epoch = 50
 patience = 5
 detector_best_macro_f1 = 0
 detector_no_improve = 0
@@ -517,6 +530,8 @@ for epoch in range(1, epochs+1):
         Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
         Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
         macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+        sched_det.step(macro_f1)
 
         if macro_f1 > detector_best_macro_f1:
             detector_best_macro_f1 = macro_f1
@@ -597,6 +612,8 @@ for epoch in range(1, epochs+1):
     Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results_per_image])
     macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
 
+    sched_graph.step(macro_f1)
+
     if macro_f1 > joint_best_macro_f1:
         joint_best_macro_f1 = macro_f1
         joiny_no_improve = 0
@@ -622,7 +639,6 @@ results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_id
 part_level_evaluation(
     results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
 )
-
 
 results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 

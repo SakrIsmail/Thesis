@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -288,12 +289,17 @@ model.to(device)
 
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+sched = ReduceLROnPlateau(
+    optimizer, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-epochs = 50
+epochs = 100
 patience = 5
 best_macro_f1 = 0
 no_improve = 0
@@ -352,6 +358,8 @@ for epoch in range(1, epochs+1):
             Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
             Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
             macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+            sched.step(macro_f1)
 
             if macro_f1 > best_macro_f1:
                 best_macro_f1 = macro_f1

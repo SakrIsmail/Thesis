@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import sys
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
@@ -219,15 +220,15 @@ patience = 5
 
 def on_train_epoch_start(trainer):
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
-    # reset for new epoch
+
     batch_times.clear()
     gpu_memories.clear()
     cpu_memories.clear()
     batch_count = 0
-    # start emissions tracker
+
     em_tracker = EmissionsTracker(log_level="critical", save_to_file=False)
     em_tracker.__enter__()
-    # init GPU memory tracking
+
     if trainer.device.type == 'cuda':
         nvmlInit()
         nvml_handle = nvmlDeviceGetHandleByIndex(0)
@@ -240,9 +241,8 @@ def on_train_batch_start(trainer):
 
 def on_train_batch_end(trainer):
     global batch_count, start_time
-    # increment batch counter
+
     batch_count += 1
-    # record timing and memory
     end_time = time.time()
     inference_time = end_time - start_time
     batch_times.append(inference_time)
@@ -252,14 +252,14 @@ def on_train_batch_end(trainer):
     else:
         gpu_memories.append(0)
     cpu_memories.append(psutil.virtual_memory().used / 1024**2)
-    # log metrics separately
+
     print(f"Batch {batch_count} | loss={trainer.loss:.4f} | time={inference_time:.3f}s | "
           f"GPU={gpu_memories[-1]:.0f}MB | CPU={cpu_memories[-1]:.0f}MB", file=sys.stderr)
     gc.collect()
 
 
 def on_train_epoch_end(trainer):
-    global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
+    global nvml_handle, em_tracker
 
     em_tracker.__exit__(None, None, None)
     energy = em_tracker.final_emissions_data.energy_consumed
@@ -267,7 +267,6 @@ def on_train_epoch_end(trainer):
 
     if nvml_handle:
         nvmlShutdown()
-
     table = [
         ['Epoch', trainer.epoch],
         ['Final Loss', f"{trainer.loss:.4f}"],
@@ -279,31 +278,6 @@ def on_train_epoch_end(trainer):
     ]
     print(tabulate(table, headers=["Metric","Value"], tablefmt="pretty"))
 
-    trainer.save_model()
-
-    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
-    last_path = os.path.join(wdir, 'last.pt')  
-    model = YOLO(last_path)  
-    model.to(device).eval()
-    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
-
-    parts = list(valid_dataset.part_to_idx.values())
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
-    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
-
-    if macro_f1 > best_macro_f1:
-        best_macro_f1 = macro_f1
-        no_improve_epochs = 0
-        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
-    else:
-        no_improve_epochs += 1
-        if no_improve_epochs >= patience:
-            print(f"Early stopping at epoch {trainer.epoch + 1}")
-            trainer.stop_training = True
-
 
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     model.model.to(device).eval()
@@ -312,8 +286,7 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     for images, targets in tqdm(loader, desc="Eval"):
         np_images = []
         for img in images:
-            # img is a tensor [3,H,W] in [0,1]
-            arr = img.cpu().permute(1, 2, 0).numpy()  # H,W,3 float32
+            arr = img.cpu().permute(1, 2, 0).numpy()
             arr = (arr * 255).clip(0, 255).astype(np.uint8)
             np_images.append(arr)
 
@@ -324,9 +297,9 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
             true_missing = set(targets[i]['missing_labels'].tolist())
             all_parts   = set(part_to_idx.values())
             results.append({
-                'image_id':             targets[i]['image_id'].item(),
-                'predicted_missing_parts':    all_parts - pred_labels,
-                'true_missing_parts':         true_missing
+                'image_id': targets[i]['image_id'].item(),
+                'predicted_missing_parts': all_parts - pred_labels,
+                'true_missing_parts': true_missing
             })
     return results
 
@@ -375,6 +348,42 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
 
 
 model = YOLO('yolov8m.pt', verbose=False)
+
+optimizer = torch.optim.AdamW(model.model.parameters(), lr=1e-3, weight_decay=1e-4)
+sched = ReduceLROnPlateau(
+    optimizer, mode='max',
+    factor=0.5, patience=5,
+    min_lr=1e-6, verbose=True
+)
+
+def on_model_save(trainer):
+    global best_macro_f1, no_improve_epochs, patience, valid_loader, device
+
+    wdir = os.path.join(trainer.args.project, trainer.args.name, 'weights')
+    last_path = os.path.join(wdir, 'last.pt')  
+    model = YOLO(last_path)  
+    model.to(device).eval()
+    results = run_yolo_inference(model, valid_loader, valid_dataset.part_to_idx, valid_dataset.idx_to_part, device)
+
+    parts = list(valid_dataset.part_to_idx.values())
+    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
+    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
+    macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+
+    sched.step(macro_f1)
+
+    print(f"Epoch {trainer.epoch + 1}: Macro F1 Score = {macro_f1:.4f}")
+
+    if macro_f1 > best_macro_f1:
+        best_macro_f1 = macro_f1
+        no_improve_epochs = 0
+        shutil.copy(last_path, os.path.join(wdir, 'best.pt'))
+    else:
+        no_improve_epochs += 1
+        if no_improve_epochs >= patience:
+            print(f"Early stopping at epoch {trainer.epoch + 1}")
+            trainer.stop_training = True
+
 model.add_callback("on_train_epoch_start", on_train_epoch_start)
 model.add_callback("on_train_batch_start", on_train_batch_start)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
@@ -383,12 +392,10 @@ model.to(device)
 
 model.train(
     data='/var/scratch/sismail/data/yolo_format/aug/data.yaml',
-    epochs=50,
+    epochs=100,
     batch=16,
     imgsz=640,
-    optimizer='AdamW',
-    lr0=1e-4,
-    weight_decay=1e-4,
+    optimizer=optimizer,
     workers=4,
     device=device,
     seed=42,
