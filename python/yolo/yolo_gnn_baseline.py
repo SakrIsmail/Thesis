@@ -449,7 +449,6 @@ def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device):
                     x, edge_index, edge_weight = graph_list[gi]
                     gi += 1
                     refined = dgnn(x, edge_index, edge_weight)
-                    print(f"[Eval] image {i}: refined.shape = {refined.shape}")
 
                     logits = refined[:, -len(all_parts_set):]
                     probs  = torch.sigmoid(logits).mean(dim=0)
