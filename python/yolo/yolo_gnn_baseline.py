@@ -507,8 +507,6 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-
-
 yolo = YOLO('yolov8m.pt', verbose=False).to(device)
 yolo.add_callback("on_train_start", on_train_start)
 yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
@@ -539,16 +537,16 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_baseline/weights/best.pt").eval()
 model.to(device)
 
-for p in yolo.model.parameters():
+for p in model.model.parameters():
     p.requires_grad = False
 
 features = []
 def hook_fn(m, i, o):   
     features.append(o)
-yolo.model.model[8].register_forward_hook(hook_fn)
+model.model.model[8].register_forward_hook(hook_fn)
 
 gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+optimizer = torch.optim.AdamW(gnn.parameters(), lr=1e-3, weight_decay=1e-4)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
     factor=0.5, patience=3,

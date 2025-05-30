@@ -191,7 +191,7 @@ train_loader = DataLoader(
     worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -199,7 +199,7 @@ valid_loader = DataLoader(
     valid_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -207,7 +207,7 @@ test_loader = DataLoader(
     test_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -539,16 +539,16 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_augmented/weights/best.pt").eval()
 model.to(device)
 
-for p in yolo.model.parameters():
+for p in model.model.parameters():
     p.requires_grad = False
 
 features = []
 def hook_fn(m, i, o):   
     features.append(o)
-yolo.model.model[8].register_forward_hook(hook_fn)
+model.model.model[8].register_forward_hook(hook_fn)
 
 gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+optimizer = torch.optim.AdamW(gnn.parameters(), lr=1e-3, weight_decay=1e-4)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
     factor=0.5, patience=3,
