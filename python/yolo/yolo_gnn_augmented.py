@@ -507,8 +507,6 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print("[METRIC-TABLE] Per-Part Evaluation")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
-
-
 yolo = YOLO('yolov8m.pt', verbose=False).to(device)
 yolo.add_callback("on_train_start", on_train_start)
 yolo.add_callback("on_train_epoch_start", on_train_epoch_start)
@@ -536,16 +534,16 @@ yolo.train(
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_augmented/weights/best.pt").eval()
-model.to(device)
+yolo = YOLO("/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_augmented/weights/best.pt").eval()
+yolo.to(device)
 
-for p in model.model.parameters():
+for p in yolo.model.parameters():
     p.requires_grad = False
 
 features = []
 def hook_fn(m, i, o):   
     features.append(o)
-model.model.model[8].register_forward_hook(hook_fn)
+yolo.model.model[8].register_forward_hook(hook_fn)
 
 gnn = SpatialGNN(feat_dim=576, hidden_dim=512).to(device)
 optimizer = torch.optim.AdamW(gnn.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -620,7 +618,6 @@ for epoch in range(1, num_epochs+1):
                 if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
 
-        model.eval()
         results = evaluate_gnn(yolo, gnn, valid_loader, valid_dataset.part_to_idx, device)
         parts = list(valid_dataset.part_to_idx.values())
         Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -632,7 +629,7 @@ for epoch in range(1, num_epochs+1):
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
             no_improve = 0
-            torch.save(model.state_dict(), "/var/scratch/sismail/models/yolo/yolo_gnn_augmented_model.pth")
+            torch.save(yolo.state_dict(), "/var/scratch/sismail/models/yolo/yolo_gnn_augmented_model.pth")
         else:
             no_improve += 1
             if no_improve >= patience:
@@ -660,9 +657,6 @@ for epoch in range(1, num_epochs+1):
 
 if torch.cuda.is_available():
     nvmlShutdown()
-
-
-model.eval()
 
 val_results  = evaluate_gnn(yolo, gnn, valid_loader, valid_dataset.part_to_idx, device)
 test_results = evaluate_gnn(yolo, gnn, test_loader, test_dataset.part_to_idx, device)
