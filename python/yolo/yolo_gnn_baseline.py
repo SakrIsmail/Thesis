@@ -191,7 +191,7 @@ train_loader = DataLoader(
     worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -199,7 +199,7 @@ valid_loader = DataLoader(
     valid_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
@@ -207,7 +207,7 @@ test_loader = DataLoader(
     test_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
