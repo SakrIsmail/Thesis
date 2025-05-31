@@ -2,387 +2,354 @@
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     1      |
-|          Final Loss           |   1.0982   |
-|   Average Batch Time (sec)    |   0.3027   |
-| Maximum GPU Memory Usage (MB) |  4398.69   |
-| Maximum CPU Memory Usage (MB) |  2827.29   |
-|   Energy Consumption (kWh)    | 0.0359 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   1.1066   |
+|   Average Batch Time (sec)    |   0.3102   |
+| Maximum GPU Memory Usage (MB) |  5350.69   |
+| Maximum CPU Memory Usage (MB) |  4230.96   |
+|   Energy Consumption (kWh)    | 0.0402 kWh |
+|      CO₂ Emissions (kg)       | 0.0001 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     2      |
-|          Final Loss           |   0.9884   |
-|   Average Batch Time (sec)    |   0.2980   |
-| Maximum GPU Memory Usage (MB) |  5312.69   |
-| Maximum CPU Memory Usage (MB) |  2635.28   |
-|   Energy Consumption (kWh)    | 0.0360 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.9984   |
+|   Average Batch Time (sec)    |   0.3056   |
+| Maximum GPU Memory Usage (MB) |  5390.69   |
+| Maximum CPU Memory Usage (MB) |  4141.62   |
+|   Energy Consumption (kWh)    | 0.0403 kWh |
+|      CO₂ Emissions (kg)       | 0.0108 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     3      |
-|          Final Loss           |   0.9701   |
-|   Average Batch Time (sec)    |   0.2970   |
-| Maximum GPU Memory Usage (MB) |  5312.69   |
-| Maximum CPU Memory Usage (MB) |  2656.09   |
-|   Energy Consumption (kWh)    | 0.0359 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.9613   |
+|   Average Batch Time (sec)    |   0.3051   |
+| Maximum GPU Memory Usage (MB) |  6914.69   |
+| Maximum CPU Memory Usage (MB) |  4049.21   |
+|   Energy Consumption (kWh)    | 0.0403 kWh |
+|      CO₂ Emissions (kg)       | 0.0108 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     4      |
-|          Final Loss           |   0.9216   |
-|   Average Batch Time (sec)    |   0.2964   |
-| Maximum GPU Memory Usage (MB) |  5312.69   |
-| Maximum CPU Memory Usage (MB) |  2743.34   |
-|   Energy Consumption (kWh)    | 0.0358 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.9396   |
+|   Average Batch Time (sec)    |   0.3047   |
+| Maximum GPU Memory Usage (MB) |  5390.69   |
+| Maximum CPU Memory Usage (MB) |  4287.41   |
+|   Energy Consumption (kWh)    | 0.0401 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     5      |
-|          Final Loss           |   0.8320   |
-|   Average Batch Time (sec)    |   0.2947   |
-| Maximum GPU Memory Usage (MB) |  6816.69   |
-| Maximum CPU Memory Usage (MB) |  2771.09   |
-|   Energy Consumption (kWh)    | 0.0357 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.7977   |
+|   Average Batch Time (sec)    |   0.3031   |
+| Maximum GPU Memory Usage (MB) |  11214.69  |
+| Maximum CPU Memory Usage (MB) |  4187.37   |
+|   Energy Consumption (kWh)    | 0.0401 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     6      |
-|          Final Loss           |   0.8961   |
-|   Average Batch Time (sec)    |   0.2961   |
-| Maximum GPU Memory Usage (MB) |  6820.69   |
-| Maximum CPU Memory Usage (MB) |  2695.52   |
-|   Energy Consumption (kWh)    | 0.0357 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.8871   |
+|   Average Batch Time (sec)    |   0.3032   |
+| Maximum GPU Memory Usage (MB) |  11242.69  |
+| Maximum CPU Memory Usage (MB) |  4093.35   |
+|   Energy Consumption (kWh)    | 0.0404 kWh |
+|      CO₂ Emissions (kg)       | 0.0108 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     7      |
-|          Final Loss           |   0.8294   |
-|   Average Batch Time (sec)    |   0.2954   |
-| Maximum GPU Memory Usage (MB) |  6808.69   |
-| Maximum CPU Memory Usage (MB) |  2688.45   |
-|   Energy Consumption (kWh)    | 0.0357 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.8425   |
+|   Average Batch Time (sec)    |   0.3022   |
+| Maximum GPU Memory Usage (MB) |  10958.69  |
+| Maximum CPU Memory Usage (MB) |  4128.91   |
+|   Energy Consumption (kWh)    | 0.0400 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     8      |
-|          Final Loss           |   0.8132   |
-|   Average Batch Time (sec)    |   0.2963   |
-| Maximum GPU Memory Usage (MB) |  9720.69   |
-| Maximum CPU Memory Usage (MB) |  2695.95   |
-|   Energy Consumption (kWh)    | 0.0357 kWh |
-|      CO₂ Emissions (kg)       | 0.0095 kg  |
+|          Final Loss           |   0.8086   |
+|   Average Batch Time (sec)    |   0.3039   |
+| Maximum GPU Memory Usage (MB) |  10574.69  |
+| Maximum CPU Memory Usage (MB) |  4056.35   |
+|   Energy Consumption (kWh)    | 0.0400 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     9      |
-|          Final Loss           |   0.7905   |
-|   Average Batch Time (sec)    |   0.2991   |
-| Maximum GPU Memory Usage (MB) |  4646.69   |
-| Maximum CPU Memory Usage (MB) |  2809.14   |
-|   Energy Consumption (kWh)    | 0.0357 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.7916   |
+|   Average Batch Time (sec)    |   0.3057   |
+| Maximum GPU Memory Usage (MB) |  9100.69   |
+| Maximum CPU Memory Usage (MB) |  4024.29   |
+|   Energy Consumption (kWh)    | 0.0400 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     10     |
-|          Final Loss           |   0.7218   |
-|   Average Batch Time (sec)    |   0.3000   |
-| Maximum GPU Memory Usage (MB) |  5952.69   |
-| Maximum CPU Memory Usage (MB) |  2666.48   |
-|   Energy Consumption (kWh)    | 0.0359 kWh |
-|      CO₂ Emissions (kg)       | 0.0096 kg  |
+|          Final Loss           |   0.7241   |
+|   Average Batch Time (sec)    |   0.3089   |
+| Maximum GPU Memory Usage (MB) |  5150.69   |
+| Maximum CPU Memory Usage (MB) |  4046.22   |
+|   Energy Consumption (kWh)    | 0.0400 kWh |
+|      CO₂ Emissions (kg)       | 0.0107 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     11     |
-|          Final Loss           |   0.8163   |
-|   Average Batch Time (sec)    |   0.3081   |
-| Maximum GPU Memory Usage (MB) |  4540.69   |
-| Maximum CPU Memory Usage (MB) |  2706.36   |
-|   Energy Consumption (kWh)    | 0.0365 kWh |
-|      CO₂ Emissions (kg)       | 0.0098 kg  |
+|          Final Loss           |   0.7729   |
+|   Average Batch Time (sec)    |   0.3163   |
+| Maximum GPU Memory Usage (MB) |  4332.69   |
+| Maximum CPU Memory Usage (MB) |  4101.71   |
+|   Energy Consumption (kWh)    | 0.0405 kWh |
+|      CO₂ Emissions (kg)       | 0.0108 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     12     |
-|          Final Loss           |   0.7362   |
-|   Average Batch Time (sec)    |   0.3097   |
-| Maximum GPU Memory Usage (MB) |  7816.69   |
-| Maximum CPU Memory Usage (MB) |  2688.03   |
-|   Energy Consumption (kWh)    | 0.0364 kWh |
-|      CO₂ Emissions (kg)       | 0.0097 kg  |
+|          Final Loss           |   0.7437   |
+|   Average Batch Time (sec)    |   0.3206   |
+| Maximum GPU Memory Usage (MB) |  4354.69   |
+| Maximum CPU Memory Usage (MB) |  4034.70   |
+|   Energy Consumption (kWh)    | 0.0407 kWh |
+|      CO₂ Emissions (kg)       | 0.0109 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     13     |
-|          Final Loss           |   0.7090   |
-|   Average Batch Time (sec)    |   0.3261   |
-| Maximum GPU Memory Usage (MB) |  4522.69   |
-| Maximum CPU Memory Usage (MB) |  2598.45   |
-|   Energy Consumption (kWh)    | 0.0366 kWh |
-|      CO₂ Emissions (kg)       | 0.0098 kg  |
+|          Final Loss           |   0.7106   |
+|   Average Batch Time (sec)    |   0.3332   |
+| Maximum GPU Memory Usage (MB) |  4312.69   |
+| Maximum CPU Memory Usage (MB) |  4054.98   |
+|   Energy Consumption (kWh)    | 0.0413 kWh |
+|      CO₂ Emissions (kg)       | 0.0110 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     14     |
-|          Final Loss           |   0.7241   |
-|   Average Batch Time (sec)    |   0.3354   |
-| Maximum GPU Memory Usage (MB) |  10212.69  |
-| Maximum CPU Memory Usage (MB) |  2774.96   |
-|   Energy Consumption (kWh)    | 0.0371 kWh |
-|      CO₂ Emissions (kg)       | 0.0099 kg  |
+|          Final Loss           |   0.7415   |
+|   Average Batch Time (sec)    |   0.3433   |
+| Maximum GPU Memory Usage (MB) |  4378.69   |
+| Maximum CPU Memory Usage (MB) |  4119.06   |
+|   Energy Consumption (kWh)    | 0.0418 kWh |
+|      CO₂ Emissions (kg)       | 0.0112 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     15     |
-|          Final Loss           |   0.6976   |
-|   Average Batch Time (sec)    |   0.3480   |
-| Maximum GPU Memory Usage (MB) |  4704.69   |
-| Maximum CPU Memory Usage (MB) |  2682.54   |
-|   Energy Consumption (kWh)    | 0.0375 kWh |
-|      CO₂ Emissions (kg)       | 0.0100 kg  |
+|          Final Loss           |   0.7032   |
+|   Average Batch Time (sec)    |   0.3530   |
+| Maximum GPU Memory Usage (MB) |  4366.69   |
+| Maximum CPU Memory Usage (MB) |  4122.12   |
+|   Energy Consumption (kWh)    | 0.0421 kWh |
+|      CO₂ Emissions (kg)       | 0.0001 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     16     |
-|          Final Loss           |   0.6651   |
-|   Average Batch Time (sec)    |   0.3587   |
-| Maximum GPU Memory Usage (MB) |  4522.69   |
-| Maximum CPU Memory Usage (MB) |  2613.82   |
-|   Energy Consumption (kWh)    | 0.0379 kWh |
-|      CO₂ Emissions (kg)       | 0.0101 kg  |
+|          Final Loss           |   0.6350   |
+|   Average Batch Time (sec)    |   0.3630   |
+| Maximum GPU Memory Usage (MB) |  4236.69   |
+| Maximum CPU Memory Usage (MB) |  4117.55   |
+|   Energy Consumption (kWh)    | 0.0427 kWh |
+|      CO₂ Emissions (kg)       | 0.0114 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     17     |
-|          Final Loss           |   0.5649   |
-|   Average Batch Time (sec)    |   0.3656   |
-| Maximum GPU Memory Usage (MB) |  4496.69   |
-| Maximum CPU Memory Usage (MB) |  2738.59   |
-|   Energy Consumption (kWh)    | 0.0384 kWh |
-|      CO₂ Emissions (kg)       | 0.0103 kg  |
+|          Final Loss           |   0.5946   |
+|   Average Batch Time (sec)    |   0.3697   |
+| Maximum GPU Memory Usage (MB) |  4334.69   |
+| Maximum CPU Memory Usage (MB) |  3999.50   |
+|   Energy Consumption (kWh)    | 0.0429 kWh |
+|      CO₂ Emissions (kg)       | 0.0115 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     18     |
-|          Final Loss           |   0.6043   |
-|   Average Batch Time (sec)    |   0.3677   |
-| Maximum GPU Memory Usage (MB) |  4332.69   |
-| Maximum CPU Memory Usage (MB) |  2740.48   |
-|   Energy Consumption (kWh)    | 0.0383 kWh |
-|      CO₂ Emissions (kg)       | 0.0102 kg  |
+|          Final Loss           |   0.6026   |
+|   Average Batch Time (sec)    |   0.3745   |
+| Maximum GPU Memory Usage (MB) |  4248.69   |
+| Maximum CPU Memory Usage (MB) |  4125.81   |
+|   Energy Consumption (kWh)    | 0.0430 kWh |
+|      CO₂ Emissions (kg)       | 0.0001 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     19     |
-|          Final Loss           |   0.5338   |
-|   Average Batch Time (sec)    |   0.3730   |
-| Maximum GPU Memory Usage (MB) |  4470.69   |
-| Maximum CPU Memory Usage (MB) |  2645.12   |
-|   Energy Consumption (kWh)    | 0.0385 kWh |
-|      CO₂ Emissions (kg)       | 0.0103 kg  |
+|          Final Loss           |   0.5596   |
+|   Average Batch Time (sec)    |   0.3768   |
+| Maximum GPU Memory Usage (MB) |  4238.69   |
+| Maximum CPU Memory Usage (MB) |  4212.09   |
+|   Energy Consumption (kWh)    | 0.0439 kWh |
+|      CO₂ Emissions (kg)       | 0.0117 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     20     |
-|          Final Loss           |   0.5483   |
-|   Average Batch Time (sec)    |   0.3719   |
-| Maximum GPU Memory Usage (MB) |  4524.69   |
-| Maximum CPU Memory Usage (MB) |  2651.53   |
-|   Energy Consumption (kWh)    | 0.0387 kWh |
-|      CO₂ Emissions (kg)       | 0.0104 kg  |
+|          Final Loss           |   0.4965   |
+|   Average Batch Time (sec)    |   0.3610   |
+| Maximum GPU Memory Usage (MB) |  4206.69   |
+| Maximum CPU Memory Usage (MB) |  4111.79   |
+|   Energy Consumption (kWh)    | 0.0424 kWh |
+|      CO₂ Emissions (kg)       | 0.0113 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     21     |
-|          Final Loss           |   0.5777   |
-|   Average Batch Time (sec)    |   0.3676   |
-| Maximum GPU Memory Usage (MB) |  4494.69   |
-| Maximum CPU Memory Usage (MB) |  2686.19   |
-|   Energy Consumption (kWh)    | 0.0380 kWh |
-|      CO₂ Emissions (kg)       | 0.0102 kg  |
+|          Final Loss           |   0.5328   |
+|   Average Batch Time (sec)    |   0.3540   |
+| Maximum GPU Memory Usage (MB) |   98.56    |
+| Maximum CPU Memory Usage (MB) |  3471.29   |
+|   Energy Consumption (kWh)    | 0.0429 kWh |
+|      CO₂ Emissions (kg)       | 0.0115 kg  |
 +-------------------------------+------------+
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |     22     |
-|          Final Loss           |   0.5791   |
-|   Average Batch Time (sec)    |   0.3588   |
-| Maximum GPU Memory Usage (MB) |  4464.69   |
-| Maximum CPU Memory Usage (MB) |  2716.25   |
-|   Energy Consumption (kWh)    | 0.0376 kWh |
-|      CO₂ Emissions (kg)       | 0.0101 kg  |
+|          Final Loss           |   0.5201   |
+|   Average Batch Time (sec)    |   0.3526   |
+| Maximum GPU Memory Usage (MB) |   98.56    |
+| Maximum CPU Memory Usage (MB) |  3534.26   |
+|   Energy Consumption (kWh)    | 0.0429 kWh |
+|      CO₂ Emissions (kg)       | 0.0115 kg  |
 +-------------------------------+------------+
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |     23     |
-|          Final Loss           |   0.5667   |
-|   Average Batch Time (sec)    |   0.3540   |
-| Maximum GPU Memory Usage (MB) |  4454.69   |
-| Maximum CPU Memory Usage (MB) |  2658.98   |
-|   Energy Consumption (kWh)    | 0.0372 kWh |
-|      CO₂ Emissions (kg)       | 0.0099 kg  |
-+-------------------------------+------------+
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |     24     |
-|          Final Loss           |   0.5670   |
-|   Average Batch Time (sec)    |   0.3497   |
-| Maximum GPU Memory Usage (MB) |  4466.69   |
-| Maximum CPU Memory Usage (MB) |  2697.48   |
-|   Energy Consumption (kWh)    | 0.0373 kWh |
-|      CO₂ Emissions (kg)       | 0.0100 kg  |
-+-------------------------------+------------+
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |     25     |
-|          Final Loss           |   0.5557   |
-|   Average Batch Time (sec)    |   0.3459   |
-| Maximum GPU Memory Usage (MB) |  4430.69   |
-| Maximum CPU Memory Usage (MB) |  2627.63   |
-|   Energy Consumption (kWh)    | 0.0362 kWh |
-|      CO₂ Emissions (kg)       | 0.0097 kg  |
-+-------------------------------+------------+
-Early stopping at epoch 26
-[METRIC] Micro-F1: 0.7743
-[METRIC] Macro-F1: 0.6379
-[METRIC] Miss Rate: 0.3116
-[METRIC] FPPI: 0.6536
-[METRIC] Overall Acc: 0.8673
-[METRIC] Precision: 0.8846
-[METRIC] Recall: 0.6884
-[METRIC] F1: 0.7743
+Early stopping at epoch 23
+[METRIC] Micro-F1: 0.7611
+[METRIC] Macro-F1: 0.6284
+[METRIC] Miss Rate: 0.3329
+[METRIC] FPPI: 0.6254
+[METRIC] Overall Acc: 0.8615
+[METRIC] Precision: 0.8858
+[METRIC] Recall: 0.6671
+[METRIC] F1: 0.7611
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.755 │  0.835 │ 0.651 │ 0.732 │
+│ back_pedal      │ 0.735 │  0.826 │ 0.612 │ 0.703 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.768 │  0.828 │ 0.656 │ 0.732 │
+│ back_hand_break │ 0.768 │  0.86  │ 0.62  │ 0.721 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.961 │  0.2   │ 0.105 │ 0.138 │
+│ front_pedal     │ 0.962 │  0.222 │ 0.105 │ 0.143 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.961 │  0.84  │ 0.5   │ 0.627 │
+│ front_mudguard  │ 0.962 │  0.8   │ 0.571 │ 0.667 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.848 │  0.824 │ 0.726 │ 0.772 │
+│ front_light     │ 0.842 │  0.827 │ 0.699 │ 0.758 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.937 │  0.953 │ 0.519 │ 0.672 │
+│ back_mudguard   │ 0.937 │  0.933 │ 0.532 │ 0.677 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.835 │  0.888 │ 0.637 │ 0.742 │
+│ front_handbreak │ 0.84  │  0.843 │ 0.7   │ 0.765 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.931 │  0.873 │ 0.67  │ 0.758 │
+│ saddle          │ 0.929 │  0.926 │ 0.612 │ 0.737 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
 │ dress_guard     │ 0.901 │  0.981 │ 0.894 │ 0.935 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.942 │  0.8   │ 0.186 │ 0.302 │
+│ back_wheel      │ 0.947 │  1     │ 0.209 │ 0.346 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.796 │  0.804 │ 0.455 │ 0.581 │
+│ lock            │ 0.813 │  0.883 │ 0.46  │ 0.605 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.803 │  0.742 │ 0.391 │ 0.512 │
+│ back_handle     │ 0.809 │  0.733 │ 0.438 │ 0.548 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.861 │  0.956 │ 0.838 │ 0.893 │
+│ chain           │ 0.768 │  0.971 │ 0.688 │ 0.805 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.925 │  0.476 │ 0.213 │ 0.294 │
+│ front_handle    │ 0.906 │  0.217 │ 0.106 │ 0.143 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.889 │  0.898 │ 0.4   │ 0.553 │
+│ front_wheel     │ 0.89  │  0.9   │ 0.409 │ 0.562 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.831 │  0.857 │ 0.592 │ 0.7   │
+│ back_reflector  │ 0.807 │  0.821 │ 0.54  │ 0.652 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.832 │  0.814 │ 0.63  │ 0.71  │
+│ kickstand       │ 0.824 │  0.843 │ 0.567 │ 0.678 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.74  │  0.838 │ 0.787 │ 0.812 │
+│ bell            │ 0.688 │  0.83  │ 0.708 │ 0.764 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.889 │  0.958 │ 0.821 │ 0.884 │
+│ back_light      │ 0.912 │  0.945 │ 0.882 │ 0.912 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.933 │  0.417 │ 0.122 │ 0.189 │
+│ steer           │ 0.936 │  0.5   │ 0.098 │ 0.163 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.861 │  0.892 │ 0.449 │ 0.597 │
+│ gear_case       │ 0.864 │  0.875 │ 0.476 │ 0.617 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.882 │  0.945 │ 0.855 │ 0.898 │
+│ dynamo          │ 0.911 │  0.953 │ 0.896 │ 0.924 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛
-[METRIC] Micro-F1: 0.7721
-[METRIC] Macro-F1: 0.6370
-[METRIC] Miss Rate: 0.3117
-[METRIC] FPPI: 0.6947
-[METRIC] Overall Acc: 0.8643
-[METRIC] Precision: 0.8792
-[METRIC] Recall: 0.6883
-[METRIC] F1: 0.7721
+[METRIC] Micro-F1: 0.7644
+[METRIC] Macro-F1: 0.6291
+[METRIC] Miss Rate: 0.3252
+[METRIC] FPPI: 0.6671
+[METRIC] Overall Acc: 0.8611
+[METRIC] Precision: 0.8814
+[METRIC] Recall: 0.6748
+[METRIC] F1: 0.7644
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.74  │  0.867 │ 0.613 │ 0.718 │
+│ back_pedal      │ 0.744 │  0.889 │ 0.601 │ 0.717 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.784 │  0.809 │ 0.7   │ 0.751 │
+│ back_hand_break │ 0.787 │  0.85  │ 0.657 │ 0.741 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.943 │  0.085 │ 0.077 │ 0.081 │
+│ front_pedal     │ 0.956 │  0.179 │ 0.096 │ 0.125 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.969 │  0.965 │ 0.638 │ 0.769 │
+│ front_mudguard  │ 0.975 │  0.969 │ 0.715 │ 0.823 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.822 │  0.826 │ 0.691 │ 0.753 │
+│ front_light     │ 0.833 │  0.843 │ 0.704 │ 0.767 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.929 │  0.945 │ 0.49  │ 0.646 │
+│ back_mudguard   │ 0.927 │  0.891 │ 0.505 │ 0.644 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.85  │  0.893 │ 0.697 │ 0.783 │
+│ front_handbreak │ 0.853 │  0.857 │ 0.746 │ 0.798 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.922 │  0.877 │ 0.643 │ 0.742 │
+│ saddle          │ 0.92  │  0.899 │ 0.61  │ 0.727 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dress_guard     │ 0.887 │  0.981 │ 0.874 │ 0.925 │
+│ dress_guard     │ 0.885 │  0.979 │ 0.875 │ 0.924 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.954 │  0.808 │ 0.236 │ 0.365 │
+│ back_wheel      │ 0.954 │  0.8   │ 0.225 │ 0.351 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.808 │  0.822 │ 0.497 │ 0.619 │
+│ lock            │ 0.813 │  0.841 │ 0.497 │ 0.625 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.832 │  0.748 │ 0.472 │ 0.579 │
+│ back_handle     │ 0.833 │  0.744 │ 0.485 │ 0.587 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.863 │  0.96  │ 0.843 │ 0.898 │
+│ chain           │ 0.784 │  0.967 │ 0.723 │ 0.827 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.893 │  0.254 │ 0.106 │ 0.15  │
+│ front_handle    │ 0.883 │  0.152 │ 0.071 │ 0.097 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.904 │  0.783 │ 0.413 │ 0.541 │
+│ front_wheel     │ 0.908 │  0.826 │ 0.413 │ 0.55  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.813 │  0.798 │ 0.549 │ 0.65  │
+│ back_reflector  │ 0.809 │  0.794 │ 0.535 │ 0.639 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.845 │  0.853 │ 0.651 │ 0.739 │
+│ kickstand       │ 0.845 │  0.865 │ 0.636 │ 0.733 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.704 │  0.817 │ 0.763 │ 0.789 │
+│ bell            │ 0.665 │  0.804 │ 0.712 │ 0.755 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.875 │  0.936 │ 0.815 │ 0.872 │
+│ back_light      │ 0.903 │  0.932 │ 0.877 │ 0.904 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.92  │  0.526 │ 0.078 │ 0.135 │
+│ steer           │ 0.915 │  0.182 │ 0.016 │ 0.029 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.866 │  0.938 │ 0.453 │ 0.611 │
+│ gear_case       │ 0.853 │  0.894 │ 0.412 │ 0.564 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.892 │  0.952 │ 0.857 │ 0.902 │
+│ dynamo          │ 0.902 │  0.945 │ 0.883 │ 0.913 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛

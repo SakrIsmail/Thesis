@@ -3,719 +3,1210 @@
 +--------------------+---------+
 |       Epoch        |    0    |
 |     Final Loss     | 69.5371 |
-| Avg Batch Time (s) | 0.2293  |
-|  Max GPU Mem (MB)  | 5839.2  |
-|  Max CPU Mem (MB)  | 6123.0  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+| Avg Batch Time (s) | 0.2408  |
+|  Max GPU Mem (MB)  | 7155.2  |
+|  Max CPU Mem (MB)  | 7247.6  |
+|    Energy (kWh)    | 0.0147  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 1: Macro F1 Score = 0.5413
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    1    |
-|     Final Loss     | 72.9215 |
-| Avg Batch Time (s) | 0.2186  |
-|  Max GPU Mem (MB)  | 5839.2  |
-|  Max CPU Mem (MB)  | 6414.9  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 71.7223 |
+| Avg Batch Time (s) | 0.2235  |
+|  Max GPU Mem (MB)  | 7165.2  |
+|  Max CPU Mem (MB)  | 7351.8  |
+|    Energy (kWh)    | 0.0133  |
+|      CO₂ (kg)      | 0.0036  |
 +--------------------+---------+
-Epoch 2: Macro F1 Score = 0.5743
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    2    |
-|     Final Loss     | 69.1837 |
-| Avg Batch Time (s) | 0.2155  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6430.2  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0000  |
+|     Final Loss     | 69.0386 |
+| Avg Batch Time (s) | 0.2193  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7959.2  |
+|    Energy (kWh)    | 0.0127  |
+|      CO₂ (kg)      | 0.0034  |
 +--------------------+---------+
-Epoch 3: Macro F1 Score = 0.5470
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    3    |
-|     Final Loss     | 67.0695 |
-| Avg Batch Time (s) | 0.2168  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6472.8  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 67.2708 |
+| Avg Batch Time (s) | 0.2174  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7630.3  |
+|    Energy (kWh)    | 0.0124  |
+|      CO₂ (kg)      | 0.0033  |
 +--------------------+---------+
-Epoch 4: Macro F1 Score = 0.5518
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    4    |
-|     Final Loss     | 66.0280 |
-| Avg Batch Time (s) | 0.2191  |
-|  Max GPU Mem (MB)  | 5879.2  |
-|  Max CPU Mem (MB)  | 6549.5  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 66.6694 |
+| Avg Batch Time (s) | 0.2169  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8370.8  |
+|    Energy (kWh)    | 0.0124  |
+|      CO₂ (kg)      | 0.0033  |
 +--------------------+---------+
-Epoch 5: Macro F1 Score = 0.5526
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    5    |
-|     Final Loss     | 64.4138 |
-| Avg Batch Time (s) | 0.2140  |
-|  Max GPU Mem (MB)  | 5877.2  |
-|  Max CPU Mem (MB)  | 6881.0  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 64.2732 |
+| Avg Batch Time (s) | 0.2169  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7674.8  |
+|    Energy (kWh)    | 0.0123  |
+|      CO₂ (kg)      | 0.0033  |
 +--------------------+---------+
-Epoch 6: Macro F1 Score = 0.5792
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    6    |
-|     Final Loss     | 68.6578 |
-| Avg Batch Time (s) | 0.2147  |
-|  Max GPU Mem (MB)  | 7403.2  |
-|  Max CPU Mem (MB)  | 6754.0  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 69.2263 |
+| Avg Batch Time (s) | 0.2191  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8399.3  |
+|    Energy (kWh)    | 0.0126  |
+|      CO₂ (kg)      | 0.0034  |
 +--------------------+---------+
-Epoch 7: Macro F1 Score = 0.5726
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    7    |
-|     Final Loss     | 65.6751 |
-| Avg Batch Time (s) | 0.2146  |
-|  Max GPU Mem (MB)  | 7407.2  |
-|  Max CPU Mem (MB)  | 6789.3  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 65.8278 |
+| Avg Batch Time (s) | 0.2169  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7723.7  |
+|    Energy (kWh)    | 0.0125  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 8: Macro F1 Score = 0.5835
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    8    |
-|     Final Loss     | 64.4132 |
-| Avg Batch Time (s) | 0.2139  |
-|  Max GPU Mem (MB)  | 8871.2  |
-|  Max CPU Mem (MB)  | 6840.4  |
-|    Energy (kWh)    | 0.0117  |
-|      CO₂ (kg)      | 0.0031  |
+|     Final Loss     | 64.5985 |
+| Avg Batch Time (s) | 0.2170  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8173.8  |
+|    Energy (kWh)    | 0.0124  |
+|      CO₂ (kg)      | 0.0033  |
 +--------------------+---------+
-Epoch 9: Macro F1 Score = 0.5966
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |    9    |
-|     Final Loss     | 64.0019 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6797.5  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 64.3263 |
+| Avg Batch Time (s) | 0.2151  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7949.5  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 10: Macro F1 Score = 0.5701
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   10    |
-|     Final Loss     | 64.9285 |
-| Avg Batch Time (s) | 0.2143  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6844.9  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 65.8221 |
+| Avg Batch Time (s) | 0.2139  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7923.2  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 11: Macro F1 Score = 0.5912
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   11    |
-|     Final Loss     | 66.6896 |
-| Avg Batch Time (s) | 0.2148  |
-|  Max GPU Mem (MB)  | 13243.2 |
-|  Max CPU Mem (MB)  | 6853.1  |
-|    Energy (kWh)    | 0.0116  |
-|      CO₂ (kg)      | 0.0031  |
+|     Final Loss     | 67.3009 |
+| Avg Batch Time (s) | 0.2159  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7963.5  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 12: Macro F1 Score = 0.5893
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   12    |
-|     Final Loss     | 67.4400 |
-| Avg Batch Time (s) | 0.2138  |
-|  Max GPU Mem (MB)  | 13139.2 |
-|  Max CPU Mem (MB)  | 6843.5  |
-|    Energy (kWh)    | 0.0118  |
+|     Final Loss     | 67.3195 |
+| Avg Batch Time (s) | 0.2151  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7950.4  |
+|    Energy (kWh)    | 0.0117  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 13: Macro F1 Score = 0.5933
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   13    |
-|     Final Loss     | 65.2706 |
-| Avg Batch Time (s) | 0.2150  |
-|  Max GPU Mem (MB)  | 14259.2 |
-|  Max CPU Mem (MB)  | 6886.6  |
-|    Energy (kWh)    | 0.0120  |
+|     Final Loss     | 65.3275 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7940.1  |
+|    Energy (kWh)    | 0.0118  |
 |      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 14: Macro F1 Score = 0.5930
-Early stopping at epoch 14
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   14    |
-|     Final Loss     | 64.4518 |
-| Avg Batch Time (s) | 0.2146  |
-|  Max GPU Mem (MB)  | 14083.2 |
-|  Max CPU Mem (MB)  | 6833.1  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 64.6782 |
+| Avg Batch Time (s) | 0.2147  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7900.2  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 15: Macro F1 Score = 0.5974
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   15    |
-|     Final Loss     | 65.3799 |
+|     Final Loss     | 65.6496 |
 | Avg Batch Time (s) | 0.2143  |
-|  Max GPU Mem (MB)  | 15315.2 |
-|  Max CPU Mem (MB)  | 6946.1  |
-|    Energy (kWh)    | 0.0118  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7939.4  |
+|    Energy (kWh)    | 0.0116  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 16: Macro F1 Score = 0.5866
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   16    |
-|     Final Loss     | 67.6039 |
+|     Final Loss     | 68.2713 |
 | Avg Batch Time (s) | 0.2152  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6845.3  |
-|    Energy (kWh)    | 0.0117  |
-|      CO₂ (kg)      | 0.0031  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7939.9  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 17: Macro F1 Score = 0.5966
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   17    |
-|     Final Loss     | 58.8861 |
-| Avg Batch Time (s) | 0.2145  |
-|  Max GPU Mem (MB)  | 13743.2 |
-|  Max CPU Mem (MB)  | 6896.9  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 58.8935 |
+| Avg Batch Time (s) | 0.2151  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7936.7  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 18: Macro F1 Score = 0.5979
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   18    |
-|     Final Loss     | 63.8711 |
-| Avg Batch Time (s) | 0.2145  |
-|  Max GPU Mem (MB)  | 10905.2 |
-|  Max CPU Mem (MB)  | 6985.6  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 63.8527 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7911.1  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 19: Macro F1 Score = 0.5843
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   19    |
-|     Final Loss     | 62.7467 |
-| Avg Batch Time (s) | 0.2165  |
-|  Max GPU Mem (MB)  | 4953.2  |
-|  Max CPU Mem (MB)  | 7004.5  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 62.3314 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7954.2  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 20: Macro F1 Score = 0.5980
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   20    |
-|     Final Loss     | 65.6226 |
-| Avg Batch Time (s) | 0.2147  |
-|  Max GPU Mem (MB)  | 5609.2  |
-|  Max CPU Mem (MB)  | 6933.9  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 66.1805 |
+| Avg Batch Time (s) | 0.2153  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7923.6  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 21: Macro F1 Score = 0.6033
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   21    |
-|     Final Loss     | 66.6721 |
-| Avg Batch Time (s) | 0.2147  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6925.6  |
-|    Energy (kWh)    | 0.0119  |
+|     Final Loss     | 67.2092 |
+| Avg Batch Time (s) | 0.2158  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7938.4  |
+|    Energy (kWh)    | 0.0118  |
 |      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 22: Macro F1 Score = 0.5965
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   22    |
-|     Final Loss     | 64.6490 |
-| Avg Batch Time (s) | 0.2138  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 7076.9  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 65.2604 |
+| Avg Batch Time (s) | 0.2148  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7945.4  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 23: Macro F1 Score = 0.5892
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   23    |
-|     Final Loss     | 64.2659 |
-| Avg Batch Time (s) | 0.2149  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6903.6  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 64.3361 |
+| Avg Batch Time (s) | 0.2156  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7926.0  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 24: Macro F1 Score = 0.6002
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   24    |
-|     Final Loss     | 62.2764 |
-| Avg Batch Time (s) | 0.2149  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 6920.1  |
-|    Energy (kWh)    | 0.0122  |
-|      CO₂ (kg)      | 0.0033  |
+|     Final Loss     | 62.8926 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7968.4  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 25: Macro F1 Score = 0.5912
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   25    |
-|     Final Loss     | 60.6117 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4821.2  |
-|  Max CPU Mem (MB)  | 7043.6  |
-|    Energy (kWh)    | 0.0117  |
+|     Final Loss     | 61.1580 |
+| Avg Batch Time (s) | 0.2148  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7975.3  |
+|    Energy (kWh)    | 0.0116  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 26: Macro F1 Score = 0.5991
-Early stopping at epoch 26
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   26    |
-|     Final Loss     | 59.9441 |
-| Avg Batch Time (s) | 0.2143  |
-|  Max GPU Mem (MB)  | 4955.2  |
-|  Max CPU Mem (MB)  | 7066.3  |
+|     Final Loss     | 61.0087 |
+| Avg Batch Time (s) | 0.2152  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 7988.7  |
 |    Energy (kWh)    | 0.0119  |
 |      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 27: Macro F1 Score = 0.6015
-Early stopping at epoch 27
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   27    |
-|     Final Loss     | 58.4864 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4809.2  |
-|  Max CPU Mem (MB)  | 7077.8  |
+|     Final Loss     | 58.3577 |
+| Avg Batch Time (s) | 0.2156  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8008.8  |
 |    Energy (kWh)    | 0.0118  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 28: Macro F1 Score = 0.6024
-Early stopping at epoch 28
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   28    |
-|     Final Loss     | 58.6708 |
-| Avg Batch Time (s) | 0.2145  |
-|  Max GPU Mem (MB)  | 4939.2  |
-|  Max CPU Mem (MB)  | 7060.0  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 59.3152 |
+| Avg Batch Time (s) | 0.2146  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8016.6  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 29: Macro F1 Score = 0.6096
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   29    |
-|     Final Loss     | 59.3535 |
-| Avg Batch Time (s) | 0.2148  |
-|  Max GPU Mem (MB)  | 4801.2  |
-|  Max CPU Mem (MB)  | 6934.3  |
-|    Energy (kWh)    | 0.0118  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 59.8549 |
+| Avg Batch Time (s) | 0.2155  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8043.9  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 30: Macro F1 Score = 0.6058
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   30    |
-|     Final Loss     | 62.8891 |
-| Avg Batch Time (s) | 0.2148  |
-|  Max GPU Mem (MB)  | 4801.2  |
-|  Max CPU Mem (MB)  | 6945.8  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 63.4078 |
+| Avg Batch Time (s) | 0.2141  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8002.6  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 31: Macro F1 Score = 0.6087
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   31    |
-|     Final Loss     | 60.8294 |
-| Avg Batch Time (s) | 0.2147  |
-|  Max GPU Mem (MB)  | 4801.2  |
-|  Max CPU Mem (MB)  | 6969.9  |
-|    Energy (kWh)    | 0.0118  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 60.9866 |
+| Avg Batch Time (s) | 0.2203  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8052.9  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 32: Macro F1 Score = 0.6116
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   32    |
-|     Final Loss     | 58.5705 |
-| Avg Batch Time (s) | 0.2138  |
-|  Max GPU Mem (MB)  | 4789.2  |
-|  Max CPU Mem (MB)  | 6982.0  |
+|     Final Loss     | 58.8955 |
+| Avg Batch Time (s) | 0.2147  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8029.6  |
 |    Energy (kWh)    | 0.0117  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 33: Macro F1 Score = 0.6192
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   33    |
-|     Final Loss     | 61.7631 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4757.2  |
-|  Max CPU Mem (MB)  | 7138.8  |
+|     Final Loss     | 62.3920 |
+| Avg Batch Time (s) | 0.2166  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8010.7  |
 |    Energy (kWh)    | 0.0118  |
 |      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 34: Macro F1 Score = 0.6164
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   34    |
-|     Final Loss     | 61.4512 |
-| Avg Batch Time (s) | 0.2146  |
-|  Max GPU Mem (MB)  | 4783.2  |
-|  Max CPU Mem (MB)  | 7127.1  |
-|    Energy (kWh)    | 0.0121  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 60.8859 |
+| Avg Batch Time (s) | 0.2160  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8017.7  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 35: Macro F1 Score = 0.6181
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   35    |
-|     Final Loss     | 56.7122 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4769.2  |
-|  Max CPU Mem (MB)  | 7164.5  |
-|    Energy (kWh)    | 0.0120  |
+|     Final Loss     | 58.7198 |
+| Avg Batch Time (s) | 0.2152  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8044.2  |
+|    Energy (kWh)    | 0.0118  |
 |      CO₂ (kg)      | 0.0032  |
 +--------------------+---------+
-Epoch 36: Macro F1 Score = 0.6139
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   36    |
-|     Final Loss     | 61.7592 |
-| Avg Batch Time (s) | 0.2139  |
-|  Max GPU Mem (MB)  | 4771.2  |
-|  Max CPU Mem (MB)  | 6995.7  |
-|    Energy (kWh)    | 0.0117  |
+|     Final Loss     | 62.2492 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8027.9  |
+|    Energy (kWh)    | 0.0115  |
 |      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 37: Macro F1 Score = 0.6084
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   37    |
-|     Final Loss     | 57.0193 |
-| Avg Batch Time (s) | 0.2142  |
-|  Max GPU Mem (MB)  | 4747.2  |
-|  Max CPU Mem (MB)  | 7213.9  |
-|    Energy (kWh)    | 0.0119  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 57.7496 |
+| Avg Batch Time (s) | 0.2150  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8062.3  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 38: Macro F1 Score = 0.6195
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   38    |
-|     Final Loss     | 60.2193 |
-| Avg Batch Time (s) | 0.2148  |
-|  Max GPU Mem (MB)  | 4741.2  |
-|  Max CPU Mem (MB)  | 7028.1  |
-|    Energy (kWh)    | 0.0120  |
-|      CO₂ (kg)      | 0.0032  |
+|     Final Loss     | 61.5109 |
+| Avg Batch Time (s) | 0.2147  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8105.1  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 39: Macro F1 Score = 0.6173
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   39    |
-|     Final Loss     | 58.5376 |
-| Avg Batch Time (s) | 0.2124  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5109.1  |
-|    Energy (kWh)    | 0.0113  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 59.9286 |
+| Avg Batch Time (s) | 0.2151  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8111.6  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 40: Macro F1 Score = 0.6217
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   40    |
-|     Final Loss     | 63.0085 |
-| Avg Batch Time (s) | 0.2094  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5338.4  |
-|    Energy (kWh)    | 0.0114  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 61.8075 |
+| Avg Batch Time (s) | 0.2152  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8110.4  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 41: Macro F1 Score = 0.6278
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   41    |
-|     Final Loss     | 58.9697 |
-| Avg Batch Time (s) | 0.2087  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5472.2  |
-|    Energy (kWh)    | 0.0112  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 59.5602 |
+| Avg Batch Time (s) | 0.2150  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8120.5  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 42: Macro F1 Score = 0.6177
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   42    |
-|     Final Loss     | 61.2540 |
-| Avg Batch Time (s) | 0.2085  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5507.4  |
-|    Energy (kWh)    | 0.0111  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 58.1790 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8121.8  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 43: Macro F1 Score = 0.6192
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   43    |
-|     Final Loss     | 62.4476 |
-| Avg Batch Time (s) | 0.2085  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5543.7  |
-|    Energy (kWh)    | 0.0111  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 63.1883 |
+| Avg Batch Time (s) | 0.2147  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8120.2  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 44: Macro F1 Score = 0.6237
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   44    |
-|     Final Loss     | 61.8835 |
-| Avg Batch Time (s) | 0.2097  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5594.0  |
-|    Energy (kWh)    | 0.0113  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 58.9213 |
+| Avg Batch Time (s) | 0.2142  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8128.7  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 45: Macro F1 Score = 0.6234
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   45    |
-|     Final Loss     | 62.2553 |
-| Avg Batch Time (s) | 0.2090  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5708.6  |
-|    Energy (kWh)    | 0.0111  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 61.1278 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8105.3  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 46: Macro F1 Score = 0.6221
-Early stopping at epoch 46
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   46    |
-|     Final Loss     | 61.4793 |
-| Avg Batch Time (s) | 0.2089  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5783.8  |
-|    Energy (kWh)    | 0.0113  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 61.6827 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8124.1  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0000  |
 +--------------------+---------+
-Epoch 47: Macro F1 Score = 0.6221
-Early stopping at epoch 47
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   47    |
-|     Final Loss     | 61.7763 |
-| Avg Batch Time (s) | 0.2084  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5766.0  |
-|    Energy (kWh)    | 0.0110  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 57.8152 |
+| Avg Batch Time (s) | 0.2153  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8110.8  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 48: Macro F1 Score = 0.6245
-Early stopping at epoch 48
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   48    |
-|     Final Loss     | 58.2651 |
-| Avg Batch Time (s) | 0.2086  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5831.5  |
-|    Energy (kWh)    | 0.0111  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 58.8270 |
+| Avg Batch Time (s) | 0.2142  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8223.8  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 49: Macro F1 Score = 0.6273
-Early stopping at epoch 49
 +--------------------+---------+
 |       Metric       |  Value  |
 +--------------------+---------+
 |       Epoch        |   49    |
-|     Final Loss     | 58.4901 |
-| Avg Batch Time (s) | 0.2109  |
-|  Max GPU Mem (MB)  |  550.3  |
-|  Max CPU Mem (MB)  | 5837.0  |
-|    Energy (kWh)    | 0.0113  |
-|      CO₂ (kg)      | 0.0030  |
+|     Final Loss     | 57.0179 |
+| Avg Batch Time (s) | 0.2145  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8111.4  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
 +--------------------+---------+
-Epoch 50: Macro F1 Score = 0.6227
-Early stopping at epoch 50
-[METRIC] Micro-F1: 0.7033
-[METRIC] Macro-F1: 0.6278
-[METRIC] Miss Rate: 0.0705
-[METRIC] FPPI: 5.1928
-[METRIC] Overall Acc: 0.7407
-[METRIC] Precision: 0.5656
-[METRIC] Recall: 0.9295
-[METRIC] F1: 0.7033
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   50    |
+|     Final Loss     | 59.2238 |
+| Avg Batch Time (s) | 0.2153  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8103.8  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   51    |
+|     Final Loss     | 59.3820 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8122.4  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   52    |
+|     Final Loss     | 58.4441 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8124.0  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   53    |
+|     Final Loss     | 56.1283 |
+| Avg Batch Time (s) | 0.2145  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8125.3  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   54    |
+|     Final Loss     | 60.2441 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8125.3  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   55    |
+|     Final Loss     | 59.4383 |
+| Avg Batch Time (s) | 0.2144  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8113.7  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   56    |
+|     Final Loss     | 56.3781 |
+| Avg Batch Time (s) | 0.2140  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8119.6  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   57    |
+|     Final Loss     | 56.1953 |
+| Avg Batch Time (s) | 0.2154  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8112.7  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   58    |
+|     Final Loss     | 57.7266 |
+| Avg Batch Time (s) | 0.2159  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8117.8  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   59    |
+|     Final Loss     | 54.5670 |
+| Avg Batch Time (s) | 0.2138  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8136.8  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   60    |
+|     Final Loss     | 56.2135 |
+| Avg Batch Time (s) | 0.2147  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8132.1  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   61    |
+|     Final Loss     | 57.9190 |
+| Avg Batch Time (s) | 0.2141  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8131.7  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   62    |
+|     Final Loss     | 55.9741 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8111.3  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   63    |
+|     Final Loss     | 56.8082 |
+| Avg Batch Time (s) | 0.2149  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8120.4  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   64    |
+|     Final Loss     | 55.0415 |
+| Avg Batch Time (s) | 0.2158  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8114.7  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   65    |
+|     Final Loss     | 53.7020 |
+| Avg Batch Time (s) | 0.2155  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8120.7  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   66    |
+|     Final Loss     | 58.6139 |
+| Avg Batch Time (s) | 0.2210  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8121.1  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   67    |
+|     Final Loss     | 53.8883 |
+| Avg Batch Time (s) | 0.2194  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8115.7  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   68    |
+|     Final Loss     | 57.9067 |
+| Avg Batch Time (s) | 0.2149  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8121.6  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   69    |
+|     Final Loss     | 55.6909 |
+| Avg Batch Time (s) | 0.2424  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8116.4  |
+|    Energy (kWh)    | 0.0121  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   70    |
+|     Final Loss     | 57.2294 |
+| Avg Batch Time (s) | 0.2143  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8117.3  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   71    |
+|     Final Loss     | 52.6206 |
+| Avg Batch Time (s) | 0.2173  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8122.1  |
+|    Energy (kWh)    | 0.0121  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   72    |
+|     Final Loss     | 56.3894 |
+| Avg Batch Time (s) | 0.2149  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8131.0  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   73    |
+|     Final Loss     | 54.5263 |
+| Avg Batch Time (s) | 0.2195  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8131.6  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   74    |
+|     Final Loss     | 60.0854 |
+| Avg Batch Time (s) | 0.2140  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8132.2  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   75    |
+|     Final Loss     | 53.3341 |
+| Avg Batch Time (s) | 0.2178  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8112.0  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   76    |
+|     Final Loss     | 53.9388 |
+| Avg Batch Time (s) | 0.2226  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8130.9  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   77    |
+|     Final Loss     | 54.2840 |
+| Avg Batch Time (s) | 0.2405  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8111.0  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   78    |
+|     Final Loss     | 53.8277 |
+| Avg Batch Time (s) | 0.2154  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8150.0  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   79    |
+|     Final Loss     | 53.5894 |
+| Avg Batch Time (s) | 0.2151  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8120.2  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   80    |
+|     Final Loss     | 58.2099 |
+| Avg Batch Time (s) | 0.2257  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8112.4  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   81    |
+|     Final Loss     | 53.7817 |
+| Avg Batch Time (s) | 0.2199  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8130.7  |
+|    Energy (kWh)    | 0.0122  |
+|      CO₂ (kg)      | 0.0033  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   82    |
+|     Final Loss     | 55.7004 |
+| Avg Batch Time (s) | 0.2140  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8126.9  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   83    |
+|     Final Loss     | 53.2508 |
+| Avg Batch Time (s) | 0.2152  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8115.5  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   84    |
+|     Final Loss     | 51.6817 |
+| Avg Batch Time (s) | 0.2305  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8130.8  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   85    |
+|     Final Loss     | 52.8382 |
+| Avg Batch Time (s) | 0.2142  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8115.6  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   86    |
+|     Final Loss     | 50.6873 |
+| Avg Batch Time (s) | 0.2289  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8121.3  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   87    |
+|     Final Loss     | 52.2975 |
+| Avg Batch Time (s) | 0.2148  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8131.3  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   88    |
+|     Final Loss     | 50.3723 |
+| Avg Batch Time (s) | 0.2150  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8115.7  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   89    |
+|     Final Loss     | 53.5878 |
+| Avg Batch Time (s) | 0.2140  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8134.1  |
+|    Energy (kWh)    | 0.0121  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   90    |
+|     Final Loss     | 55.0741 |
+| Avg Batch Time (s) | 0.2119  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8404.1  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   91    |
+|     Final Loss     | 57.9520 |
+| Avg Batch Time (s) | 0.2267  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8455.5  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   92    |
+|     Final Loss     | 55.4197 |
+| Avg Batch Time (s) | 0.2118  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8438.9  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   93    |
+|     Final Loss     | 55.4913 |
+| Avg Batch Time (s) | 0.2116  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8500.7  |
+|    Energy (kWh)    | 0.0115  |
+|      CO₂ (kg)      | 0.0031  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   94    |
+|     Final Loss     | 57.4565 |
+| Avg Batch Time (s) | 0.2120  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8481.6  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   95    |
+|     Final Loss     | 53.2262 |
+| Avg Batch Time (s) | 0.2123  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8551.7  |
+|    Energy (kWh)    | 0.0116  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   96    |
+|     Final Loss     | 49.2931 |
+| Avg Batch Time (s) | 0.2229  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8519.0  |
+|    Energy (kWh)    | 0.0117  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   97    |
+|     Final Loss     | 51.6625 |
+| Avg Batch Time (s) | 0.2562  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8543.4  |
+|    Energy (kWh)    | 0.0120  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   98    |
+|     Final Loss     | 51.5584 |
+| Avg Batch Time (s) | 0.2124  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8562.7  |
+|    Energy (kWh)    | 0.0118  |
+|      CO₂ (kg)      | 0.0032  |
++--------------------+---------+
++--------------------+---------+
+|       Metric       |  Value  |
++--------------------+---------+
+|       Epoch        |   99    |
+|     Final Loss     | 54.9574 |
+| Avg Batch Time (s) | 0.2119  |
+|  Max GPU Mem (MB)  | 8371.2  |
+|  Max CPU Mem (MB)  | 8618.6  |
+|    Energy (kWh)    | 0.0119  |
+|      CO₂ (kg)      | 0.0000  |
++--------------------+---------+
+[METRIC] Micro-F1: 0.6733
+[METRIC] Macro-F1: 0.5896
+[METRIC] Miss Rate: 0.0718
+[METRIC] FPPI: 6.0298
+[METRIC] Overall Acc: 0.7022
+[METRIC] Precision: 0.5283
+[METRIC] Recall: 0.9282
+[METRIC] F1: 0.6733
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.56  │  0.538 │ 0.988 │ 0.697 │
+│ back_pedal      │ 0.527 │  0.52  │ 1     │ 0.684 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.558 │  0.522 │ 0.987 │ 0.683 │
+│ back_hand_break │ 0.489 │  0.486 │ 1     │ 0.654 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.873 │  0.122 │ 0.526 │ 0.198 │
+│ front_pedal     │ 0.835 │  0.078 │ 0.421 │ 0.132 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.97  │  0.767 │ 0.786 │ 0.776 │
+│ front_mudguard  │ 0.966 │  0.727 │ 0.762 │ 0.744 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.522 │  0.424 │ 0.982 │ 0.593 │
+│ front_light     │ 0.39  │  0.367 │ 1     │ 0.537 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.958 │  0.933 │ 0.709 │ 0.806 │
+│ back_mudguard   │ 0.948 │  0.819 │ 0.747 │ 0.781 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.491 │  0.421 │ 0.987 │ 0.59  │
+│ front_handbreak │ 0.404 │  0.383 │ 0.992 │ 0.553 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.942 │  0.851 │ 0.777 │ 0.812 │
+│ saddle          │ 0.936 │  0.837 │ 0.748 │ 0.79  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dress_guard     │ 0.962 │  0.965 │ 0.988 │ 0.977 │
+│ dress_guard     │ 0.951 │  0.951 │ 0.99  │ 0.97  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.934 │  1     │ 0.023 │ 0.045 │
+│ back_wheel      │ 0.933 │  0     │ 0     │ 0     │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.644 │  0.464 │ 0.944 │ 0.622 │
+│ lock            │ 0.566 │  0.415 │ 0.975 │ 0.582 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.715 │  0.479 │ 0.882 │ 0.621 │
+│ back_handle     │ 0.697 │  0.463 │ 0.888 │ 0.609 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.901 │  0.924 │ 0.935 │ 0.93  │
+│ chain           │ 0.909 │  0.957 │ 0.91  │ 0.933 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.44  │  0.111 │ 0.936 │ 0.198 │
+│ front_handle    │ 0.351 │  0.098 │ 0.957 │ 0.179 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.9   │  0.838 │ 0.518 │ 0.64  │
+│ front_wheel     │ 0.87  │  0.909 │ 0.273 │ 0.42  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.415 │  0.361 │ 0.972 │ 0.526 │
+│ back_reflector  │ 0.373 │  0.347 │ 1     │ 0.516 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.715 │  0.536 │ 0.942 │ 0.683 │
+│ kickstand       │ 0.639 │  0.474 │ 0.971 │ 0.637 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.727 │  0.724 │ 0.998 │ 0.839 │
+│ bell            │ 0.713 │  0.715 │ 0.993 │ 0.832 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.621 │  0.577 │ 1     │ 0.732 │
+│ back_light      │ 0.563 │  0.542 │ 1     │ 0.703 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.922 │  0.345 │ 0.244 │ 0.286 │
+│ steer           │ 0.906 │  0.229 │ 0.195 │ 0.211 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.912 │  0.837 │ 0.769 │ 0.801 │
+│ gear_case       │ 0.878 │  0.704 │ 0.81  │ 0.753 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.613 │  0.609 │ 1     │ 0.757 │
+│ dynamo          │ 0.603 │  0.603 │ 1     │ 0.753 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛
-[METRIC] Micro-F1: 0.7035
-[METRIC] Macro-F1: 0.6240
-[METRIC] Miss Rate: 0.0695
-[METRIC] FPPI: 5.2539
-[METRIC] Overall Acc: 0.7380
-[METRIC] Precision: 0.5655
-[METRIC] Recall: 0.9305
-[METRIC] F1: 0.7035
+[METRIC] Micro-F1: 0.6774
+[METRIC] Macro-F1: 0.5961
+[METRIC] Miss Rate: 0.0654
+[METRIC] FPPI: 6.0596
+[METRIC] Overall Acc: 0.7027
+[METRIC] Precision: 0.5312
+[METRIC] Recall: 0.9346
+[METRIC] F1: 0.6774
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.595 │  0.572 │ 0.992 │ 0.726 │
+│ back_pedal      │ 0.554 │  0.548 │ 1     │ 0.708 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.538 │  0.501 │ 0.992 │ 0.666 │
+│ back_hand_break │ 0.477 │  0.47  │ 0.999 │ 0.639 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.839 │  0.085 │ 0.404 │ 0.14  │
+│ front_pedal     │ 0.806 │  0.07  │ 0.404 │ 0.119 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.976 │  0.833 │ 0.885 │ 0.858 │
+│ front_mudguard  │ 0.972 │  0.806 │ 0.862 │ 0.833 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.515 │  0.446 │ 0.97  │ 0.611 │
+│ front_light     │ 0.424 │  0.405 │ 0.997 │ 0.576 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.946 │  0.869 │ 0.695 │ 0.772 │
+│ back_mudguard   │ 0.939 │  0.827 │ 0.681 │ 0.747 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.502 │  0.437 │ 0.971 │ 0.603 │
+│ front_handbreak │ 0.419 │  0.401 │ 0.997 │ 0.572 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.934 │  0.828 │ 0.78  │ 0.803 │
+│ saddle          │ 0.935 │  0.835 │ 0.783 │ 0.808 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dress_guard     │ 0.952 │  0.962 │ 0.978 │ 0.97  │
+│ dress_guard     │ 0.945 │  0.944 │ 0.99  │ 0.966 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.945 │  0.6   │ 0.034 │ 0.064 │
+│ back_wheel      │ 0.942 │  0.286 │ 0.022 │ 0.042 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.612 │  0.446 │ 0.978 │ 0.613 │
+│ lock            │ 0.557 │  0.415 │ 0.992 │ 0.585 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.727 │  0.47  │ 0.915 │ 0.621 │
+│ back_handle     │ 0.712 │  0.455 │ 0.918 │ 0.609 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.914 │  0.939 │ 0.94  │ 0.94  │
+│ chain           │ 0.913 │  0.955 │ 0.922 │ 0.938 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.455 │  0.127 │ 0.879 │ 0.222 │
+│ front_handle    │ 0.351 │  0.113 │ 0.929 │ 0.202 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.915 │  0.807 │ 0.5   │ 0.618 │
+│ front_wheel     │ 0.896 │  0.833 │ 0.298 │ 0.439 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.405 │  0.344 │ 0.97  │ 0.508 │
+│ back_reflector  │ 0.344 │  0.325 │ 0.996 │ 0.49  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.724 │  0.552 │ 0.957 │ 0.7   │
+│ kickstand       │ 0.619 │  0.468 │ 0.976 │ 0.633 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.738 │  0.736 │ 0.997 │ 0.847 │
+│ bell            │ 0.73  │  0.729 │ 0.997 │ 0.843 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.604 │  0.568 │ 0.999 │ 0.724 │
+│ back_light      │ 0.559 │  0.541 │ 1     │ 0.702 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.897 │  0.257 │ 0.147 │ 0.187 │
+│ steer           │ 0.895 │  0.225 │ 0.124 │ 0.16  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.909 │  0.827 │ 0.767 │ 0.796 │
+│ gear_case       │ 0.885 │  0.72  │ 0.821 │ 0.767 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.594 │  0.589 │ 0.998 │ 0.741 │
+│ dynamo          │ 0.585 │  0.584 │ 0.999 │ 0.737 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛

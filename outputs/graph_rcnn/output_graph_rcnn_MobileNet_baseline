@@ -2,516 +2,839 @@
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   1    |
-|   Detector Loss    | 1.0076 |
-| Avg Batch Time (s) | 0.311  |
+|   Detector Loss    | 0.9788 |
+| Avg Batch Time (s) | 0.301  |
 |  Max GPU Mem (MB)  |  4409  |
-|  Max CPU Mem (MB)  |  2471  |
-|    Energy (kWh)    | 0.0185 |
-|      CO2 (kg)      | 0.0050 |
+|  Max CPU Mem (MB)  |  2479  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   2    |
-|   Detector Loss    | 0.8941 |
-| Avg Batch Time (s) | 0.304  |
+|   Detector Loss    | 0.9349 |
+| Avg Batch Time (s) | 0.295  |
 |  Max GPU Mem (MB)  |  5357  |
-|  Max CPU Mem (MB)  |  2355  |
-|    Energy (kWh)    | 0.0183 |
-|      CO2 (kg)      | 0.0049 |
+|  Max CPU Mem (MB)  |  2559  |
+|    Energy (kWh)    | 0.0170 |
+|      CO2 (kg)      | 0.0045 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   3    |
-|   Detector Loss    | 0.9396 |
-| Avg Batch Time (s) | 0.304  |
+|   Detector Loss    | 0.9417 |
+| Avg Batch Time (s) | 0.296  |
 |  Max GPU Mem (MB)  |  5357  |
-|  Max CPU Mem (MB)  |  2365  |
-|    Energy (kWh)    | 0.0185 |
-|      CO2 (kg)      | 0.0050 |
+|  Max CPU Mem (MB)  |  2662  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   4    |
-|   Detector Loss    | 0.9649 |
-| Avg Batch Time (s) | 0.301  |
-|  Max GPU Mem (MB)  |  6877  |
-|  Max CPU Mem (MB)  |  2417  |
-|    Energy (kWh)    | 0.0181 |
-|      CO2 (kg)      | 0.0048 |
+|   Detector Loss    | 0.9675 |
+| Avg Batch Time (s) | 0.296  |
+|  Max GPU Mem (MB)  |  6885  |
+|  Max CPU Mem (MB)  |  2509  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   5    |
-|   Detector Loss    | 0.9373 |
-| Avg Batch Time (s) | 0.302  |
-|  Max GPU Mem (MB)  |  6873  |
-|  Max CPU Mem (MB)  |  2407  |
-|    Energy (kWh)    | 0.0177 |
-|      CO2 (kg)      | 0.0047 |
+|   Detector Loss    | 0.9252 |
+| Avg Batch Time (s) | 0.293  |
+|  Max GPU Mem (MB)  |  6881  |
+|  Max CPU Mem (MB)  |  2565  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   6    |
-|   Detector Loss    | 0.9317 |
-| Avg Batch Time (s) | 0.299  |
+|   Detector Loss    | 0.8926 |
+| Avg Batch Time (s) | 0.294  |
 |  Max GPU Mem (MB)  |  5357  |
-|  Max CPU Mem (MB)  |  2400  |
-|    Energy (kWh)    | 0.0179 |
-|      CO2 (kg)      | 0.0048 |
+|  Max CPU Mem (MB)  |  2458  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   7    |
-|   Detector Loss    | 0.8614 |
-| Avg Batch Time (s) | 0.298  |
-|  Max GPU Mem (MB)  |  5357  |
-|  Max CPU Mem (MB)  |  2330  |
-|    Energy (kWh)    | 0.0178 |
-|      CO2 (kg)      | 0.0048 |
+|   Detector Loss    | 0.8906 |
+| Avg Batch Time (s) | 0.293  |
+|  Max GPU Mem (MB)  |  6877  |
+|  Max CPU Mem (MB)  |  2529  |
+|    Energy (kWh)    | 0.0169 |
+|      CO2 (kg)      | 0.0000 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   8    |
-|   Detector Loss    | 0.8555 |
-| Avg Batch Time (s) | 0.297  |
-|  Max GPU Mem (MB)  |  9913  |
-|  Max CPU Mem (MB)  |  2314  |
-|    Energy (kWh)    | 0.0179 |
-|      CO2 (kg)      | 0.0048 |
+|   Detector Loss    | 0.8583 |
+| Avg Batch Time (s) | 0.293  |
+|  Max GPU Mem (MB)  |  8405  |
+|  Max CPU Mem (MB)  |  2673  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   9    |
-|   Detector Loss    | 0.8632 |
-| Avg Batch Time (s) | 0.298  |
-|  Max GPU Mem (MB)  |  9917  |
-|  Max CPU Mem (MB)  |  2447  |
-|    Energy (kWh)    | 0.0181 |
-|      CO2 (kg)      | 0.0048 |
+|   Detector Loss    | 0.8413 |
+| Avg Batch Time (s) | 0.293  |
+|  Max GPU Mem (MB)  |  8385  |
+|  Max CPU Mem (MB)  |  2555  |
+|    Energy (kWh)    | 0.0169 |
+|      CO2 (kg)      | 0.0045 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   10   |
-|   Detector Loss    | 0.8330 |
-| Avg Batch Time (s) | 0.296  |
-|  Max GPU Mem (MB)  |  8401  |
-|  Max CPU Mem (MB)  |  2354  |
-|    Energy (kWh)    | 0.0177 |
-|      CO2 (kg)      | 0.0047 |
+|   Detector Loss    | 0.8181 |
+| Avg Batch Time (s) | 0.294  |
+|  Max GPU Mem (MB)  |  6885  |
+|  Max CPU Mem (MB)  |  2546  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0046 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   11   |
-|   Detector Loss    | 0.7764 |
-| Avg Batch Time (s) | 0.298  |
-|  Max GPU Mem (MB)  |  5911  |
-|  Max CPU Mem (MB)  |  2368  |
+|   Detector Loss    | 0.7452 |
+| Avg Batch Time (s) | 0.292  |
+|  Max GPU Mem (MB)  |  4803  |
+|  Max CPU Mem (MB)  |  2602  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   12   |
+|   Detector Loss    | 0.8168 |
+| Avg Batch Time (s) | 0.297  |
+|  Max GPU Mem (MB)  |  5697  |
+|  Max CPU Mem (MB)  |  2564  |
+|    Energy (kWh)    | 0.0170 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   13   |
+|   Detector Loss    | 0.7346 |
+| Avg Batch Time (s) | 0.297  |
+|  Max GPU Mem (MB)  |  4629  |
+|  Max CPU Mem (MB)  |  2609  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   14   |
+|   Detector Loss    | 0.7224 |
+| Avg Batch Time (s) | 0.303  |
+|  Max GPU Mem (MB)  | 10699  |
+|  Max CPU Mem (MB)  |  2604  |
+|    Energy (kWh)    | 0.0173 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   15   |
+|   Detector Loss    | 0.6977 |
+| Avg Batch Time (s) | 0.308  |
+|  Max GPU Mem (MB)  |  4501  |
+|  Max CPU Mem (MB)  |  2641  |
+|    Energy (kWh)    | 0.0174 |
+|      CO2 (kg)      | 0.0047 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   16   |
+|   Detector Loss    | 0.6474 |
+| Avg Batch Time (s) | 0.318  |
+|  Max GPU Mem (MB)  |  9377  |
+|  Max CPU Mem (MB)  |  2622  |
 |    Energy (kWh)    | 0.0176 |
 |      CO2 (kg)      | 0.0047 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
-|   Detector Epoch   |   12   |
-|   Detector Loss    | 0.8396 |
-| Avg Batch Time (s) | 0.301  |
-|  Max GPU Mem (MB)  |  5693  |
-|  Max CPU Mem (MB)  |  2383  |
-|    Energy (kWh)    | 0.0178 |
-|      CO2 (kg)      | 0.0048 |
-+--------------------+--------+
-+--------------------+--------+
-|       Metric       | Value  |
-+--------------------+--------+
-|   Detector Epoch   |   13   |
-|   Detector Loss    | 0.7283 |
-| Avg Batch Time (s) | 0.303  |
-|  Max GPU Mem (MB)  |  5653  |
-|  Max CPU Mem (MB)  |  2376  |
-|    Energy (kWh)    | 0.0178 |
-|      CO2 (kg)      | 0.0048 |
-+--------------------+--------+
-+--------------------+--------+
-|       Metric       | Value  |
-+--------------------+--------+
-|   Detector Epoch   |   14   |
-|   Detector Loss    | 0.7453 |
-| Avg Batch Time (s) | 0.308  |
-|  Max GPU Mem (MB)  |  4525  |
-|  Max CPU Mem (MB)  |  2351  |
-|    Energy (kWh)    | 0.0180 |
-|      CO2 (kg)      | 0.0048 |
-+--------------------+--------+
-+--------------------+--------+
-|       Metric       | Value  |
-+--------------------+--------+
-|   Detector Epoch   |   15   |
-|   Detector Loss    | 0.7131 |
-| Avg Batch Time (s) | 0.314  |
-|  Max GPU Mem (MB)  |  9095  |
-|  Max CPU Mem (MB)  |  2308  |
-|    Energy (kWh)    | 0.0180 |
-|      CO2 (kg)      | 0.0048 |
-+--------------------+--------+
-+--------------------+--------+
-|       Metric       | Value  |
-+--------------------+--------+
-|   Detector Epoch   |   16   |
-|   Detector Loss    | 0.6618 |
-| Avg Batch Time (s) | 0.320  |
-|  Max GPU Mem (MB)  | 10773  |
-|  Max CPU Mem (MB)  |  2448  |
-|    Energy (kWh)    | 0.0182 |
-|      CO2 (kg)      | 0.0049 |
-+--------------------+--------+
-+--------------------+--------+
-|       Metric       | Value  |
-+--------------------+--------+
 |   Detector Epoch   |   17   |
-|   Detector Loss    | 0.7408 |
-| Avg Batch Time (s) | 0.331  |
-|  Max GPU Mem (MB)  |  9257  |
-|  Max CPU Mem (MB)  |  2389  |
-|    Energy (kWh)    | 0.0183 |
-|      CO2 (kg)      | 0.0049 |
+|   Detector Loss    | 0.7171 |
+| Avg Batch Time (s) | 0.328  |
+|  Max GPU Mem (MB)  | 10563  |
+|  Max CPU Mem (MB)  |  2598  |
+|    Energy (kWh)    | 0.0178 |
+|      CO2 (kg)      | 0.0000 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |   Detector Epoch   |   18   |
-|   Detector Loss    | 0.6139 |
-| Avg Batch Time (s) | 0.339  |
-|  Max GPU Mem (MB)  |  9125  |
-|  Max CPU Mem (MB)  |  2341  |
+|   Detector Loss    | 0.6203 |
+| Avg Batch Time (s) | 0.336  |
+|  Max GPU Mem (MB)  |  5289  |
+|  Max CPU Mem (MB)  |  2658  |
+|    Energy (kWh)    | 0.0180 |
+|      CO2 (kg)      | 0.0048 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   19   |
+|   Detector Loss    | 0.6198 |
+| Avg Batch Time (s) | 0.342  |
+|  Max GPU Mem (MB)  |  5253  |
+|  Max CPU Mem (MB)  |  2586  |
+|    Energy (kWh)    | 0.0181 |
+|      CO2 (kg)      | 0.0049 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   20   |
+|   Detector Loss    | 0.6224 |
+| Avg Batch Time (s) | 0.359  |
+|  Max GPU Mem (MB)  |  5275  |
+|  Max CPU Mem (MB)  |  2579  |
+|    Energy (kWh)    | 0.0184 |
+|      CO2 (kg)      | 0.0049 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   21   |
+|   Detector Loss    | 0.5937 |
+| Avg Batch Time (s) | 0.363  |
+|  Max GPU Mem (MB)  |  4467  |
+|  Max CPU Mem (MB)  |  2556  |
+|    Energy (kWh)    | 0.0185 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   22   |
+|   Detector Loss    | 0.6032 |
+| Avg Batch Time (s) | 0.367  |
+|  Max GPU Mem (MB)  |  4487  |
+|  Max CPU Mem (MB)  |  2584  |
 |    Energy (kWh)    | 0.0186 |
 |      CO2 (kg)      | 0.0050 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
-|   Detector Epoch   |   19   |
-|   Detector Loss    | 0.6064 |
-| Avg Batch Time (s) | 0.349  |
-|  Max GPU Mem (MB)  |  4427  |
-|  Max CPU Mem (MB)  |  2323  |
-|    Energy (kWh)    | 0.0185 |
+|   Detector Epoch   |   23   |
+|   Detector Loss    | 0.5645 |
+| Avg Batch Time (s) | 0.370  |
+|  Max GPU Mem (MB)  |  4479  |
+|  Max CPU Mem (MB)  |  2596  |
+|    Energy (kWh)    | 0.0186 |
+|      CO2 (kg)      | 0.0050 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   24   |
+|   Detector Loss    | 0.6027 |
+| Avg Batch Time (s) | 0.371  |
+|  Max GPU Mem (MB)  |  4459  |
+|  Max CPU Mem (MB)  |  2527  |
+|    Energy (kWh)    | 0.0186 |
+|      CO2 (kg)      | 0.0050 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   25   |
+|   Detector Loss    | 0.5655 |
+| Avg Batch Time (s) | 0.358  |
+|  Max GPU Mem (MB)  |  4403  |
+|  Max CPU Mem (MB)  |  2508  |
+|    Energy (kWh)    | 0.0182 |
 |      CO2 (kg)      | 0.0049 |
 +--------------------+--------+
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
-|    Joint Epoch     |   1    |
-|      GNN Loss      | 3.0062 |
-| Avg Batch Time (s) | 0.612  |
-|  Max GPU Mem (MB)  |  3831  |
-|  Max CPU Mem (MB)  |  2254  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|   Detector Epoch   |   26   |
+|   Detector Loss    | 0.5569 |
+| Avg Batch Time (s) | 0.355  |
+|  Max GPU Mem (MB)  |  4467  |
+|  Max CPU Mem (MB)  |  2543  |
+|    Energy (kWh)    | 0.0181 |
+|      CO2 (kg)      | 0.0000 |
 +--------------------+--------+
-
-Evaluating on validation set after Epoch 21...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   27   |
+|   Detector Loss    | 0.5812 |
+| Avg Batch Time (s) | 0.350  |
+|  Max GPU Mem (MB)  |  4455  |
+|  Max CPU Mem (MB)  |  2660  |
+|    Energy (kWh)    | 0.0180 |
+|      CO2 (kg)      | 0.0048 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   28   |
+|   Detector Loss    | 0.5120 |
+| Avg Batch Time (s) | 0.345  |
+|  Max GPU Mem (MB)  |  4407  |
+|  Max CPU Mem (MB)  |  2617  |
+|    Energy (kWh)    | 0.0178 |
+|      CO2 (kg)      | 0.0048 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   29   |
+|   Detector Loss    | 0.4825 |
+| Avg Batch Time (s) | 0.347  |
+|  Max GPU Mem (MB)  |  4293  |
+|  Max CPU Mem (MB)  |  2533  |
+|    Energy (kWh)    | 0.0178 |
+|      CO2 (kg)      | 0.0048 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   30   |
+|   Detector Loss    | 0.4633 |
+| Avg Batch Time (s) | 0.341  |
+|  Max GPU Mem (MB)  |  4407  |
+|  Max CPU Mem (MB)  |  2620  |
+|    Energy (kWh)    | 0.0177 |
+|      CO2 (kg)      | 0.0047 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   31   |
+|   Detector Loss    | 0.4576 |
+| Avg Batch Time (s) | 0.337  |
+|  Max GPU Mem (MB)  |  4363  |
+|  Max CPU Mem (MB)  |  2598  |
+|    Energy (kWh)    | 0.0176 |
+|      CO2 (kg)      | 0.0047 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   32   |
+|   Detector Loss    | 0.4302 |
+| Avg Batch Time (s) | 0.332  |
+|  Max GPU Mem (MB)  |  4339  |
+|  Max CPU Mem (MB)  |  2571  |
+|    Energy (kWh)    | 0.0173 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   33   |
+|   Detector Loss    | 0.4508 |
+| Avg Batch Time (s) | 0.335  |
+|  Max GPU Mem (MB)  |  4339  |
+|  Max CPU Mem (MB)  |  2585  |
+|    Energy (kWh)    | 0.0176 |
+|      CO2 (kg)      | 0.0047 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   34   |
+|   Detector Loss    | 0.4251 |
+| Avg Batch Time (s) | 0.328  |
+|  Max GPU Mem (MB)  |  4349  |
+|  Max CPU Mem (MB)  |  2556  |
+|    Energy (kWh)    | 0.0175 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   35   |
+|   Detector Loss    | 0.4360 |
+| Avg Batch Time (s) | 0.328  |
+|  Max GPU Mem (MB)  |  4345  |
+|  Max CPU Mem (MB)  |  2571  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   36   |
+|   Detector Loss    | 0.4089 |
+| Avg Batch Time (s) | 0.328  |
+|  Max GPU Mem (MB)  |  4485  |
+|  Max CPU Mem (MB)  |  2593  |
+|    Energy (kWh)    | 0.0172 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   37   |
+|   Detector Loss    | 0.4027 |
+| Avg Batch Time (s) | 0.329  |
+|  Max GPU Mem (MB)  |  4369  |
+|  Max CPU Mem (MB)  |  2508  |
+|    Energy (kWh)    | 0.0174 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   38   |
+|   Detector Loss    | 0.3238 |
+| Avg Batch Time (s) | 0.328  |
+|  Max GPU Mem (MB)  |  4211  |
+|  Max CPU Mem (MB)  |  2550  |
+|    Energy (kWh)    | 0.0171 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   39   |
+|   Detector Loss    | 0.3456 |
+| Avg Batch Time (s) | 0.326  |
+|  Max GPU Mem (MB)  |  4485  |
+|  Max CPU Mem (MB)  |  2586  |
+|    Energy (kWh)    | 0.0173 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|   Detector Epoch   |   40   |
+|   Detector Loss    | 0.3541 |
+| Avg Batch Time (s) | 0.325  |
+|  Max GPU Mem (MB)  |  4031  |
+|  Max CPU Mem (MB)  |  2540  |
+|    Energy (kWh)    | 0.0173 |
+|      CO2 (kg)      | 0.0046 |
++--------------------+--------+
+Early stopping at epoch 40
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   2    |
-|      GNN Loss      | 2.8361 |
-| Avg Batch Time (s) | 0.609  |
-|  Max GPU Mem (MB)  |  3835  |
-|  Max CPU Mem (MB)  |  2391  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 2.4995 |
+| Avg Batch Time (s) | 0.589  |
+|  Max GPU Mem (MB)  |  4015  |
+|  Max CPU Mem (MB)  |  2474  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0036 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 22...
+Evaluating on validation set after Epoch 42...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   3    |
-|      GNN Loss      | 2.4531 |
-| Avg Batch Time (s) | 0.610  |
-|  Max GPU Mem (MB)  |  3835  |
-|  Max CPU Mem (MB)  |  2374  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0038 |
+|      GNN Loss      | 2.1886 |
+| Avg Batch Time (s) | 0.590  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2522  |
+|    Energy (kWh)    | 0.0132 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 23...
+Evaluating on validation set after Epoch 43...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   4    |
-|      GNN Loss      | 2.1925 |
-| Avg Batch Time (s) | 0.614  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2269  |
-|    Energy (kWh)    | 0.0141 |
-|      CO2 (kg)      | 0.0038 |
+|      GNN Loss      | 1.9042 |
+| Avg Batch Time (s) | 0.586  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2605  |
+|    Energy (kWh)    | 0.0132 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 24...
+Evaluating on validation set after Epoch 44...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   5    |
-|      GNN Loss      | 2.2408 |
-| Avg Batch Time (s) | 0.614  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2381  |
-|    Energy (kWh)    | 0.0141 |
-|      CO2 (kg)      | 0.0038 |
+|      GNN Loss      | 2.0282 |
+| Avg Batch Time (s) | 0.582  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2506  |
+|    Energy (kWh)    | 0.0130 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 25...
+Evaluating on validation set after Epoch 45...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   6    |
-|      GNN Loss      | 2.3186 |
-| Avg Batch Time (s) | 0.616  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2296  |
-|    Energy (kWh)    | 0.0141 |
-|      CO2 (kg)      | 0.0038 |
+|      GNN Loss      | 2.0789 |
+| Avg Batch Time (s) | 0.590  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2607  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0036 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 26...
+Evaluating on validation set after Epoch 46...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   7    |
-|      GNN Loss      | 2.2053 |
-| Avg Batch Time (s) | 0.610  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2527  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.7274 |
+| Avg Batch Time (s) | 0.588  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2500  |
+|    Energy (kWh)    | 0.0132 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 27...
+Evaluating on validation set after Epoch 47...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   8    |
-|      GNN Loss      | 2.2634 |
-| Avg Batch Time (s) | 0.612  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2317  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 2.0318 |
+| Avg Batch Time (s) | 0.585  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2620  |
+|    Energy (kWh)    | 0.0133 |
+|      CO2 (kg)      | 0.0036 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 28...
+Evaluating on validation set after Epoch 48...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   9    |
-|      GNN Loss      | 2.1630 |
-| Avg Batch Time (s) | 0.609  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2414  |
-|    Energy (kWh)    | 0.0139 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.7057 |
+| Avg Batch Time (s) | 0.590  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2658  |
+|    Energy (kWh)    | 0.0131 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 29...
+Evaluating on validation set after Epoch 49...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   10   |
-|      GNN Loss      | 2.1960 |
-| Avg Batch Time (s) | 0.609  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2326  |
-|    Energy (kWh)    | 0.0139 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.9005 |
+| Avg Batch Time (s) | 0.590  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2587  |
+|    Energy (kWh)    | 0.0131 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 30...
+Evaluating on validation set after Epoch 50...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   11   |
-|      GNN Loss      | 1.9459 |
-| Avg Batch Time (s) | 0.613  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2376  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.8159 |
+| Avg Batch Time (s) | 0.589  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2477  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0000 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 31...
+Evaluating on validation set after Epoch 51...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   12   |
-|      GNN Loss      | 1.8873 |
-| Avg Batch Time (s) | 0.612  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2396  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.5283 |
+| Avg Batch Time (s) | 0.591  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2496  |
+|    Energy (kWh)    | 0.0133 |
+|      CO2 (kg)      | 0.0036 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 32...
+Evaluating on validation set after Epoch 52...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   13   |
-|      GNN Loss      | 1.8799 |
-| Avg Batch Time (s) | 0.607  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2281  |
-|    Energy (kWh)    | 0.0139 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.5621 |
+| Avg Batch Time (s) | 0.587  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2616  |
+|    Energy (kWh)    | 0.0133 |
+|      CO2 (kg)      | 0.0036 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 33...
+Evaluating on validation set after Epoch 53...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   14   |
-|      GNN Loss      | 1.9981 |
-| Avg Batch Time (s) | 0.617  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2455  |
-|    Energy (kWh)    | 0.0141 |
-|      CO2 (kg)      | 0.0038 |
+|      GNN Loss      | 1.7411 |
+| Avg Batch Time (s) | 0.586  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2539  |
+|    Energy (kWh)    | 0.0131 |
+|      CO2 (kg)      | 0.0035 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 34...
+Evaluating on validation set after Epoch 54...
 +--------------------+--------+
 |       Metric       | Value  |
 +--------------------+--------+
 |    Joint Epoch     |   15   |
-|      GNN Loss      | 1.9882 |
-| Avg Batch Time (s) | 0.614  |
-|  Max GPU Mem (MB)  |  3837  |
-|  Max CPU Mem (MB)  |  2283  |
-|    Energy (kWh)    | 0.0140 |
-|      CO2 (kg)      | 0.0037 |
+|      GNN Loss      | 1.7869 |
+| Avg Batch Time (s) | 0.587  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2572  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0000 |
 +--------------------+--------+
 
-Evaluating on validation set after Epoch 35...
-Early stopping at epoch 34
-[METRIC] Micro-F1: 0.6677
-[METRIC] Macro-F1: 0.5691
-[METRIC] Miss Rate: 0.2318
-[METRIC] FPPI: 3.8762
-[METRIC] Overall Acc: 0.7472
-[METRIC] Precision: 0.5904
-[METRIC] Recall: 0.7682
-[METRIC] F1: 0.6677
+Evaluating on validation set after Epoch 55...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   16   |
+|      GNN Loss      | 1.6515 |
+| Avg Batch Time (s) | 0.588  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2471  |
+|    Energy (kWh)    | 0.0133 |
+|      CO2 (kg)      | 0.0036 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 56...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   17   |
+|      GNN Loss      | 1.5321 |
+| Avg Batch Time (s) | 0.588  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2909  |
+|    Energy (kWh)    | 0.0132 |
+|      CO2 (kg)      | 0.0035 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 57...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   18   |
+|      GNN Loss      | 1.4595 |
+| Avg Batch Time (s) | 0.589  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2486  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0036 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 58...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   19   |
+|      GNN Loss      | 1.7292 |
+| Avg Batch Time (s) | 0.586  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2640  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0036 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 59...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   20   |
+|      GNN Loss      | 1.5011 |
+| Avg Batch Time (s) | 0.584  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2504  |
+|    Energy (kWh)    | 0.0130 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 60...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   21   |
+|      GNN Loss      | 1.5217 |
+| Avg Batch Time (s) | 0.587  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2632  |
+|    Energy (kWh)    | 0.0134 |
+|      CO2 (kg)      | 0.0036 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 61...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   22   |
+|      GNN Loss      | 1.5388 |
+| Avg Batch Time (s) | 0.590  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2480  |
+|    Energy (kWh)    | 0.0131 |
+|      CO2 (kg)      | 0.0000 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 62...
++--------------------+--------+
+|       Metric       | Value  |
++--------------------+--------+
+|    Joint Epoch     |   23   |
+|      GNN Loss      | 1.5297 |
+| Avg Batch Time (s) | 0.589  |
+|  Max GPU Mem (MB)  |  4017  |
+|  Max CPU Mem (MB)  |  2564  |
+|    Energy (kWh)    | 0.0131 |
+|      CO2 (kg)      | 0.0035 |
++--------------------+--------+
+
+Evaluating on validation set after Epoch 63...
+Early stopping at epoch 62
+[METRIC] Micro-F1: 0.6732
+[METRIC] Macro-F1: 0.5742
+[METRIC] Miss Rate: 0.1961
+[METRIC] FPPI: 4.2508
+[METRIC] Overall Acc: 0.7419
+[METRIC] Precision: 0.5791
+[METRIC] Recall: 0.8039
+[METRIC] F1: 0.6732
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.743 │  0.786 │ 0.685 │ 0.732 │
+│ back_pedal      │ 0.694 │  0.699 │ 0.709 │ 0.704 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.762 │  0.839 │ 0.627 │ 0.717 │
+│ back_hand_break │ 0.718 │  0.678 │ 0.792 │ 0.731 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.856 │  0.06  │ 0.263 │ 0.098 │
+│ front_pedal     │ 0.779 │  0.07  │ 0.526 │ 0.124 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.497 │  0.096 │ 0.786 │ 0.171 │
+│ front_mudguard  │ 0.575 │  0.112 │ 0.786 │ 0.196 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.845 │  0.795 │ 0.757 │ 0.776 │
+│ front_light     │ 0.771 │  0.654 │ 0.752 │ 0.7   │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.69  │  0.245 │ 0.722 │ 0.365 │
+│ back_mudguard   │ 0.699 │  0.251 │ 0.722 │ 0.373 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.677 │  0.539 │ 0.907 │ 0.676 │
+│ front_handbreak │ 0.66  │  0.525 │ 0.886 │ 0.659 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.884 │  0.646 │ 0.621 │ 0.634 │
+│ saddle          │ 0.893 │  0.647 │ 0.748 │ 0.694 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dress_guard     │ 0.853 │  0.871 │ 0.957 │ 0.912 │
+│ dress_guard     │ 0.901 │  0.908 │ 0.974 │ 0.94  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.566 │  0.097 │ 0.651 │ 0.168 │
+│ back_wheel      │ 0.912 │  0.349 │ 0.349 │ 0.349 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.788 │  0.714 │ 0.53  │ 0.609 │
+│ lock            │ 0.773 │  0.631 │ 0.646 │ 0.638 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.788 │  0.59  │ 0.657 │ 0.622 │
+│ back_handle     │ 0.702 │  0.458 │ 0.675 │ 0.545 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.824 │  0.817 │ 0.964 │ 0.885 │
+│ chain           │ 0.829 │  0.817 │ 0.973 │ 0.888 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.779 │  0.115 │ 0.298 │ 0.166 │
+│ front_handle    │ 0.544 │  0.076 │ 0.468 │ 0.131 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.765 │  0.382 │ 0.591 │ 0.464 │
+│ front_wheel     │ 0.691 │  0.281 │ 0.509 │ 0.362 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.792 │  0.817 │ 0.484 │ 0.608 │
+│ back_reflector  │ 0.754 │  0.631 │ 0.634 │ 0.632 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.815 │  0.732 │ 0.683 │ 0.706 │
+│ kickstand       │ 0.773 │  0.612 │ 0.827 │ 0.703 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.687 │  0.846 │ 0.686 │ 0.757 │
+│ bell            │ 0.658 │  0.784 │ 0.719 │ 0.75  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.89  │  0.887 │ 0.903 │ 0.895 │
+│ back_light      │ 0.851 │  0.817 │ 0.918 │ 0.864 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.392 │  0.054 │ 0.512 │ 0.098 │
+│ steer           │ 0.517 │  0.071 │ 0.537 │ 0.125 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.666 │  0.402 │ 0.925 │ 0.561 │
+│ gear_case       │ 0.82  │  0.58  │ 0.789 │ 0.669 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.879 │  0.889 │ 0.914 │ 0.901 │
+│ dynamo          │ 0.807 │  0.787 │ 0.932 │ 0.854 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛
-[METRIC] Micro-F1: 0.6643
-[METRIC] Macro-F1: 0.5661
-[METRIC] Miss Rate: 0.2340
-[METRIC] FPPI: 3.9693
-[METRIC] Overall Acc: 0.7414
-[METRIC] Precision: 0.5864
-[METRIC] Recall: 0.7660
-[METRIC] F1: 0.6643
+[METRIC] Micro-F1: 0.6793
+[METRIC] Macro-F1: 0.5783
+[METRIC] Miss Rate: 0.1902
+[METRIC] FPPI: 4.2219
+[METRIC] Overall Acc: 0.7446
+[METRIC] Precision: 0.5850
+[METRIC] Recall: 0.8098
+[METRIC] F1: 0.6793
 [METRIC-TABLE] Per-Part Evaluation
 ╒═════════════════╤═══════╤════════╤═══════╤═══════╕
 │ Part            │   Acc │   Prec │   Rec │    F1 │
 ╞═════════════════╪═══════╪════════╪═══════╪═══════╡
-│ back_pedal      │ 0.737 │  0.814 │ 0.665 │ 0.732 │
+│ back_pedal      │ 0.729 │  0.759 │ 0.73  │ 0.744 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_hand_break │ 0.799 │  0.823 │ 0.722 │ 0.769 │
+│ back_hand_break │ 0.731 │  0.667 │ 0.839 │ 0.743 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_pedal     │ 0.853 │  0.054 │ 0.212 │ 0.086 │
+│ front_pedal     │ 0.744 │  0.039 │ 0.288 │ 0.068 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_mudguard  │ 0.503 │  0.125 │ 0.854 │ 0.219 │
+│ front_mudguard  │ 0.579 │  0.143 │ 0.838 │ 0.245 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_light     │ 0.832 │  0.825 │ 0.725 │ 0.772 │
+│ front_light     │ 0.787 │  0.71  │ 0.77  │ 0.739 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_mudguard   │ 0.677 │  0.238 │ 0.662 │ 0.351 │
+│ back_mudguard   │ 0.709 │  0.26  │ 0.657 │ 0.373 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handbreak │ 0.664 │  0.54  │ 0.915 │ 0.679 │
+│ front_handbreak │ 0.683 │  0.557 │ 0.915 │ 0.692 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ saddle          │ 0.891 │  0.717 │ 0.614 │ 0.661 │
+│ saddle          │ 0.884 │  0.66  │ 0.686 │ 0.673 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dress_guard     │ 0.851 │  0.87  │ 0.957 │ 0.911 │
+│ dress_guard     │ 0.885 │  0.896 │ 0.968 │ 0.93  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_wheel      │ 0.56  │  0.08  │ 0.652 │ 0.142 │
+│ back_wheel      │ 0.93  │  0.372 │ 0.36  │ 0.366 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ lock            │ 0.802 │  0.726 │ 0.593 │ 0.653 │
+│ lock            │ 0.771 │  0.627 │ 0.665 │ 0.645 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_handle     │ 0.748 │  0.487 │ 0.579 │ 0.529 │
+│ back_handle     │ 0.698 │  0.42  │ 0.623 │ 0.502 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ chain           │ 0.82  │  0.817 │ 0.964 │ 0.884 │
+│ chain           │ 0.855 │  0.849 │ 0.97  │ 0.905 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_handle    │ 0.767 │  0.121 │ 0.262 │ 0.166 │
+│ front_handle    │ 0.566 │  0.101 │ 0.496 │ 0.168 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ front_wheel     │ 0.725 │  0.271 │ 0.596 │ 0.372 │
+│ front_wheel     │ 0.696 │  0.245 │ 0.587 │ 0.345 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_reflector  │ 0.818 │  0.821 │ 0.545 │ 0.655 │
+│ back_reflector  │ 0.771 │  0.624 │ 0.691 │ 0.656 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ kickstand       │ 0.801 │  0.732 │ 0.646 │ 0.686 │
+│ kickstand       │ 0.749 │  0.594 │ 0.8   │ 0.682 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ bell            │ 0.645 │  0.818 │ 0.657 │ 0.729 │
+│ bell            │ 0.675 │  0.79  │ 0.752 │ 0.771 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ back_light      │ 0.892 │  0.899 │ 0.891 │ 0.895 │
+│ back_light      │ 0.836 │  0.811 │ 0.891 │ 0.849 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ steer           │ 0.378 │  0.065 │ 0.504 │ 0.116 │
+│ steer           │ 0.48  │  0.073 │ 0.465 │ 0.126 │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ gear_case       │ 0.672 │  0.404 │ 0.875 │ 0.553 │
+│ gear_case       │ 0.803 │  0.555 │ 0.756 │ 0.64  │
 ├─────────────────┼───────┼────────┼───────┼───────┤
-│ dynamo          │ 0.876 │  0.88  │ 0.913 │ 0.896 │
+│ dynamo          │ 0.82  │  0.791 │ 0.94  │ 0.859 │
 ╘═════════════════╧═══════╧════════╧═══════╧═══════╛
