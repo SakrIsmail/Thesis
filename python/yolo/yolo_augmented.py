@@ -319,7 +319,7 @@ def on_model_save(trainer):
         no_improve_epochs += 1
         if no_improve_epochs >= patience:
             print(f"Early stopping at epoch {trainer.epoch + 1}")
-            trainer.stop_training = True
+            trainer.stop = True
 
 
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
