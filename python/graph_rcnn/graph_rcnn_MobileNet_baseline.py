@@ -561,8 +561,8 @@ sched_graph = ReduceLROnPlateau(
     opt_graph, mode="max", factor=0.5, patience=3, min_lr=1e-6, verbose=True
 )
 
-epochs = 2
-freeze_epoch = 2
+epochs = 100
+freeze_epoch = 50
 patience = 8
 detector_best_macro_f1 = 0
 detector_no_improve = 0
