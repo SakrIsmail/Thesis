@@ -656,7 +656,6 @@ for epoch in range(1, epochs + 1):
 
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
         model.train()
-        model.detector.eval()
         batch_times, gpu_memories, cpu_memories = [], [], []
 
         with tqdm(
