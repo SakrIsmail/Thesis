@@ -254,6 +254,34 @@ def construct_graph_inputs(fmap_batch, predictions, device):
         boxes = det.boxes.xyxy.to(device)
         Ni = boxes.size(0)
 
+        if Ni == 0:
+            feat_dim = fmap_batch.shape[1]
+            x = torch.zeros((1, feat_dim + 6), device=device)
+            edge_index = torch.tensor([[0], [0]], dtype=torch.long, device=device)
+            edge_weight = torch.tensor([1.0], device=device)
+            graph_data.append((x, edge_index, edge_weight))
+            continue
+
+        if Ni == 1:
+            cx = ((boxes[:, 0] + boxes[:, 2]) / 2) * (Wf / 640)
+            cy = ((boxes[:, 1] + boxes[:, 3]) / 2) * (Hf / 640)
+            ix, iy = cx.clamp(0, Wf - 1).long(), cy.clamp(0, Hf - 1).long()
+            feat_map = fmap_batch[i]                                             
+            feats = feat_map[:, iy, ix].permute(1, 0).contiguous()              
+
+            confs = det.boxes.conf.to(device).unsqueeze(1)
+            clss = det.boxes.cls.to(device).unsqueeze(1)
+            cxs = cx.unsqueeze(1)
+            cys = cy.unsqueeze(1)
+            ws = ((boxes[:, 2] - boxes[:, 0]) * (Wf / 640)).unsqueeze(1)
+            hs = ((boxes[:, 3] - boxes[:, 1]) * (Hf / 640)).unsqueeze(1)
+
+            x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
+            edge_index = torch.tensor([[0], [0]], dtype=torch.long, device=device)
+            edge_weight = torch.tensor([1.0], device=device)
+            graph_data.append((x, edge_index, edge_weight))
+            continue
+
         cx = ((boxes[:, 0] + boxes[:, 2]) / 2) * (Wf / 640)
         cy = ((boxes[:, 1] + boxes[:, 3]) / 2) * (Hf / 640)
         ix, iy = cx.clamp(0, Wf - 1).long(), cy.clamp(0, Hf - 1).long()
@@ -270,29 +298,25 @@ def construct_graph_inputs(fmap_batch, predictions, device):
 
         x = torch.cat([cxs, cys, ws, hs, confs, clss, feats], dim=1)
 
-        if Ni >= 2:
-            centers = torch.cat([cxs, cys], dim=1)
-            dist_mat = torch.cdist(centers, centers, p=2)
-            W_spatial = torch.exp(-alpha * dist_mat**2)
-            sim_feats = torch.cosine_similarity(
-                feats.unsqueeze(1), feats.unsqueeze(0), dim=2
-            )
-            W_appear = torch.exp(5.0 * sim_feats)
-            W = W_spatial * W_appear
+        centers = torch.cat([cxs, cys], dim=1)
+        dist_mat = torch.cdist(centers, centers, p=2)
+        W_spatial = torch.exp(-alpha * dist_mat**2)
 
-            src, dst = (W > threshold).nonzero(as_tuple=True)
-            if src.numel() == 0:
-                src = torch.arange(Ni, device=device)
-                dst = torch.arange(Ni, device=device)
-                edge_weight = torch.ones(Ni, device=device)
-            else:
-                edge_weight = W[src, dst]
+        sim_feats = torch.cosine_similarity(
+            feats.unsqueeze(1), feats.unsqueeze(0), dim=2
+        )
+        W_appear = torch.exp(gamma_appear * sim_feats)
+        W = W_spatial * W_appear
 
-            edge_index = torch.stack([src, dst], dim=0)
-
+        src, dst = (W > threshold).nonzero(as_tuple=True)
+        if src.numel() == 0:
+            src = torch.arange(Ni, device=device)
+            dst = torch.arange(Ni, device=device)
+            edge_weight = torch.ones(Ni, device=device)
         else:
-            edge_index = torch.tensor([[0], [0]], dtype=torch.long, device=device)
-            edge_weight = torch.tensor([1.0], device=device)
+            edge_weight = W[src, dst]
+
+        edge_index = torch.stack([src, dst], dim=0)
 
         graph_data.append((x, edge_index, edge_weight))
 
@@ -455,10 +479,10 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
     return results
 
 
-def evaluate_gnn(yolo_model, dgnn, data_loader, part_to_idx, device, K=22):
+def evaluate_gnn(yolo_model, gnn, data_loader, part_to_idx, device, K=22):
 
     yolo_model.to(device).eval()
-    dgnn.to(device).eval()
+    gnn.to(device).eval()
 
     all_parts_set = set(part_to_idx.values())
     results_per_image = []
@@ -722,7 +746,7 @@ for epoch in range(1, num_epochs + 1):
             best_macro_f1 = macro_f1
             no_improve = 0
             torch.save(
-                yolo.state_dict(),
+                gnn.state_dict(),
                 "/var/scratch/sismail/models/yolo/yolo_gnn_augmented_model.pth",
             )
         else:

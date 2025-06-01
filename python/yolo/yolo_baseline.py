@@ -396,6 +396,7 @@ model.add_callback("on_train_epoch_start", on_train_epoch_start)
 model.add_callback("on_train_batch_start", on_train_batch_start)
 model.add_callback("on_train_batch_end",   on_train_batch_end)
 model.add_callback("on_train_epoch_end",   on_train_epoch_end)
+model.add_callback("on_model_save", on_model_save)
 model.to(device)
 
 model.train(
