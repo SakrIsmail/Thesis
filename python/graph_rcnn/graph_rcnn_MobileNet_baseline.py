@@ -353,7 +353,7 @@ class AttentionalGCN(nn.Module):
 
 
 class GraphRCNN(nn.Module):
-    def __init__(self, detector, num_classes, k=3):
+    def __init__(self, detector, num_classes, k=5):
         super().__init__()
         self.detector = detector
         in_feats = detector.roi_heads.box_predictor.cls_score.in_features
@@ -369,15 +369,20 @@ class GraphRCNN(nn.Module):
         return self.detector.roi_heads.box_head(roi)
 
     def _make_edge_index(self, scores):
-        idx = torch.topk(scores, self.k + 1, dim=1).indices[:, 1:]
-        src = idx.flatten()
-        dst = (
-            torch.arange(scores.size(0), device=scores.device)
-            .unsqueeze(1)
-            .expand(-1, self.k)
-            .flatten()
-        )
-        return torch.stack([dst, src], 0)
+        N = scores.size(0)
+        device = scores.device
+
+        if N <= self.k:
+            row = torch.arange(N, device=device).unsqueeze(1).expand(N, N).flatten()
+            col = torch.arange(N, device=device).unsqueeze(0).expand(N, N).flatten()
+            return torch.stack([row, col], dim=0).long()
+
+        topk = torch.topk(scores, self.k + 1, dim=1)
+        neighbors = topk.indices[:, 1:]
+
+        src = torch.arange(N, device=device).unsqueeze(1).expand(-1, self.k).flatten() 
+        dst = neighbors.flatten()
+        return torch.stack([src, dst], dim=0).long()
 
     def _box_geom(self, boxes, shape):
         h, w = shape
