@@ -372,6 +372,12 @@ class GraphRCNN(nn.Module):
         N = scores.size(0)
         device = scores.device
 
+        if N == 0:
+            return torch.empty((2, 0), dtype=torch.long, device=device)
+
+        if N == 1:
+            return torch.tensor([[0], [0]], dtype=torch.long, device=device)
+
         if N <= self.k:
             row = torch.arange(N, device=device).unsqueeze(1).expand(N, N).flatten()
             col = torch.arange(N, device=device).unsqueeze(0).expand(N, N).flatten()
@@ -379,8 +385,7 @@ class GraphRCNN(nn.Module):
 
         topk = torch.topk(scores, self.k + 1, dim=1)
         neighbors = topk.indices[:, 1:]
-
-        src = torch.arange(N, device=device).unsqueeze(1).expand(-1, self.k).flatten() 
+        src = torch.arange(N, device=device).unsqueeze(1).expand(-1, self.k).flatten()
         dst = neighbors.flatten()
         return torch.stack([src, dst], dim=0).long()
 
@@ -413,23 +418,50 @@ class GraphRCNN(nn.Module):
         dets = self.detector(images)
         outputs = []
         for img, det in zip(images, dets):
-            boxes = det["boxes"]
-            scores = det["scores"]
-            labels = det["labels"]
-            if boxes.numel() == 0:
-                outputs.append(det)
+            boxes = det.get("boxes", torch.empty((0, 4), device=img.device))
+            scores = det.get("scores", torch.empty((0,), device=img.device))
+            labels = det.get(
+                "labels", torch.empty((0,), dtype=torch.long, device=img.device)
+            )
+
+            Ni = boxes.shape[0]
+            if Ni == 0:
+
+                outputs.append(
+                    {
+                        "boxes": torch.empty((0, 4), device=img.device),
+                        "scores": torch.empty((0,), device=img.device),
+                        "labels": torch.empty(
+                            (0,), dtype=torch.long, device=img.device
+                        ),
+                    }
+                )
                 continue
 
             feats = self._get_roi_feats(img.unsqueeze(0), boxes).squeeze(0)
             rel_scores = self.repn(feats, boxes)
             edge_index = self._make_edge_index(rel_scores)
+
             geom = self._box_geom(boxes, img.shape[-2:])
             node_feats = torch.cat([feats, geom], dim=1)
             logits = self.agcn(node_feats, edge_index)
             probs = torch.softmax(logits, dim=1)
-            new_scores, new_labels = probs.max(dim=1)
 
+            new_scores, new_labels = probs.max(dim=1)
             keep = (new_labels != 0) & (new_scores > 0.5)
+
+            if keep.sum() == 0:
+                outputs.append(
+                    {
+                        "boxes": torch.empty((0, 4), device=img.device),
+                        "scores": torch.empty((0,), device=img.device),
+                        "labels": torch.empty(
+                            (0,), dtype=torch.long, device=img.device
+                        ),
+                    }
+                )
+                continue
+
             boxes2 = boxes[keep]
             scores2 = new_scores[keep]
             labels2 = new_labels[keep]
@@ -468,7 +500,7 @@ class GraphRCNN(nn.Module):
             labels = tgt["labels"]
 
             Ni = boxes.shape[0]
-            if Ni < 2:
+            if Ni == 0:
                 continue
 
             feats = self._get_roi_feats(img.unsqueeze(0), boxes)
