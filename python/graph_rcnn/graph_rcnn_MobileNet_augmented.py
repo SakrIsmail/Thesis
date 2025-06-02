@@ -448,7 +448,7 @@ class GraphRCNN(nn.Module):
             probs = torch.softmax(logits, dim=1)
 
             new_scores, new_labels = probs.max(dim=1)
-            keep = (new_labels != 0) & (new_scores > 0.5)
+            keep = (new_labels != 0) & (new_scores > 0.2)
 
             if keep.sum() == 0:
                 outputs.append(
