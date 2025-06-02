@@ -384,9 +384,7 @@ class GraphRCNN(nn.Module):
             [nb[:, 0], nb[:, 1], nb[:, 2] - nb[:, 0], nb[:, 3] - nb[:, 1]], dim=1
         )
 
-    def _build_soft_adjacency(
-        boxes: torch.Tensor, image_size: tuple[int, int], alpha: float = 0.5
-    ) -> torch.Tensor:
+    def _build_soft_adjacency(self, boxes, image_size, alpha=0.5):
 
         x1, y1, x2, y2 = boxes.unbind(dim=1)
         cx = 0.5 * (x1 + x2)
@@ -545,7 +543,7 @@ class GraphRCNN(nn.Module):
             rel_logits = self.repn(feats, boxes_i)
 
             shape = img.shape[-2], img.shape[-1]
-            Adj_gt = self._build_soft_adjacency(boxes_i, shape, 1.0)
+            Adj_gt = self._build_soft_adjacency(boxes_i, shape, alpha=1.0)
 
             repnet_sum += bce(rel_logits, Adj_gt)
             repnet_count += 1
