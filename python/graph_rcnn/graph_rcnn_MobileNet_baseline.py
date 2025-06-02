@@ -498,6 +498,9 @@ class GraphRCNN(nn.Module):
         device = images[0].device
         bce = nn.BCEWithLogitsLoss(reduction="mean")
 
+        was_training = self.detector.training
+        self.detector.eval()
+
         repnet_sum = 0.0
         repnet_count = 0
         gcn_logits_list = []
@@ -558,6 +561,9 @@ class GraphRCNN(nn.Module):
 
             gcn_logits_list.append(node_logits)
             gcn_labels_list.append(gt_lbls_i - 1)
+        
+        if was_training:
+            self.detector.train()
 
         if repnet_count == 0:
             zero = torch.tensor(0.0, device=device)
