@@ -545,9 +545,7 @@ class GraphRCNN(nn.Module):
             rel_logits = self.repn(feats, boxes_i)
 
             H_resized, W_resized = img.shape[-2], img.shape[-1]
-            Adj_gt = self._build_soft_adjacency(
-                boxes_i, (H_resized, W_resized), alpha=1.0
-            )
+            Adj_gt = self._build_soft_adjacency(boxes_i, (H_resized, W_resized), 1.0)
 
             repnet_sum += bce(rel_logits, Adj_gt)
             repnet_count += 1
