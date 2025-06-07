@@ -740,14 +740,6 @@ if torch.cuda.is_available():
     nvmlShutdown()
 
 
-model.load_state_dict(
-    torch.load(
-        "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
-        map_location=device,
-    )
-)
-model.to(device)
-
 model.eval()
 
 results_per_image = evaluate_model(model, valid_loader, valid_dataset.all_parts, device)
