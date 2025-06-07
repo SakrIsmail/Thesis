@@ -616,7 +616,7 @@ model = GraphHallucinationRCNN(num_parts=len(train_dataset.all_parts), topk=5).t
     device
 )
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
-scaler = torch.amp.GradScaler(device_type=device.type)
+scaler = torch.amp.GradScaler(device.type)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
     factor=0.5, patience=3,

@@ -369,7 +369,7 @@ sched = ReduceLROnPlateau(
     min_lr=1e-6, verbose=True
 )
 
-scaler = torch.amp.GradScaler(device_type=device.type)
+scaler = torch.amp.GradScaler(device.type)
 
 if torch.cuda.is_available():
     nvmlInit()
