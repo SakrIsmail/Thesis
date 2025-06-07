@@ -25,7 +25,7 @@ from codecarbon import EmissionsTracker
 from torchvision.ops import box_iou
 from torchvision.ops import nms
 from torch_geometric.nn import GATConv
-from torch.utils.checkpoint import checkpoint
+from torchvision.models.detection.rpn import RPNHead, AnchorGenerator, RPNPreProcessor, RegionProposalNetwork
 
 
 
@@ -350,16 +350,41 @@ class RelationProposalNetwork(nn.Module):
 
 
 class GraphHallucinationRCNN(nn.Module):
-    def __init__(self, num_parts, topk=5, gcn_hidden=256):
+    def __init__(self, num_parts, topk=5, gcn_hidden=256,
+                 rpn_pre_nms_top_n_train=500,
+                 rpn_pre_nms_top_n_test=200,
+                 rpn_post_nms_top_n_train=200,
+                 rpn_post_nms_top_n_test=100):
         super().__init__()
-        self.detector = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
-        in_feats = self.detector.roi_heads.box_predictor.cls_score.in_features
 
+        base = fasterrcnn_mobilenet_v3_large_fpn(weights="DEFAULT")
+        backbone = base.backbone
+
+        anchor_gen = base.rpn.anchor_generator  
+
+        rpn_head = RPNHead(
+            in_channels=backbone.out_channels,
+            num_anchors=anchor_gen.num_anchors_per_location()[0]
+        )
+        self.detector = FasterRCNN(
+            backbone=backbone,
+            num_classes=num_parts+1,
+            rpn_anchor_generator=anchor_gen,
+            rpn_head=rpn_head,
+            trainable_backbone_layers=3,
+            rpn_pre_nms_top_n_train=rpn_pre_nms_top_n_train,
+            rpn_pre_nms_top_n_test=rpn_pre_nms_top_n_test,
+            rpn_post_nms_top_n_train=rpn_post_nms_top_n_train,
+            rpn_post_nms_top_n_test=rpn_post_nms_top_n_test,
+        )
+
+        # 2) now swap in your multi‐class box‐predictor:
+        in_feats = self.detector.roi_heads.box_predictor.cls_score.in_features
         self.detector.roi_heads.box_predictor = FastRCNNPredictor(in_feats, num_parts + 1)
 
+        # 3) the rest of your GraphHallucinationRCNN init follows exactly as before…
         self.topk = topk
         self.repn = RelationProposalNetwork(in_feats)
-
         self.gat1 = GATConv(in_feats + 4, gcn_hidden, heads=4)
         self.gat2 = GATConv(gcn_hidden * 4, 2, heads=1)
 
@@ -375,32 +400,29 @@ class GraphHallucinationRCNN(nn.Module):
         self.box_reg_loss_fn = nn.SmoothL1Loss(reduction="none")
 
     def forward(self, images, targets=None):
-        # 1) Standard Faster R-CNN detection
+        # 1) Run the standard Faster R-CNN detection (backbone + RPN + ROI heads)
         det_outs = self.detector(images, targets)
 
-        # 2) Prepare features & proposals for the GCN
+        if self.training:
+            # det_outs is a dict of losses: { 'loss_classifier', 'loss_box_reg', 'loss_objectness', 'loss_rpn_box_reg' }
+            loss_dict = det_outs
+        else:
+            loss_dict = {}
+
+        # 2) Build the pooled features for all proposals so we can feed them into the GCN
         imgs, img_sizes = self.detector.transform(images)
         feats = self.detector.backbone(imgs.tensors)
         proposals, _ = self.detector.rpn(imgs, feats, targets)
-
-        # ─── checkpoint ROI pool + box head ───
-        image_shapes = [img.shape[-2:] for img in images]
-        pooled = checkpoint(
-            self.detector.roi_heads.box_roi_pool,
-            feats, proposals, image_shapes
-        )
-        node_feats = checkpoint(
-            self.detector.roi_heads.box_head,
-            pooled
-        )
+        pooled = self.detector.roi_heads.box_roi_pool(
+            feats, proposals, [i.shape[-2:] for i in images]
+        )   # [sum(N_i),  in_feats, 7,7]
+        node_feats = self.detector.roi_heads.box_head(pooled)  # [sum(N_i), in_feats]
 
         if self.training:
-            # start with R-CNN losses
-            loss_dict = det_outs
             losses_gcn = []
             losses_boxreg = []
 
-            # split node_feats per image
+            # We will split `node_feats` by image, based on how many proposals each image had
             batch_sizes = [len(p) for p in proposals]
             feats_split = torch.split(node_feats, batch_sizes, dim=0)
 
@@ -411,58 +433,61 @@ class GraphHallucinationRCNN(nn.Module):
                 if Ni == 0:
                     continue
 
-                # 2.1 geometry features
-                geom = self._box_geom(boxes_img, img.shape[-2:])
-                x = torch.cat([feats_img, geom], dim=1)
+                # 2.1) Compute normalized geometry for each proposal
+                geom = self._box_geom(boxes_img, img.shape[-2:])  # [Ni,4]
+                x = torch.cat([feats_img, geom], dim=1)  # [Ni, in_feats + 4]
 
-                # 2.2 relation logits
-                rel = checkpoint(
-                    lambda feat, box: self.repn(feat, box),
-                    feats_img,
-                    boxes_img
-                )
-                edge = self._make_edge_index(rel)
+                # 2.2) Compute pairwise “relation” logits
+                rel = self.repn(feats_img, boxes_img)  # [Ni,Ni]
+                edge = self._make_edge_index(rel)     # [2, Ni*topk]
 
-                # ─── checkpointed GAT layer 1 ───
-                h1 = checkpoint(
-                    lambda feat, ed: torch.relu(self.gat1(feat, ed)),
-                    x, edge
-                )
-                # ─── checkpointed GAT layer 2 ───
-                logits = checkpoint(
-                    lambda hid, ed: self.gat2(hid, ed),
-                    h1, edge
-                )
+                # 2.3) First GAT → hidden embeddings
+                h1 = torch.relu(self.gat1(x, edge))  # [Ni, gcn_hidden * heads]
 
-                # 2.5 match proposals to GT
-                iou = box_iou(boxes_img, tgt["boxes"])
-                iou_vals, best = iou.max(dim=1)
-                pos_mask = iou_vals >= 0.5
+                # 2.4) Second GAT → classification logits [score_present, score_missing]
+                logits  = self.gat2(h1, edge)        # [Ni, 2]
 
-                if pos_mask.sum() > 0:
-                    # classification loss
-                    fl = logits[pos_mask]
-                    ml = tgt["is_missing"][best[pos_mask]]
-                    losses_gcn.append(nn.functional.cross_entropy(fl, ml, reduction="mean"))
+                iou = box_iou(boxes_img, tgt["boxes"])   # [Ni, M]
+                iou_vals, best = iou.max(dim=1)         # [Ni]
 
-                    # box‐regression for truly-missing nodes
-                    mm = ml == 1
-                    if mm.sum() > 0:
-                        h1_m = h1[pos_mask][mm]
-                        geom_m = geom[pos_mask][mm]
-                        reg_in = torch.cat([h1_m, geom_m], dim=1)
-                        pred_delta = self.bbox_regressor(reg_in)
+                # Only keep proposals whose IoU ≥ iou_thr
+                positive_mask = (iou_vals >= 0.5)   # boolean mask of shape [Ni]
 
-                        prop_b = boxes_img[pos_mask][mm]
-                        gt_b = tgt["boxes"][best[pos_mask][mm]]
+                if positive_mask.sum() > 0:
+                    # Filtered logits and labels
+                    filtered_logits     = logits[positive_mask]               # [K, 2]
+                    filtered_miss_labels = tgt["is_missing"][best[positive_mask]]  # [K]
 
-                        # compute target deltas
-                        px0, py0, px1, py1 = prop_b.unbind(1)
-                        gx0, gy0, gx1, gy1 = gt_b.unbind(1)
+                    # 2.6) Classification loss on filtered proposals
+                    cls_loss = nn.functional.cross_entropy(
+                        filtered_logits, filtered_miss_labels, reduction="mean"
+                    )
+                    losses_gcn.append(cls_loss)
+
+                    # 2.7) BOX REGRESSION LOSS only on filtered proposals that are actually missing
+                    keep_missing_mask = filtered_miss_labels == 1             # [K]
+                    if keep_missing_mask.sum() > 0:
+                        # Gather the features for those K_missing nodes
+                        h1_m   = h1[positive_mask][keep_missing_mask]         # [K_m, gcn_hidden*heads]
+                        geom_m = geom[positive_mask][keep_missing_mask]       # [K_m, 4]
+
+                        reg_input = torch.cat([h1_m, geom_m], dim=1)          # [K_m, gcn_hidden*heads + 4]
+                        reg_pred  = self.bbox_regressor(reg_input)            # [K_m, 4]
+
+                        # Proposal boxes and their matched GTs for these K_m nodes
+                        prop_boxes = boxes_img[positive_mask][keep_missing_mask]     # [K_m, 4]
+                        gt_inds    = best[positive_mask][keep_missing_mask]          # [K_m]
+                        gt_boxes   = tgt["boxes"][gt_inds]                           # [K_m, 4]
+
+                        # Convert to (cx, cy, w, h)
+                        px0, py0, px1, py1 = prop_boxes.unbind(dim=1)
+                        gx0, gy0, gx1, gy1 = gt_boxes.unbind(dim=1)
+
                         pw = (px1 - px0).clamp(min=1e-3)
                         ph = (py1 - py0).clamp(min=1e-3)
                         pcx = px0 + 0.5 * pw
                         pcy = py0 + 0.5 * ph
+
                         gw = gx1 - gx0
                         gh = gy1 - gy0
                         gcx = gx0 + 0.5 * gw
@@ -473,100 +498,123 @@ class GraphHallucinationRCNN(nn.Module):
                         dw = torch.log(gw / pw)
                         dh = torch.log(gh / ph)
 
-                        tgt_delta = torch.stack([dx, dy, dw, dh], dim=1)
-                        loss_reg_per_coord = self.box_reg_loss_fn(pred_delta, tgt_delta)
-                        losses_boxreg.append(loss_reg_per_coord.mean())
+                        reg_target = torch.stack([dx, dy, dw, dh], dim=1)  # [K_m, 4]
+                        loss_reg_per_coord = self.box_reg_loss_fn(reg_pred, reg_target)  # [K_m, 4]
+                        loss_reg = loss_reg_per_coord.mean()
+                        losses_boxreg.append(loss_reg)
 
-            loss_dict["loss_gcn_cls"]  = torch.stack(losses_gcn).mean()  if losses_gcn  else torch.tensor(0., device=node_feats.device)
-            loss_dict["loss_gcn_bbox"] = torch.stack(losses_boxreg).mean() if losses_boxreg else torch.tensor(0., device=node_feats.device)
+            # 2.8) Combine the GCN classification losses and box‐regression losses (if any)
+            if losses_gcn:
+                loss_gcn = torch.stack(losses_gcn).mean()
+            else:
+                loss_gcn = torch.tensor(0.0, device=node_feats.device)
+
+            if losses_boxreg:
+                loss_boxreg = torch.stack(losses_boxreg).mean()
+            else:
+                loss_boxreg = torch.tensor(0.0, device=node_feats.device)
+
+            # Add these to the dictionary that already has the R-CNN losses
+            loss_dict["loss_gcn_cls"]  = loss_gcn
+            loss_dict["loss_gcn_bbox"] = loss_boxreg
+
+            # Return all losses
             return loss_dict
 
-        # ─── inference ───
-        outputs = []
-        idx = 0
-        for img, det in zip(images, det_outs):
-            Ni = len(det["boxes"])
-            feats_img = node_feats[idx : idx + Ni]
-            idx += Ni
+        else:
+            # ————————— Inference Branch —————————
+            # (Keep your existing inference logic, but insert a step to
+            #  regress final bounding boxes for the “missing” nodes.)
+            outputs = []
+            idx = 0
+            for img, det in zip(images, det_outs):
+                Ni = len(det["boxes"])
+                feats_img = node_feats[idx : idx + Ni]
+                idx += Ni
 
-            boxes_img = det["boxes"]
-            geom = self._box_geom(boxes_img, img.shape[-2:])
-            x = torch.cat([feats_img, geom], dim=1)
+                boxes_img = det["boxes"]  # [Ni,4]
+                geom = self._box_geom(boxes_img, img.shape[-2:])  # [Ni,4]
+                x = torch.cat([feats_img, geom], dim=1)  # [Ni, in_feats + 4]
 
-            # checkpointed GATs
-            h1 = checkpoint(
-                lambda feat, ed: torch.relu(self.gat1(feat, ed)),
-                x, edge
-            )
-            logits = checkpoint(
-                lambda hid, ed: self.gat2(hid, ed),
-                h1, edge
-            )
-            prob_miss = torch.softmax(logits, dim=1)[:, 1]
+                rel = self.repn(feats_img, boxes_img)   # [Ni,Ni]
+                edge = self._make_edge_index(rel)       # [2, Ni*topk]
 
-            keep = prob_miss > 0.5
-            if keep.sum() == 0:
+                h1 = torch.relu(self.gat1(x, edge))    # [Ni, gcn_hidden*heads]
+                logits = self.gat2(h1, edge)          # [Ni,2]
+                prob_miss = torch.softmax(logits, dim=1)[:, 1]  # [Ni]
+
+                # 1) Threshold to pick nodes predicted missing
+                keep_mask = prob_miss > 0.5
+                if keep_mask.sum() == 0:
+                    # If none predicted missing, return an empty set
+                    outputs.append({
+                        "boxes_missing" : torch.zeros((0,4), device=img.device),
+                        "scores_missing": torch.zeros((0,),   device=img.device),
+                        "labels_missing": torch.zeros((0,),   device=img.device),
+                    })
+                    continue
+
+                boxes_kept  = boxes_img[keep_mask]    # [K,4]
+                parts_kept  = det["labels"][keep_mask]  # [K]
+                scores_kept = prob_miss[keep_mask]    # [K]
+
+                # 2) For each kept node, also regress a refined box:
+                h1_kept  = h1[keep_mask]   # [K, gcn_hidden*heads]
+                geom_kept = geom[keep_mask]  # [K,4]
+                reg_input = torch.cat([h1_kept, geom_kept], dim=1)  # [K, gcn_hidden*heads + 4]
+                reg_delta = self.bbox_regressor(reg_input)          # [K,4]
+
+                # Convert back from (dx,dy,dw,dh) to (x0,y0,x1,y1):
+                #   Let (x0_p,y0_p,x1_p,y1_p) = boxes_kept,
+                #       w_p = x1_p - x0_p,  h_p = y1_p - y0_p,
+                #       cx_p = x0_p + 0.5*w_p,  cy_p = y0_p + 0.5*h_p.
+                px0, py0, px1, py1 = boxes_kept.unbind(dim=1)
+                pw = px1 - px0
+                ph = py1 - py0
+                pcx = px0 + 0.5 * pw
+                pcy = py0 + 0.5 * ph
+
+                dx, dy, dw, dh = reg_delta.unbind(dim=1)
+                gcx = dx * pw + pcx
+                gcy = dy * ph + pcy
+                gw  = torch.exp(dw) * pw
+                gh  = torch.exp(dh) * ph
+
+                # Convert (gcx, gcy, gw, gh) → (x0_final, y0_final, x1_final, y1_final)
+                x0_final = gcx - 0.5 * gw
+                y0_final = gcy - 0.5 * gh
+                x1_final = gcx + 0.5 * gw
+                y1_final = gcy + 0.5 * gh
+
+                final_boxes = torch.stack([x0_final, y0_final, x1_final, y1_final], dim=1)  # [K,4]
+
+                # 3) Perform per‐part NMS on final_boxes
+                final_b, final_s, final_l = [], [], []
+                for c in parts_kept.unique():
+                    mask_c = (parts_kept == c)
+                    b_c = final_boxes[mask_c]
+                    s_c = scores_kept[mask_c]
+                    sel = nms(b_c, s_c, iou_threshold=0.5)
+                    final_b.append(b_c[sel])
+                    final_s.append(s_c[sel])
+                    final_l.append(torch.full_like(s_c[sel], c))
+
+                if final_b:
+                    boxes_missing  = torch.cat(final_b)
+                    scores_missing = torch.cat(final_s)
+                    labels_missing = torch.cat(final_l)
+                else:
+                    boxes_missing  = torch.zeros((0,4), device=img.device)
+                    scores_missing = torch.zeros((0,),   device=img.device)
+                    labels_missing = torch.zeros((0,),   device=img.device)
+
                 outputs.append({
-                    "boxes_missing":  torch.zeros((0,4), device=img.device),
-                    "scores_missing": torch.zeros((0,),   device=img.device),
-                    "labels_missing": torch.zeros((0,),   device=img.device),
-                })
-                continue
-
-            boxes_kept  = boxes_img[keep]
-            parts_kept  = det["labels"][keep]
-            scores_kept = prob_miss[keep]
-
-            # refine boxes
-            h1_kept = h1[keep]
-            geom_kept = geom[keep]
-            reg_in = torch.cat([h1_kept, geom_kept], dim=1)
-            reg_delta = self.bbox_regressor(reg_in)
-
-            px0, py0, px1, py1 = boxes_kept.unbind(1)
-            pw = px1 - px0
-            ph = py1 - py0
-            pcx = px0 + 0.5 * pw
-            pcy = py0 + 0.5 * ph
-
-            dx, dy, dw, dh = reg_delta.unbind(1)
-            gcx = dx * pw + pcx
-            gcy = dy * ph + pcy
-            gw  = torch.exp(dw) * pw
-            gh  = torch.exp(dh) * ph
-
-            x0f = gcx - 0.5 * gw
-            y0f = gcy - 0.5 * gh
-            x1f = gcx + 0.5 * gw
-            y1f = gcy + 0.5 * gh
-
-            final_boxes = torch.stack([x0f, y0f, x1f, y1f], dim=1)
-
-            # per-part NMS
-            final_b, final_s, final_l = [], [], []
-            for c in parts_kept.unique():
-                mask_c = parts_kept == c
-                bc = final_boxes[mask_c]
-                sc = scores_kept[mask_c]
-                sel = nms(bc, sc, iou_threshold=0.5)
-                final_b.append(bc[sel])
-                final_s.append(sc[sel])
-                final_l.append(torch.full_like(sc[sel], c))
-
-            if final_b:
-                outputs.append({
-                    "boxes_missing":  torch.cat(final_b),
-                    "scores_missing": torch.cat(final_s),
-                    "labels_missing": torch.cat(final_l),
-                })
-            else:
-                outputs.append({
-                    "boxes_missing":  torch.zeros((0,4), device=img.device),
-                    "scores_missing": torch.zeros((0,),   device=img.device),
-                    "labels_missing": torch.zeros((0,),   device=img.device),
+                    "boxes_missing" : boxes_missing,
+                    "scores_missing": scores_missing,
+                    "labels_missing": labels_missing,
                 })
 
-        return outputs
+            return outputs
 
     def _make_edge_index(self, rel):
         N = rel.size(0)
