@@ -381,97 +381,97 @@ best_macro_f1 = 0
 no_improve = 0
 
 for epoch in range(1, epochs+1):
-    # with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+    with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
-    model.train()
+        model.train()
 
-    batch_times = []
-    gpu_memories = []
-    cpu_memories = []
+        batch_times = []
+        gpu_memories = []
+        cpu_memories = []
 
-    with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
-        for images, targets in tepoch:
-            images = [image.to(device) for image in images]
-            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        with tqdm(train_loader, unit="batch", desc=f"Epoch {epoch}/{epochs}") as tepoch:
+            for images, targets in tepoch:
+                images = [image.to(device) for image in images]
+                targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-            start_time = time.time()
+                start_time = time.time()
 
-            optimizer.zero_grad()
-            with torch.amp.autocast(device_type=device.type):
-                loss_dict = model(images, targets)
-                total_loss = sum(loss for loss in loss_dict.values())
-            scaler.scale(total_loss).backward()
-            scaler.step(optimizer) 
-            scaler.update()
+                optimizer.zero_grad()
+                with torch.amp.autocast(device_type=device.type):
+                    loss_dict = model(images, targets)
+                    total_loss = sum(loss for loss in loss_dict.values())
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer) 
+                scaler.update()
 
-            end_time = time.time()
-            inference_time = end_time - start_time
-            batch_times.append(inference_time)
+                end_time = time.time()
+                inference_time = end_time - start_time
+                batch_times.append(inference_time)
 
-            if torch.cuda.is_available():
-                mem_info = nvmlDeviceGetMemoryInfo(handle)
-                gpu_mem_used = mem_info.used / (1024 ** 2)
-                gpu_memories.append(gpu_mem_used)
+                if torch.cuda.is_available():
+                    mem_info = nvmlDeviceGetMemoryInfo(handle)
+                    gpu_mem_used = mem_info.used / (1024 ** 2)
+                    gpu_memories.append(gpu_mem_used)
+                else:
+                    gpu_mem_used = 0
+
+                cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
+                cpu_memories.append(cpu_mem_used)
+
+                tepoch.set_postfix({
+                    "loss": f"{total_loss.item():.4f}",
+                    "time (s)": f"{inference_time:.3f}",
+                    "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
+                    "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
+                })
+
+                del loss_dict, images, targets
+                gc.collect()
+                if torch.cuda.is_available(): 
+                    torch.cuda.empty_cache()
+
+            model.eval()
+            preds, trues = [], []
+            with torch.no_grad():
+                for imgs, tgts in valid_loader:
+                    imgs = [i.to(device) for i in imgs]
+                    outs = model(imgs)
+                    for out, t in zip(outs, tgts):
+                        vec = np.zeros(len(train_dataset.all_parts), dtype=int)
+                        for idx,box in enumerate(out['boxes_missing']): vec[idx%len(vec)] = 1
+                        preds.append(vec)
+                        trues.append(t['is_missing'].numpy())
+            macro_f1 = f1_score(np.vstack(trues), np.vstack(preds), average='macro', zero_division=0)
+            sched.step(macro_f1)
+
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve =  0
+                torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_missing_baseline_model.pth")
             else:
-                gpu_mem_used = 0
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
-            cpu_mem_used = psutil.virtual_memory().used / (1024 ** 2)
-            cpu_memories.append(cpu_mem_used)
+    energy_consumption = tracker.final_emissions_data.energy_consumed
+    co2_emissions = tracker.final_emissions
 
-            tepoch.set_postfix({
-                "loss": f"{total_loss.item():.4f}",
-                "time (s)": f"{inference_time:.3f}",
-                "GPU Mem (MB)": f"{gpu_mem_used:.0f}",
-                "CPU Mem (MB)": f"{cpu_mem_used:.0f}"
-            })
+    avg_time = sum(batch_times) / len(batch_times)
+    max_gpu_mem = max(gpu_memories) if gpu_memories else 0
+    max_cpu_mem = max(cpu_memories)
 
-            del loss_dict, images, targets
-            gc.collect()
-            if torch.cuda.is_available(): 
-                torch.cuda.empty_cache()
+    table = [
+        ["Epoch", epoch],
+        ["Final Loss", f"{total_loss.item():.4f}"],
+        ["Average Batch Time (sec)", f"{avg_time:.4f}"],
+        ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
+        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],    
+        ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
+        ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
+    ]
 
-        model.eval()
-        preds, trues = [], []
-        with torch.no_grad():
-            for imgs, tgts in valid_loader:
-                imgs = [i.to(device) for i in imgs]
-                outs = model(imgs)
-                for out, t in zip(outs, tgts):
-                    vec = np.zeros(len(train_dataset.all_parts), dtype=int)
-                    for idx,box in enumerate(out['boxes_missing']): vec[idx%len(vec)] = 1
-                    preds.append(vec)
-                    trues.append(t['is_missing'].numpy())
-        macro_f1 = f1_score(np.vstack(trues), np.vstack(preds), average='macro', zero_division=0)
-        sched.step(macro_f1)
-
-        if macro_f1 > best_macro_f1:
-            best_macro_f1 = macro_f1
-            no_improve =  0
-            torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_missing_baseline_model.pth")
-        else:
-            no_improve += 1
-            if no_improve >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
-
-# energy_consumption = tracker.final_emissions_data.energy_consumed
-# co2_emissions = tracker.final_emissions
-
-avg_time = sum(batch_times) / len(batch_times)
-max_gpu_mem = max(gpu_memories) if gpu_memories else 0
-max_cpu_mem = max(cpu_memories)
-
-table = [
-    ["Epoch", epoch],
-    ["Final Loss", f"{total_loss.item():.4f}"],
-    ["Average Batch Time (sec)", f"{avg_time:.4f}"],
-    ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-    ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],    
-    # ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
-    # ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
-]
-
-print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
+    print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
 
 
