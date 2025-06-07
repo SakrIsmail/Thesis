@@ -13,6 +13,7 @@ from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
 import torch.nn as nn
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
@@ -24,7 +25,7 @@ from codecarbon import EmissionsTracker
 from torchvision.ops import box_iou
 from torchvision.ops import nms
 from torch_geometric.nn import GATConv
-from torch.cuda.amp import autocast, GradScaler
+
 
 
 def set_seed(seed: int = 42):
@@ -55,7 +56,7 @@ random_seed = 42
 with open(final_output_json, "r") as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations["images"].keys())[:20]
+image_filenames = list(annotations["images"].keys())
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -615,14 +616,19 @@ model = GraphHallucinationRCNN(num_parts=len(train_dataset.all_parts), topk=5).t
     device
 )
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
-scaler = GradScaler()
+scaler = torch.amp.GradScaler(device_type=device.type)
+sched = ReduceLROnPlateau(
+    optimizer, mode='max',
+    factor=0.5, patience=3,
+    min_lr=1e-6, verbose=True
+)
 
 if torch.cuda.is_available():
     nvmlInit()
     handle = nvmlDeviceGetHandleByIndex(0)
 
-epochs = 1
-patience = 5
+epochs = 100
+patience = 8
 best_macro_f1 = 0
 no_improve = 0
 
@@ -703,6 +709,7 @@ for epoch in range(1, epochs + 1):
             ]
         )
         macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
+        sched.step(macro_f1)
 
         if macro_f1 > best_macro_f1:
             best_macro_f1 = macro_f1
@@ -739,6 +746,8 @@ print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 if torch.cuda.is_available():
     nvmlShutdown()
 
+model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth", map_location=device))
+model.to(device)
 
 model.eval()
 
