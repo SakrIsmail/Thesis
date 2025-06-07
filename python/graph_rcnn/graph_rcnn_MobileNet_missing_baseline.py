@@ -25,7 +25,7 @@ from codecarbon import EmissionsTracker
 from torchvision.ops import box_iou
 from torchvision.ops import nms
 from torch_geometric.nn import GATConv
-from torchvision.models.detection.rpn import RPNHead, AnchorGenerator, RPNPreProcessor, RegionProposalNetwork
+from torchvision.models.detection.rpn import RPNHead
 
 
 
