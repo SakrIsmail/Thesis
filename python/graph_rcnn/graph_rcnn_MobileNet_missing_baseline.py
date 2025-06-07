@@ -597,16 +597,20 @@ class GraphHallucinationRCNN(nn.Module):
                     sel = nms(b_c, s_c, iou_threshold=0.5)
                     final_b.append(b_c[sel])
                     final_s.append(s_c[sel])
-                    final_l.append(torch.full_like(s_c[sel], c))
+                    final_l.append(torch.full(
+                        (sel.numel(),),
+                        c,
+                        dtype=torch.int64,
+                    ))
 
                 if final_b:
                     boxes_missing  = torch.cat(final_b)
                     scores_missing = torch.cat(final_s)
                     labels_missing = torch.cat(final_l)
                 else:
-                    boxes_missing  = torch.zeros((0,4), device=img.device)
+                    boxes_missing  = torch.zeros((0,4), dtype=torch.int64, device=img.device)
                     scores_missing = torch.zeros((0,),   device=img.device)
-                    labels_missing = torch.zeros((0,),   device=img.device)
+                    labels_missing = torch.zeros((0,), dtype=torch.int64, device=img.device)
 
                 outputs.append({
                     "boxes_missing" : boxes_missing,
