@@ -55,7 +55,7 @@ random_seed = 42
 with open(final_output_json, "r") as f:
     annotations = json.load(f)
 
-image_filenames = list(annotations["images"].keys())
+image_filenames = list(annotations["images"].keys())[:20]
 
 random.seed(random_seed)
 random.shuffle(image_filenames)
@@ -646,7 +646,7 @@ for epoch in range(1, epochs + 1):
                 start_time = time.time()
 
                 optimizer.zero_grad()
-                with torch.amp.autocast():
+                with torch.amp.autocast(device_type=device.type):
                     loss_dict = model(images, targets)
                     total_loss = sum(loss_dict.values())
                 loss_gcn_cls  = loss_dict.get("loss_gcn_cls",  torch.tensor(0.0))
