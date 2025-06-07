@@ -416,7 +416,11 @@ class GraphHallucinationRCNN(nn.Module):
                 x = torch.cat([feats_img, geom], dim=1)
 
                 # 2.2 relation logits
-                rel = self.repn(feats_img, boxes_img)
+                rel = checkpoint(
+                    lambda feat, box: self.repn(feat, box),
+                    feats_img,
+                    boxes_img
+                )
                 edge = self._make_edge_index(rel)
 
                 # ─── checkpointed GAT layer 1 ───
