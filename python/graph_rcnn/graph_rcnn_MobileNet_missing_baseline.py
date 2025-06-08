@@ -198,33 +198,77 @@ test_loader = DataLoader(
 
 
 def visualize_and_save_predictions(
-    model, dataset, device, out_dir="output_preds", n_images=5
+    model,
+    dataset,
+    device,
+    out_dir="output_preds",
+    n_images=5,
 ):
     os.makedirs(out_dir, exist_ok=True)
     model.eval()
+
+    # pull the idx->part mapping off the dataset
+    idx_to_part = dataset.idx_to_part
 
     for idx in range(min(n_images, len(dataset))):
         img, target = dataset[idx]
         with torch.no_grad():
             pred = model([img.to(device)])[0]
 
+        # convert to HWC uint8
         img_np = img.mul(255).permute(1, 2, 0).byte().cpu().numpy()
+
         fig, ax = plt.subplots(figsize=(8, 8))
         ax.imshow(img_np)
 
-        gt_boxes = target["boxes"][target["is_missing"] == 1].cpu().numpy()
-        for x0, y0, x1, y1 in gt_boxes:
+        # 1) GT missing boxes in red
+        gt_mask = target["is_missing"] == 1
+        gt_boxes = target["boxes"][gt_mask].cpu().numpy()
+        gt_labels = target["labels"][gt_mask].cpu().numpy()
+        for (x0, y0, x1, y1), lbl in zip(gt_boxes, gt_labels):
+            color = "r"
             rect = patches.Rectangle(
-                (x0, y0), x1 - x0, y1 - y0, linewidth=2, edgecolor="r", facecolor="none"
+                (x0, y0),
+                x1 - x0,
+                y1 - y0,
+                linewidth=2,
+                edgecolor=color,
+                facecolor="none",
             )
             ax.add_patch(rect)
+            ax.text(
+                x0,
+                y0 - 2,
+                idx_to_part[int(lbl)],
+                color=color,
+                fontsize=10,
+                weight="bold",
+                va="bottom",
+            )
 
+        # 2) Predicted missing boxes in blue
         pred_boxes = pred["boxes_missing"].cpu().numpy()
-        for x0, y0, x1, y1 in pred_boxes:
+        pred_labels = pred["labels_missing"].cpu().numpy()
+        for (x0, y0, x1, y1), lbl in zip(pred_boxes, pred_labels):
+            color = "b"
             rect = patches.Rectangle(
-                (x0, y0), x1 - x0, y1 - y0, linewidth=2, edgecolor="b", facecolor="none"
+                (x0, y0),
+                x1 - x0,
+                y1 - y0,
+                linewidth=2,
+                edgecolor=color,
+                facecolor="none",
             )
             ax.add_patch(rect)
+            ax.text(
+                x0,
+                y0 - 2,
+                idx_to_part[int(lbl)],
+                color=color,
+                fontsize=10,
+                weight="bold",
+                va="bottom",
+            )
 
         ax.axis("off")
         plt.savefig(
@@ -800,7 +844,7 @@ visualize_and_save_predictions(
     valid_dataset,
     device,
     out_dir="/home/sismail/Thesis/visualisations/",
-    n_images=5,
+    n_images=10,
 )
 
 
