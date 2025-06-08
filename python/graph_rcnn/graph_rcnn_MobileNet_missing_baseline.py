@@ -346,11 +346,12 @@ class RelationProposalNetwork(nn.Module):
         b2 = boxes.unsqueeze(0).expand(N, -1, -1)
         geom = torch.abs(b1 - b2)
         x = torch.relu(self.fc1(torch.cat([f1, f2, geom], dim=-1)))
+        x = nn.functional.dropout(x, p=0.2, training=self.training)
         return self.fc2(x).squeeze(-1)
 
 
 class GraphHallucinationRCNN(nn.Module):
-    def __init__(self, num_parts, topk=5, gcn_hidden=256,
+    def __init__(self, num_parts, topk=20, gcn_hidden=256,
                  rpn_pre_nms_top_n_train=500,
                  rpn_pre_nms_top_n_test=200,
                  rpn_post_nms_top_n_train=200,
@@ -371,7 +372,7 @@ class GraphHallucinationRCNN(nn.Module):
             num_classes=num_parts+1,
             rpn_anchor_generator=anchor_gen,
             rpn_head=rpn_head,
-            trainable_backbone_layers=3,
+            trainable_backbone_layers=8,
             rpn_pre_nms_top_n_train=rpn_pre_nms_top_n_train,
             rpn_pre_nms_top_n_test=rpn_pre_nms_top_n_test,
             rpn_post_nms_top_n_train=rpn_post_nms_top_n_train,
@@ -385,8 +386,8 @@ class GraphHallucinationRCNN(nn.Module):
         # 3) the rest of your GraphHallucinationRCNN init follows exactly as before…
         self.topk = topk
         self.repn = RelationProposalNetwork(in_feats)
-        self.gat1 = GATConv(in_feats + 4, gcn_hidden, heads=4)
-        self.gat2 = GATConv(gcn_hidden * 4, 2, heads=1)
+        self.gat1 = GATConv(in_feats + 4, gcn_hidden, heads=4, dropout=0.2)
+        self.gat2 = GATConv(gcn_hidden * 4, 2, heads=1,   dropout=0.2)
 
         self.bbox_reg_input_dim = gcn_hidden * 4 + 4
         self.bbox_reg_hidden   = gcn_hidden // 2
@@ -460,7 +461,10 @@ class GraphHallucinationRCNN(nn.Module):
 
                     # 2.6) Classification loss on filtered proposals
                     cls_loss = nn.functional.cross_entropy(
-                        filtered_logits, filtered_miss_labels, reduction="mean"
+                        filtered_logits,
+                        filtered_miss_labels,
+                        weight=torch.tensor([1.0, 2.0], device=filtered_logits.device),
+                        reduction="mean"
                     )
                     losses_gcn.append(cls_loss)
 
@@ -645,7 +649,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = GraphHallucinationRCNN(num_parts=len(train_dataset.all_parts), topk=5).to(
     device
 )
-optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+optimizer = torch.optim.AdamW([
+    {'params': model.detector.parameters(),      'lr': 1e-4},
+    {'params': model.repn.parameters(),          'lr': 1e-3},
+    {'params': model.gat1.parameters(),          'lr': 1e-3},
+    {'params': model.gat2.parameters(),          'lr': 1e-3},
+    {'params': model.bbox_regressor.parameters(), 'lr': 5e-4},
+], weight_decay=1e-4)
 scaler = torch.amp.GradScaler(device.type)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
@@ -685,26 +695,9 @@ for epoch in range(1, epochs + 1):
                 with torch.amp.autocast(device_type=device.type):
                     loss_dict = model(images, targets)
                     total_loss = sum(loss_dict.values())
-
-                rcnn_losses = {k: v.item() for k,v in loss_dict.items() if k.startswith("loss_") and k not in ("loss_gcn_cls","loss_gcn_bbox")}
-                gcn_cls = loss_dict.get("loss_gcn_cls", torch.tensor(0.0)).item()
-                gcn_box = loss_dict.get("loss_gcn_bbox", torch.tensor(0.0)).item()
-
-                print(f"[DEBUG] RCNN: {rcnn_losses}, GCN_cls: {gcn_cls:.4f}, GCN_box: {gcn_box:.4f}")
                 loss_gcn_cls  = loss_dict.get("loss_gcn_cls",  torch.tensor(0.0))
                 loss_gcn_bbox = loss_dict.get("loss_gcn_bbox", torch.tensor(0.0))
                 scaler.scale(total_loss).backward()
-                for name, param in model.named_parameters():
-                    if param.grad is None:
-                        print(f"[GRAD] {name} has no grad")
-                    else:
-                        g = param.grad.abs().mean().item()
-                        if g == 0:
-                            print(f"[GRAD] {name} grad is zero")
-                        else:
-                            # only print one to confirm some gradients exist
-                            print(f"[GRAD] {name} grad mean={g:.4e}")
-                            break
                 scaler.step(optimizer) 
                 scaler.update()
 
