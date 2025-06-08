@@ -685,9 +685,26 @@ for epoch in range(1, epochs + 1):
                 with torch.amp.autocast(device_type=device.type):
                     loss_dict = model(images, targets)
                     total_loss = sum(loss_dict.values())
+
+                rcnn_losses = {k: v.item() for k,v in loss_dict.items() if k.startswith("loss_") and k not in ("loss_gcn_cls","loss_gcn_bbox")}
+                gcn_cls = loss_dict.get("loss_gcn_cls", torch.tensor(0.0)).item()
+                gcn_box = loss_dict.get("loss_gcn_bbox", torch.tensor(0.0)).item()
+
+                print(f"[DEBUG] RCNN: {rcnn_losses}, GCN_cls: {gcn_cls:.4f}, GCN_box: {gcn_box:.4f}")
                 loss_gcn_cls  = loss_dict.get("loss_gcn_cls",  torch.tensor(0.0))
                 loss_gcn_bbox = loss_dict.get("loss_gcn_bbox", torch.tensor(0.0))
                 scaler.scale(total_loss).backward()
+                for name, param in model.named_parameters():
+                    if param.grad is None:
+                        print(f"[GRAD] {name} has no grad")
+                    else:
+                        g = param.grad.abs().mean().item()
+                        if g == 0:
+                            print(f"[GRAD] {name} grad is zero")
+                        else:
+                            # only print one to confirm some gradients exist
+                            print(f"[GRAD] {name} grad mean={g:.4e}")
+                            break
                 scaler.step(optimizer) 
                 scaler.update()
 
@@ -775,9 +792,6 @@ for epoch in range(1, epochs + 1):
 
 if torch.cuda.is_available():
     nvmlShutdown()
-
-model.load_state_dict(torch.load("/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth", map_location=device))
-model.to(device)
 
 model.eval()
 
