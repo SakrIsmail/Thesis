@@ -198,12 +198,12 @@ test_dataset = BikePartsDetectionDataset(
     augment=False
 )
 
-train_dataset = MissingOnlyDataset(train_dataset)
-valid_dataset = MissingOnlyDataset(valid_dataset)
-test_dataset  = MissingOnlyDataset(test_dataset)
+train_missing = MissingOnlyDataset(train_dataset)
+valid_missing = MissingOnlyDataset(valid_dataset)
+test_missing  = MissingOnlyDataset(test_dataset)
 
 train_loader = DataLoader(
-    train_dataset,
+    train_missing,
     worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
@@ -212,7 +212,7 @@ train_loader = DataLoader(
 )
 
 valid_loader = DataLoader(
-    valid_dataset,
+    valid_missing,
     batch_size=16,
     shuffle=False,
     num_workers=4,
@@ -220,7 +220,7 @@ valid_loader = DataLoader(
 )
 
 test_loader = DataLoader(
-    test_dataset,
+    test_missing,
     batch_size=16,
     shuffle=False,
     num_workers=4,
