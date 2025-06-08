@@ -78,91 +78,68 @@ test_annotations = {
 
 
 class BikePartsDetectionDataset(Dataset):
-    def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
-        self.all_parts = annotations_dict['all_parts']
-        self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
-        self.idx_to_part = {idx + 1: part for idx, part in enumerate(self.all_parts)}
-        self.image_data = annotations_dict['images']
+    def __init__(self, annotations_dict, image_dir, augment=True, target_size=(640,640)):
+        self.all_parts       = annotations_dict['all_parts']
+        self.part_to_idx = {p: i+1 for i,p in enumerate(self.all_parts)}
+        self.idx_to_part = {i+1: p for i,p in enumerate(self.all_parts)}
+        self.image_data      = annotations_dict['images']
         self.image_filenames = list(self.image_data.keys())
-        self.image_dir = image_dir
-        self.transform = transform
-        self.augment = augment
-        self.target_size = target_size
+        self.image_dir       = image_dir
+        self.augment         = augment
+        self.target_size     = target_size
 
     def __len__(self):
         return len(self.image_filenames) * (2 if self.augment else 1)
 
     def apply_augmentation(self, image, boxes):
+        # horizontal flip
         if random.random() < 0.5:
             image = transforms.functional.hflip(image)
             w = image.width
             boxes = boxes.clone()
-            boxes[:, [0, 2]] = w - boxes[:, [2, 0]]
-
+            boxes[:, [0,2]] = w - boxes[:, [2,0]]
+        # color jitters
         if random.random() < 0.8:
-            image = transforms.functional.adjust_brightness(image, brightness_factor=random.uniform(0.6, 1.4))
+            image = transforms.functional.adjust_brightness(image, random.uniform(0.6,1.4))
         if random.random() < 0.8:
-            image = transforms.functional.adjust_contrast(image, contrast_factor=random.uniform(0.6, 1.4))
+            image = transforms.functional.adjust_contrast(image, random.uniform(0.6,1.4))
         if random.random() < 0.5:
-            image = transforms.functional.adjust_saturation(image, saturation_factor=random.uniform(0.7, 1.3))
-
+            image = transforms.functional.adjust_saturation(image, random.uniform(0.7,1.3))
         return image, boxes
 
     def __getitem__(self, idx):
         real_idx = idx % len(self.image_filenames)
-        do_augment = self.augment and (idx >= len(self.image_filenames))
+        do_aug   = self.augment and (idx >= len(self.image_filenames))
 
-        img_filename = self.image_filenames[real_idx]
-        img_path = os.path.join(self.image_dir, img_filename)
+        fn = self.image_filenames[real_idx]
+        img = Image.open(os.path.join(self.image_dir, fn)).convert('RGB')
+        ow, oh = img.size
 
-        image = Image.open(img_path).convert('RGB')
-        orig_width, orig_height = image.size
-
-        annotation = self.image_data[img_filename]
-        available_parts_info = annotation['available_parts']
-        missing_parts_names = annotation.get('missing_parts', [])
-
-        boxes = []
-        labels = []
-
-        for part_info in available_parts_info:
-            part_name = part_info['part_name']
-            bbox = part_info['absolute_bounding_box']
-            xmin = bbox['left']
-            ymin = bbox['top']
-            xmax = xmin + bbox['width']
-            ymax = ymin + bbox['height']
-            boxes.append([xmin, ymin, xmax, ymax])
-            labels.append(self.part_to_idx[part_name])
+        parts = self.image_data[fn]['parts']
+        boxes, labels, is_missing = [], [], []
+        for part in parts:
+            bb = part['absolute_bounding_box']
+            x0, y0 = bb['left'], bb['top']
+            x1, y1 = x0 + bb['width'], y0 + bb['height']
+            boxes.append([x0,y0,x1,y1])
+            idx = self.part_to_idx[part['part_name']]
+            labels.append(idx)
+            is_missing.append(0 if part['present'] else 1)
 
         boxes = torch.tensor(boxes, dtype=torch.float32)
         labels = torch.tensor(labels, dtype=torch.int64)
+        is_missing = torch.tensor(is_missing, dtype=torch.int64)
 
-        if do_augment:
-            image, boxes = self.apply_augmentation(image, boxes)
+        if do_aug:
+            img, boxes = self.apply_augmentation(img, boxes)
 
-        image = transforms.functional.resize(image, self.target_size)
-        new_width, new_height = self.target_size
-        scale_x = new_width / orig_width
-        scale_y = new_height / orig_height
-        boxes[:, [0, 2]] *= scale_x
-        boxes[:, [1, 3]] *= scale_y
+        img = transforms.functional.resize(img, self.target_size)
+        sx, sy = self.target_size[0]/ow, self.target_size[1]/oh
+        boxes[:,[0,2]] *= sx; boxes[:,[1,3]] *= sy
+        img = transforms.functional.to_tensor(img)
 
-        image = transforms.functional.to_tensor(image)
+        return img, {'boxes': boxes, 'labels': labels, 'is_missing': is_missing}
 
-        missing_labels = torch.tensor(
-            [self.part_to_idx[part] for part in missing_parts_names],
-            dtype=torch.int64
-        )
-
-        target = {
-            'boxes': boxes,
-            'labels': labels,
-            'missing_labels': missing_labels,
-            'image_id': torch.tensor([real_idx])
-        }
-
-        return image, target
     
 class MissingOnlyDataset(Dataset):
     def __init__(self, full_dataset: BikePartsDetectionDataset):
