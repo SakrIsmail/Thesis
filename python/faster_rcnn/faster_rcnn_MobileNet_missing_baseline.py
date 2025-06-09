@@ -13,13 +13,14 @@ from PIL import Image
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
 import torch.nn as nn
+from torchvision.ops import sigmoid_focal_loss
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection import FasterRCNN
-from torchvision.models.detection.rpn import AnchorGenerator, RPNHead
+from torchvision.models.detection.roi_heads import RoIHeads
 from pynvml import nvmlInit, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlShutdown
 from codecarbon import EmissionsTracker
 
@@ -60,6 +61,7 @@ train_images = image_filenames[num_test:]
 num_valid = int(len(train_images) * valid_ratio)
 valid_images = train_images[:num_valid]
 train_images = train_images[num_valid:]
+
 
 train_annotations = {
     'all_parts': annotations['all_parts'],
@@ -140,21 +142,6 @@ class BikePartsDetectionDataset(Dataset):
 
         return img, {'boxes': boxes, 'labels': labels, 'is_missing': is_missing}
 
-    
-class MissingOnlyDataset(Dataset):
-    def __init__(self, full_dataset: BikePartsDetectionDataset):
-        self.full = full_dataset
-
-    def __len__(self):
-        return len(self.full)
-
-    def __getitem__(self, idx):
-        img, target = self.full[idx]
-        mask = target["is_missing"] == 1
-        return img, {
-            "boxes":  target["boxes"][mask],
-            "labels": target["labels"][mask],
-        }
 
 
 train_dataset = BikePartsDetectionDataset(
@@ -175,39 +162,117 @@ test_dataset = BikePartsDetectionDataset(
     augment=False
 )
 
-train_missing = MissingOnlyDataset(train_dataset)
-valid_missing = MissingOnlyDataset(valid_dataset)
-test_missing  = MissingOnlyDataset(test_dataset)
-
 train_loader = DataLoader(
-    train_missing,
+    train_dataset,
     worker_init_fn=seed_worker,
     batch_size=16,
     shuffle=True,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
 valid_loader = DataLoader(
-    valid_missing,
+    valid_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
 test_loader = DataLoader(
-    test_missing,
+    test_dataset,
     batch_size=16,
     shuffle=False,
-    num_workers=4,
+    num_workers=0,
     collate_fn=lambda batch: tuple(zip(*batch))
 )
 
-def evaluate_model(model, loader, part_to_idx, device):
+def visualize_and_save_predictions(
+    model,
+    dataset,
+    device,
+    out_dir="output_preds",
+    n_images=5,
+):
+    os.makedirs(out_dir, exist_ok=True)
     model.eval()
-    P = len(part_to_idx)
+
+    # pull the idx->part mapping off the dataset
+    idx_to_part = dataset.idx_to_part
+
+    for idx in range(min(n_images, len(dataset))):
+        img, target = dataset[idx]
+        with torch.no_grad():
+            pred = model([img.to(device)])[0]
+
+        # convert to HWC uint8
+        img_np = img.mul(255).permute(1, 2, 0).byte().cpu().numpy()
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.imshow(img_np)
+
+        # 1) GT missing boxes in red
+        gt_mask = target["is_missing"] == 1
+        gt_boxes = target["boxes"][gt_mask].cpu().numpy()
+        gt_labels = target["labels"][gt_mask].cpu().numpy()
+        for (x0, y0, x1, y1), lbl in zip(gt_boxes, gt_labels):
+            color = "r"
+            rect = patches.Rectangle(
+                (x0, y0),
+                x1 - x0,
+                y1 - y0,
+                linewidth=2,
+                edgecolor=color,
+                facecolor="none",
+            )
+            ax.add_patch(rect)
+            ax.text(
+                x0,
+                y0 - 2,
+                idx_to_part[int(lbl)],
+                color=color,
+                fontsize=10,
+                weight="bold",
+                va="bottom",
+            )
+
+        # 2) Predicted missing boxes in blue
+        pred_boxes = pred["boxes_missing"].cpu().numpy()
+        pred_labels = pred["labels_missing"].cpu().numpy()
+        for (x0, y0, x1, y1), lbl in zip(pred_boxes, pred_labels):
+            color = "b"
+            rect = patches.Rectangle(
+                (x0, y0),
+                x1 - x0,
+                y1 - y0,
+                linewidth=2,
+                edgecolor=color,
+                facecolor="none",
+            )
+            ax.add_patch(rect)
+            ax.text(
+                x0,
+                y0 - 2,
+                idx_to_part[int(lbl)],
+                color=color,
+                fontsize=10,
+                weight="bold",
+                va="bottom",
+            )
+
+        ax.axis("off")
+        plt.savefig(
+            os.path.join(out_dir, f"pred_{idx}.png"),
+            bbox_inches="tight",
+            pad_inches=0,
+        )
+        plt.close(fig)
+
+
+def evaluate_model(model, loader, device):
+    model.eval()
     results = []
+    P = model.P
 
     with torch.no_grad():
         for imgs, tgts in loader:
@@ -215,44 +280,51 @@ def evaluate_model(model, loader, part_to_idx, device):
             outs = model(imgs)
 
             for tgt, out in zip(tgts, outs):
-                true_vec = torch.zeros(P, dtype=torch.int64)
-                pred_vec = torch.zeros(P, dtype=torch.int64)
+                vec_pred = torch.zeros(P, dtype=torch.int64)
+                for part_idx in out['labels_missing'].cpu().tolist():
+                    vec_pred[part_idx] = 1
 
-                for lbl in tgt["labels"].tolist():
-                    true_vec[lbl-1] = 1
-
-                for lbl in out["labels"].cpu().tolist():
-                    pred_vec[lbl-1] = 1
+                vec_true = torch.zeros(P, dtype=torch.int64)
+                for lbl, miss in zip(tgt['labels'].cpu().tolist(),
+                                     tgt['is_missing'].cpu().tolist()):
+                    idx0 = lbl - 1
+                    if miss == 1:
+                        vec_true[idx0] = 1
 
                 results.append({
-                    "true_missing_parts": true_vec.cpu().numpy(),
-                    "predicted_missing_parts": pred_vec.cpu().numpy(),
+                    'predicted_missing_parts': vec_pred.cpu().numpy(),
+                    'true_missing_parts':      vec_true.cpu().numpy()
                 })
 
     return results
 
 
-def part_level_evaluation(results, part_to_idx, idx_to_part):
-    parts = list(part_to_idx.values())
+def part_level_evaluation(results, all_parts):
+    """
+    results: list of dicts with keys
+        - 'predicted_missing_parts': List[int] of length P (0/1 for each part)
+        - 'true_missing_parts':      List[int] of length P (0/1 for each part)
+    all_parts:  List[str] of length P, giving the part names in order
+    """
+    # Stack into (N_images, P) arrays
+    Y_true = np.array([r['true_missing_parts']      for r in results])
+    Y_pred = np.array([r['predicted_missing_parts'] for r in results])
 
-    Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-    Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-
+    # Overall (flattened) metrics
     micro_f1 = f1_score(Y_true, Y_pred, average='micro', zero_division=0)
     macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
+    overall_acc = accuracy_score(Y_true.flatten(), Y_pred.flatten())
+    overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_rec  = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
+    overall_f1   = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
 
+    # Miss-rate and FPPI
     FN = np.logical_and(Y_true==1, Y_pred==0).sum()
     TP = np.logical_and(Y_true==1, Y_pred==1).sum()
     FP = np.logical_and(Y_true==0, Y_pred==1).sum()
+    miss_rate = FN/(FN+TP) if (FN+TP)>0 else 0.0
+    fppi = FP / len(results)
 
-    N_images = len(results)
-    miss_rate = FN/(FN+TP) if (FN+TP)>0 else 0
-    fppi = FP/N_images
-
-    overall_acc = accuracy_score(Y_true.flatten(), Y_pred.flatten())
-    overall_prec = precision_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
-    overall_rec = recall_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
-    overall_f1 = f1_score(Y_true.flatten(), Y_pred.flatten(), zero_division=0)
     print(f"[METRIC] Micro-F1: {micro_f1:.4f}")
     print(f"[METRIC] Macro-F1: {macro_f1:.4f}")
     print(f"[METRIC] Miss Rate: {miss_rate:.4f}")
@@ -261,69 +333,168 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print(f"[METRIC] Precision: {overall_prec:.4f}")
     print(f"[METRIC] Recall: {overall_rec:.4f}")
     print(f"[METRIC] F1: {overall_f1:.4f}")
-    
-    table=[]
-    for j,p in enumerate(parts):
-        acc = accuracy_score(Y_true[:,j], Y_pred[:,j])
+
+    # Per-part table
+    table = []
+    for j, part_name in enumerate(all_parts):
+        acc  = accuracy_score(Y_true[:,j], Y_pred[:,j])
         prec = precision_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
-        rec = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
-        f1s = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
-        table.append([idx_to_part[p], f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1s:.3f}"])
+        rec  = recall_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        f1   = f1_score(Y_true[:,j], Y_pred[:,j], zero_division=0)
+        table.append([part_name, f"{acc:.3f}", f"{prec:.3f}", f"{rec:.3f}", f"{f1:.3f}"])
 
-    print("[METRIC-TABLE] Per-Part Evaluation")
+    print("\n[PER-PART EVALUATION]")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
+        
+class FocalFastRCNNPredictor(nn.Module):
+    """
+    Same as FastRCNNPredictor but returns raw cls scores and bbox deltas.
+    """
+    def __init__(self, in_channels, num_classes):
+        super().__init__()
+        from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+        self.cls_score = nn.Linear(in_channels, num_classes)
+        self.bbox_pred = nn.Linear(in_channels, num_classes * 4)
 
-def visualize_missing(model, dataset, device, out_dir="vis", n=5):
-    os.makedirs(out_dir, exist_ok=True)
-    idx_to_part = dataset.idx_to_part
+    def forward(self, x):
+        x = x.flatten(start_dim=1)
+        scores = self.cls_score(x)
+        bbox_deltas = self.bbox_pred(x)
+        return scores, bbox_deltas
 
-    model.eval()
-    for i in range(min(n, len(dataset))):
-        img, target = dataset[i]
-        with torch.no_grad():
-            out = model([img.to(device)])[0]
+class FocalRoIHeads(RoIHeads):
+    def __init__(self, *args, alpha_pos=0.75, alpha_neg=0.25, gamma=2.0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.alpha_pos = alpha_pos
+        self.alpha_neg = alpha_neg
+        self.gamma = gamma
 
-        img_np = img.mul(255).permute(1,2,0).byte().cpu().numpy()
-        fig,ax = plt.subplots(figsize=(6,6))
-        ax.imshow(img_np)
+    def _forward_box(self, features, proposals, image_shapes, targets=None):
+        if self.training:
+            proposals, matched_idxs, labels, regression_targets = \
+                self.label_and_sample_proposals(proposals, targets)
 
-        # GT missing in red:
-        for box, lbl in zip(target["boxes"], target["labels"]):
-            x0,y0,x1,y1 = box.tolist()
-            c, t = "r", idx_to_part[int(lbl)]
-            rect = patches.Rectangle((x0,y0),x1-x0,y1-y0, edgecolor=c, facecolor="none", lw=2)
-            ax.add_patch(rect)
-            ax.text(x0, y0-2, t, color=c, weight="bold")
+        box_features = self.box_roi_pool(features, proposals, image_shapes)
+        box_features = self.box_head(box_features)
+        class_logits, box_regression = self.box_predictor(box_features)
 
-        # Predicted in blue:
-        for box, lbl in zip(out["boxes"].cpu(), out["labels"].cpu()):
-            x0,y0,x1,y1 = box.tolist()
-            c, t = "b", idx_to_part[int(lbl)]
-            rect = patches.Rectangle((x0,y0),x1-x0,y1-y0, edgecolor=c, facecolor="none", lw=2)
-            ax.add_patch(rect)
-            ax.text(x0, y0-2, t, color=c, weight="bold")
+        loss_classifier = torch.tensor(0., device=class_logits.device)
+        loss_box_reg = torch.tensor(0., device=class_logits.device)
+        if self.training:
+            num_classes = class_logits.shape[1]
+            labels_tensor = labels
+            one_hot = torch.zeros_like(class_logits)
+            one_hot.scatter_(1, labels_tensor.unsqueeze(1), 1)
 
-        ax.axis("off")
-        plt.savefig(f"{out_dir}/pred_{i}.png", bbox_inches="tight", pad_inches=0)
-        plt.close(fig)
+            alpha = torch.where(labels_tensor > self.num_classes_per_head - 1,
+                                self.alpha_pos, self.alpha_neg)
 
+            loss_classifier = sigmoid_focal_loss(
+                class_logits, one_hot,
+                alpha=alpha.view(-1, 1), gamma=self.gamma,
+                reduction="mean"
+            )
+            loss_box_reg = super()._run_fastrcnn_loss(
+                box_regression, proposals, matched_idxs, targets
+            )
+        return proposals, {}, {
+            'loss_classifier': loss_classifier,
+            'loss_box_reg': loss_box_reg
+        }
 
-model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
+class HallucinationFasterRCNN(nn.Module):
+    def __init__(self, all_parts, trainable_backbone_layers=8):
+        super().__init__()
+        P = len(all_parts)
+        base = fasterrcnn_mobilenet_v3_large_fpn(
+            weights='DEFAULT', trainable_backbone_layers=trainable_backbone_layers
+        )
+        # build FasterRCNN with our RoIHeads
+        self.model = FasterRCNN(
+            backbone=base.backbone,
+            num_classes=1,
+            rpn_anchor_generator=base.rpn.anchor_generator,
+            rpn_head=base.rpn.head,
+            box_roi_pool=base.roi_heads.box_roi_pool,
+            box_head=base.roi_heads.box_head,
+            box_predictor=FocalFastRCNNPredictor(
+                base.roi_heads.box_predictor.cls_score.in_features,
+                num_classes=1+2*P
+            ),
+            trainable_backbone_layers=trainable_backbone_layers,
+            image_mean=base.transform.image_mean,
+            image_std=base.transform.image_std,
+            box_score_thresh=base.roi_heads.score_thresh,
+            box_nms_thresh=base.roi_heads.nms_thresh,
+            box_detections_per_img=base.roi_heads.detections_per_img,
+            box_fg_iou_thresh=base.roi_heads.proposal_matcher.high_threshold,
+            box_bg_iou_thresh=base.roi_heads.proposal_matcher.low_threshold,
+            box_batch_size_per_image=base.roi_heads.batch_size_per_image,
+            box_positive_fraction=base.roi_heads.positive_fraction
+        )
+        # replace RoIHeads
+        self.model.roi_heads = FocalRoIHeads(
+            self.model.roi_heads.box_roi_pool,
+            self.model.roi_heads.box_head,
+            self.model.roi_heads.box_predictor,
+            self.model.roi_heads.proposal_matcher,
+            self.model.roi_heads.fg_bg_sampler,
+            resolution=self.model.roi_heads.box_roi_pool.output_size,
+            representation_size=base.roi_heads.box_head.fc7.in_features,
+            box_score_thresh=base.roi_heads.score_thresh,
+            box_nms_thresh=base.roi_heads.nms_thresh,
+            box_detections_per_img=base.roi_heads.detections_per_img,
+            box_fg_iou_thresh=base.roi_heads.proposal_matcher.high_threshold,
+            box_bg_iou_thresh=base.roi_heads.proposal_matcher.low_threshold,
+            box_batch_size_per_image=base.roi_heads.batch_size_per_image,
+            box_positive_fraction=base.roi_heads.positive_fraction,
+            alpha_pos=0.75,
+            alpha_neg=0.25,
+            gamma=2.0
+        )
+        self.P = P
 
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-num_classes = len(train_dataset.all_parts) + 1
-model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    def forward(self, images, targets=None):
+        # same mapping of labels→fused classes as before
+        if self.training:
+            new_targets = []
+            for t in targets:
+                labs = []
+                for lbl, miss in zip(t['labels'], t['is_missing']):
+                    k = lbl.item() - 1
+                    cls = 1 + k if miss.item() == 0 else 1 + self.P + k
+                    labs.append(cls)
+                new_targets.append({'boxes': t['boxes'], 'labels': torch.tensor(labs, device=t['boxes'].device)})
+            return self.model(images, new_targets)
+        else:
+            outs = self.model(images)
+            final = []
+            for out in outs:
+                boxes, labels, scores = out['boxes'], out['labels'], out['scores']
+                miss_boxes, miss_scores, miss_labels = [], [], []
+                for b, l, s in zip(boxes, labels, scores):
+                    if l > self.P:
+                        miss_boxes.append(b); miss_scores.append(s)
+                        miss_labels.append((l - 1 - self.P).item())
+                final.append({
+                    'boxes_missing': torch.stack(miss_boxes) if miss_boxes else torch.zeros((0,4), device=boxes.device),
+                    'scores_missing': torch.tensor(miss_scores, device=boxes.device) if miss_scores else torch.tensor([], device=boxes.device),
+                    'labels_missing': torch.tensor(miss_labels, device=boxes.device) if miss_labels else torch.tensor([], device=boxes.device)
+                })
+            return final
 
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-model.to(device)
+        
 
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = HallucinationFasterRCNN(train_dataset.all_parts).to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
 sched = ReduceLROnPlateau(
     optimizer, mode='max',
     factor=0.5, patience=3,
     min_lr=1e-6, verbose=True
 )
+
+scaler = torch.amp.GradScaler(device.type)
 
 if torch.cuda.is_available():
     nvmlInit()
@@ -351,10 +522,12 @@ for epoch in range(1, epochs+1):
                 start_time = time.time()
 
                 optimizer.zero_grad()
-                loss_dict = model(images, targets)
-                total_loss = sum(loss for loss in loss_dict.values())
-                total_loss.backward()
-                optimizer.step()
+                with torch.amp.autocast(device_type=device.type):
+                    loss_dict = model(images, targets)
+                    total_loss = sum(loss for loss in loss_dict.values())
+                scaler.scale(total_loss).backward()
+                scaler.step(optimizer) 
+                scaler.update()
 
                 end_time = time.time()
                 inference_time = end_time - start_time
@@ -383,17 +556,22 @@ for epoch in range(1, epochs+1):
                     torch.cuda.empty_cache()
 
             model.eval()
-            results = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
-            parts = list(train_dataset.part_to_idx.values())
-            Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
-            Y_pred = np.array([[1 if p in r['predicted_missing_parts'] else 0 for p in parts] for r in results])
-            macro_f1 = f1_score(Y_true, Y_pred, average='macro', zero_division=0)
-
+            preds, trues = [], []
+            with torch.no_grad():
+                for imgs, tgts in valid_loader:
+                    imgs = [i.to(device) for i in imgs]
+                    outs = model(imgs)
+                    for out, t in zip(outs, tgts):
+                        vec = np.zeros(len(train_dataset.all_parts), dtype=int)
+                        for idx,box in enumerate(out['boxes_missing']): vec[idx%len(vec)] = 1
+                        preds.append(vec)
+                        trues.append(t['is_missing'].numpy())
+            macro_f1 = f1_score(np.vstack(trues), np.vstack(preds), average='macro', zero_division=0)
             sched.step(macro_f1)
 
             if macro_f1 > best_macro_f1:
                 best_macro_f1 = macro_f1
-                no_improve = 0
+                no_improve =  0
                 torch.save(model.state_dict(), "/var/scratch/sismail/models/faster_rcnn/fasterrcnn_MobileNet_missing_baseline_model.pth")
             else:
                 no_improve += 1
@@ -413,12 +591,14 @@ for epoch in range(1, epochs+1):
         ["Final Loss", f"{total_loss.item():.4f}"],
         ["Average Batch Time (sec)", f"{avg_time:.4f}"],
         ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
-        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+        ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],    
         ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
         ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
     ]
 
     print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
+
+
 
 if torch.cuda.is_available():
     nvmlShutdown()
@@ -429,16 +609,14 @@ model.to(device)
 
 model.eval()
 
-results_per_image = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
+results_per_image = evaluate_model(model, valid_loader, device)
+# print(results_per_image)
 
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
+part_level_evaluation(results_per_image, train_dataset.all_parts)
 
-visualize_missing(model, valid_dataset, device, out_dir="/home/sismail/Thesis/visualisations/", n=10)
+visualize_and_save_predictions(model, valid_dataset, device, out_dir="/home/sismail/Thesis/visualisations/", n_images=10)
 
-results_per_image = evaluate_model(model, test_loader, train_dataset.part_to_idx, device)
 
-part_level_evaluation(
-    results_per_image, train_dataset.part_to_idx, train_dataset.idx_to_part
-)
+results_per_image = evaluate_model(model, test_loader, device)
+
+part_level_evaluation(results_per_image, train_dataset.all_parts)
