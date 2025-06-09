@@ -403,7 +403,7 @@ class FocalRoIHeads(RoIHeads):
         }
 
 class HallucinationFasterRCNN(nn.Module):
-    def __init__(self, all_parts, trainable_backbone_layers=8):
+    def __init__(self, all_parts, trainable_backbone_layers=3):
         super().__init__()
         P = len(all_parts)
         base = fasterrcnn_mobilenet_v3_large_fpn(
