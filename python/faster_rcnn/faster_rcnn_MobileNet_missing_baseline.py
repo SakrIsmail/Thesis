@@ -346,140 +346,95 @@ def part_level_evaluation(results, all_parts):
     print("\n[PER-PART EVALUATION]")
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
         
-class FocalFastRCNNPredictor(nn.Module):
+class FocalFastRCNNPredictor(FastRCNNPredictor):
     """
-    Same as FastRCNNPredictor but returns raw cls scores and bbox deltas.
+    Exactly like FastRCNNPredictor, but forward() returns raw cls scores and bbox deltas
+    so we can plug in focal loss ourselves.
     """
-    def __init__(self, in_channels, num_classes):
-        super().__init__()
-        from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
-        self.cls_score = nn.Linear(in_channels, num_classes)
-        self.bbox_pred = nn.Linear(in_channels, num_classes * 4)
-
     def forward(self, x):
         x = x.flatten(start_dim=1)
-        scores = self.cls_score(x)
+        scores     = self.cls_score(x) 
         bbox_deltas = self.bbox_pred(x)
         return scores, bbox_deltas
-
-class FocalRoIHeads(RoIHeads):
-    def __init__(self, *args, alpha_pos=0.75, alpha_neg=0.25, gamma=2.0, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.alpha_pos = alpha_pos
-        self.alpha_neg = alpha_neg
-        self.gamma = gamma
-
-    def _forward_box(self, features, proposals, image_shapes, targets=None):
-        if self.training:
-            proposals, matched_idxs, labels, regression_targets = \
-                self.label_and_sample_proposals(proposals, targets)
-
-        box_features = self.box_roi_pool(features, proposals, image_shapes)
-        box_features = self.box_head(box_features)
-        class_logits, box_regression = self.box_predictor(box_features)
-
-        loss_classifier = torch.tensor(0., device=class_logits.device)
-        loss_box_reg = torch.tensor(0., device=class_logits.device)
-        if self.training:
-            num_classes = class_logits.shape[1]
-            labels_tensor = labels
-            one_hot = torch.zeros_like(class_logits)
-            one_hot.scatter_(1, labels_tensor.unsqueeze(1), 1)
-
-            alpha = torch.where(labels_tensor > self.num_classes_per_head - 1,
-                                self.alpha_pos, self.alpha_neg)
-
-            loss_classifier = sigmoid_focal_loss(
-                class_logits, one_hot,
-                alpha=alpha.view(-1, 1), gamma=self.gamma,
-                reduction="mean"
-            )
-            loss_box_reg = super()._run_fastrcnn_loss(
-                box_regression, proposals, matched_idxs, targets
-            )
-        return proposals, {}, {
-            'loss_classifier': loss_classifier,
-            'loss_box_reg': loss_box_reg
-        }
 
 class HallucinationFasterRCNN(nn.Module):
     def __init__(self, all_parts, trainable_backbone_layers=3):
         super().__init__()
-        P = len(all_parts)
+        self.P = len(all_parts)
+
         base = fasterrcnn_mobilenet_v3_large_fpn(
-            weights='DEFAULT', trainable_backbone_layers=trainable_backbone_layers
+            weights='DEFAULT',
+            trainable_backbone_layers=trainable_backbone_layers
         )
-        # build FasterRCNN with our RoIHeads
+        backbone = base.backbone
+
         self.model = FasterRCNN(
-            backbone=base.backbone,
+            backbone=backbone,
             num_classes=1,
             rpn_anchor_generator=base.rpn.anchor_generator,
             rpn_head=base.rpn.head,
-            box_roi_pool=base.roi_heads.box_roi_pool,
-            box_head=base.roi_heads.box_head,
-            box_predictor=FocalFastRCNNPredictor(
-                base.roi_heads.box_predictor.cls_score.in_features,
-                num_classes=1+2*P
-            ),
             trainable_backbone_layers=trainable_backbone_layers,
-            image_mean=base.transform.image_mean,
-            image_std=base.transform.image_std,
-            box_score_thresh=base.roi_heads.score_thresh,
-            box_nms_thresh=base.roi_heads.nms_thresh,
-            box_detections_per_img=base.roi_heads.detections_per_img,
-            box_fg_iou_thresh=base.roi_heads.proposal_matcher.high_threshold,
-            box_bg_iou_thresh=base.roi_heads.proposal_matcher.low_threshold,
-            box_batch_size_per_image=base.roi_heads.batch_size_per_image,
-            box_positive_fraction=base.roi_heads.positive_fraction
         )
-        # replace RoIHeads
-        self.model.roi_heads = FocalRoIHeads(
-            self.model.roi_heads.box_roi_pool,
-            self.model.roi_heads.box_head,
-            self.model.roi_heads.box_predictor,
-            self.model.roi_heads.proposal_matcher,
-            self.model.roi_heads.fg_bg_sampler,
-            resolution=self.model.roi_heads.box_roi_pool.output_size,
-            representation_size=base.roi_heads.box_head.fc7.in_features,
-            box_score_thresh=base.roi_heads.score_thresh,
-            box_nms_thresh=base.roi_heads.nms_thresh,
-            box_detections_per_img=base.roi_heads.detections_per_img,
-            box_fg_iou_thresh=base.roi_heads.proposal_matcher.high_threshold,
-            box_bg_iou_thresh=base.roi_heads.proposal_matcher.low_threshold,
-            box_batch_size_per_image=base.roi_heads.batch_size_per_image,
-            box_positive_fraction=base.roi_heads.positive_fraction,
-            alpha_pos=0.75,
-            alpha_neg=0.25,
-            gamma=2.0
+
+        in_features = self.model.roi_heads.box_predictor.cls_score.in_features
+        total_classes = 1 + 2 * self.P
+        self.model.roi_heads.box_predictor = FocalFastRCNNPredictor(
+            in_features,
+            num_classes=total_classes
         )
-        self.P = P
 
     def forward(self, images, targets=None):
-        # same mapping of labels→fused classes as before
         if self.training:
             new_targets = []
             for t in targets:
-                labs = []
+                fused = []
                 for lbl, miss in zip(t['labels'], t['is_missing']):
                     k = lbl.item() - 1
-                    cls = 1 + k if miss.item() == 0 else 1 + self.P + k
-                    labs.append(cls)
-                new_targets.append({'boxes': t['boxes'], 'labels': torch.tensor(labs, device=t['boxes'].device)})
-            return self.model(images, new_targets)
+                    fused.append(1 + k if miss.item()==0 else 1 + self.P + k)
+                new_targets.append({'boxes': t['boxes'],
+                                     'labels': torch.tensor(fused, device=t['boxes'].device)})
+
+            loss_dict = self.model(images, new_targets)
+            loss_dict.pop('loss_classifier')
+
+            imgs, img_shapes = self.model.transform(images)
+            feats            = self.model.backbone(imgs.tensors)
+            proposals, _     = self.model.rpn(imgs, feats, new_targets)
+            pooled_feats     = self.model.roi_heads.box_roi_pool(feats, proposals, img_shapes)
+            rep              = self.model.roi_heads.box_head(pooled_feats)
+            logits, _        = self.model.roi_heads.box_predictor(rep)
+
+            labels_cat = torch.cat([t['labels'] for t in new_targets])
+            one_hot    = torch.zeros_like(logits)
+            one_hot.scatter_(1, labels_cat.unsqueeze(1), 1)
+
+            is_miss = (labels_cat > self.P)
+            alpha   = torch.where(is_miss, 0.75, 0.25).to(logits.device)
+
+            loss_cls = sigmoid_focal_loss(
+                logits, one_hot,
+                alpha=alpha.view(-1,1),
+                gamma=2.0,
+                reduction='mean'
+            )
+            loss_dict['loss_classifier'] = loss_cls
+            return loss_dict
+
         else:
             outs = self.model(images)
             final = []
             for out in outs:
                 boxes, labels, scores = out['boxes'], out['labels'], out['scores']
-                miss_boxes, miss_scores, miss_labels = [], [], []
+                miss_boxes, miss_labels, miss_scores = [], [], []
                 for b, l, s in zip(boxes, labels, scores):
                     if l > self.P:
-                        miss_boxes.append(b); miss_scores.append(s)
+                        miss_boxes.append(b)
+                        miss_scores.append(s)
                         miss_labels.append((l - 1 - self.P).item())
                 final.append({
-                    'boxes_missing': torch.stack(miss_boxes) if miss_boxes else torch.zeros((0,4), device=boxes.device),
+                    'boxes_missing':  torch.stack(miss_boxes)      if miss_boxes  else torch.zeros((0,4), device=boxes.device),
                     'scores_missing': torch.tensor(miss_scores, device=boxes.device) if miss_scores else torch.tensor([], device=boxes.device),
-                    'labels_missing': torch.tensor(miss_labels, device=boxes.device) if miss_labels else torch.tensor([], device=boxes.device)
+                    'labels_missing': torch.tensor(miss_labels, device=boxes.device) if miss_labels else torch.tensor([], device=boxes.device),
                 })
             return final
 
