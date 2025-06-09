@@ -353,30 +353,36 @@ class FocalFastRCNNPredictor(FastRCNNPredictor):
     """
     def forward(self, x):
         x = x.flatten(start_dim=1)
-        scores     = self.cls_score(x) 
-        bbox_deltas = self.bbox_pred(x)
+        scores     = self.cls_score(x)     # [N, num_classes]
+        bbox_deltas = self.bbox_pred(x)    # [N, num_classes * 4]
         return scores, bbox_deltas
 
 class HallucinationFasterRCNN(nn.Module):
-    def __init__(self, all_parts, trainable_backbone_layers=3):
+    def __init__(self, all_parts, trainable_backbone_layers=3,
+                 alpha_miss: float = 0.75, gamma: float = 2.0):
         super().__init__()
         self.P = len(all_parts)
+        self.alpha_miss = alpha_miss
+        self.gamma      = gamma
 
+        # 1) load base Faster R-CNN
         base = fasterrcnn_mobilenet_v3_large_fpn(
             weights='DEFAULT',
             trainable_backbone_layers=trainable_backbone_layers
         )
         backbone = base.backbone
 
+        # 2) build a fresh FasterRCNN, so we can swap in our focal predictor
         self.model = FasterRCNN(
             backbone=backbone,
-            num_classes=1,
+            num_classes=1,  # dummy, we'll replace predictor next
             rpn_anchor_generator=base.rpn.anchor_generator,
             rpn_head=base.rpn.head,
             trainable_backbone_layers=trainable_backbone_layers,
         )
 
-        in_features = self.model.roi_heads.box_predictor.cls_score.in_features
+        # 3) swap in focal predictor: now detecting (1 + 2*P) classes
+        in_features   = self.model.roi_heads.box_predictor.cls_score.in_features
         total_classes = 1 + 2 * self.P
         self.model.roi_heads.box_predictor = FocalFastRCNNPredictor(
             in_features,
@@ -385,14 +391,18 @@ class HallucinationFasterRCNN(nn.Module):
 
     def forward(self, images, targets=None):
         if self.training:
+            # map (part,label) → fused class ID: present→[1..P], missing→[P+1..2P]
             new_targets = []
             for t in targets:
                 fused = []
                 for lbl, miss in zip(t['labels'], t['is_missing']):
                     k = lbl.item() - 1
-                    fused.append(1 + k if miss.item()==0 else 1 + self.P + k)
-                new_targets.append({'boxes': t['boxes'],
-                                     'labels': torch.tensor(fused, device=t['boxes'].device)})
+                    fused_cls = 1 + k if miss.item() == 0 else 1 + self.P + k
+                    fused.append(fused_cls)
+                new_targets.append({
+                    'boxes':  t['boxes'],
+                    'labels': torch.tensor(fused, device=t['boxes'].device),
+                })
 
             loss_dict = self.model(images, new_targets)
             loss_dict.pop('loss_classifier')
@@ -406,21 +416,19 @@ class HallucinationFasterRCNN(nn.Module):
 
             labels_cat = torch.cat([t['labels'] for t in new_targets])
             one_hot    = torch.zeros_like(logits)
-            one_hot.scatter_(1, labels_cat.unsqueeze(1), 1)
-
-            is_miss = (labels_cat > self.P)
-            alpha   = torch.where(is_miss, 0.75, 0.25).to(logits.device)
+            one_hot.scatter_(1, labels_cat.unsqueeze(1), 1.0)
 
             loss_cls = sigmoid_focal_loss(
                 logits, one_hot,
-                alpha=alpha.view(-1,1),
-                gamma=2.0,
+                alpha=self.alpha_miss,
+                gamma=self.gamma,
                 reduction='mean'
             )
             loss_dict['loss_classifier'] = loss_cls
             return loss_dict
 
         else:
+
             outs = self.model(images)
             final = []
             for out in outs:
