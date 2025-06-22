@@ -22,6 +22,11 @@ from codecarbon import EmissionsTracker
 
 
 def set_seed(seed: int = 42):
+    """
+    Set random seed for reproducibility.
+    Args:
+        seed (int): Seed value to set for random number generators.
+    """
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -32,6 +37,11 @@ def set_seed(seed: int = 42):
 set_seed(42)
 
 def seed_worker(worker_id):
+    """
+    Set the seed for each worker to ensure reproducibility.
+    Args:
+        worker_id (int): The ID of the worker.
+    """
     worker_seed = torch.initial_seed() % (2**32)
     np.random.seed(worker_seed)
     random.seed(worker_seed)
@@ -40,6 +50,7 @@ def seed_worker(worker_id):
 final_output_json='/var/scratch/sismail/data/processed/final_annotations_without_occluded.json'
 image_directory = '/var/scratch/sismail/data/images'
 
+# Split the dataset into train, validation, and test sets
 test_ratio = 0.2
 valid_ratio = 0.1
 random_seed = 42
@@ -76,6 +87,15 @@ test_annotations = {
 
 
 class BikePartsDetectionDataset(Dataset):
+    """
+    Custom dataset for bike parts detection.
+    Args:
+        annotations_dict (dict): Dictionary containing annotations with keys 'all_parts' and 'images'.
+        image_dir (str): Directory containing the images.
+        transform (callable, optional): A function/transform to apply to the images.
+        augment (bool): Whether to apply data augmentation.
+        target_size (tuple): The target size for resizing images.
+    """
     def __init__(self, annotations_dict, image_dir, transform=None, augment=True, target_size=(640, 640)):
         self.all_parts = annotations_dict['all_parts']
         self.part_to_idx = {part: idx + 1 for idx, part in enumerate(self.all_parts)}
@@ -91,6 +111,15 @@ class BikePartsDetectionDataset(Dataset):
         return len(self.image_filenames) * (2 if self.augment else 1)
 
     def apply_augmentation(self, image, boxes):
+        """
+        Apply random augmentations to the image and bounding boxes.
+        Args:
+            image (PIL.Image): The input image.
+            boxes (torch.Tensor): Bounding boxes in the format [x_min, y_min, x_max, y_max].
+        Returns:
+            PIL.Image: Augmented image.
+            torch.Tensor: Augmented bounding boxes.
+        """
         if random.random() < 0.5:
             image = transforms.functional.hflip(image)
             w = image.width
@@ -107,6 +136,13 @@ class BikePartsDetectionDataset(Dataset):
         return image, boxes
 
     def __getitem__(self, idx):
+        """
+        Get an item from the dataset.
+        Args:
+            idx (int): Index of the item to retrieve.
+        Returns:
+            tuple: A tuple containing the image and its corresponding target dictionary.
+        """
         real_idx = idx % len(self.image_filenames)
         do_augment = self.augment and (idx >= len(self.image_filenames))
 
@@ -207,6 +243,16 @@ test_loader = DataLoader(
 )
 
 def evaluate_model(model, data_loader, part_to_idx, device):
+    """
+    Evaluate the model on the given data loader.
+    Args:
+        model (torch.nn.Module): The model to evaluate.
+        data_loader (DataLoader): DataLoader for the dataset to evaluate.
+        part_to_idx (dict): Mapping from part names to indices.
+        device (torch.device): Device to run the model on.
+    Returns:
+        list: A list of dictionaries containing evaluation results for each image.
+    """
     model.eval()
 
     all_parts_set = set(part_to_idx.values())
@@ -236,6 +282,13 @@ def evaluate_model(model, data_loader, part_to_idx, device):
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
+    """
+    Evaluate the model's performance on a per-part basis.
+    Args:
+        results (list): List of dictionaries containing evaluation results for each image.
+        part_to_idx (dict): Mapping from part names to indices.
+        idx_to_part (dict): Mapping from indices to part names.
+    """
     parts = list(part_to_idx.values())
 
     Y_true = np.array([[1 if p in r['true_missing_parts'] else 0 for p in parts] for r in results])
@@ -277,7 +330,7 @@ def part_level_evaluation(results, part_to_idx, idx_to_part):
     print(tabulate(table, headers=["Part","Acc","Prec","Rec","F1"], tablefmt="fancy_grid"))
 
 
-
+# Load the pre-trained Faster R-CNN model with MobileNetV3 backbone
 model = fasterrcnn_mobilenet_v3_large_fpn(weights='DEFAULT')
 
 in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -305,6 +358,7 @@ best_macro_f1 = 0
 no_improve = 0
 
 for epoch in range(1, epochs+1):
+    # starts the emissions tracker
     with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
 
         model.train()
@@ -330,6 +384,7 @@ for epoch in range(1, epochs+1):
                 inference_time = end_time - start_time
                 batch_times.append(inference_time)
 
+                # Track GPU and CPU memory usage
                 if torch.cuda.is_available():
                     mem_info = nvmlDeviceGetMemoryInfo(handle)
                     gpu_mem_used = mem_info.used / (1024 ** 2)
@@ -351,7 +406,8 @@ for epoch in range(1, epochs+1):
                 gc.collect()
                 if torch.cuda.is_available(): 
                     torch.cuda.empty_cache()
-
+                    
+            # early stopping based on validation performance
             model.eval()
             results = evaluate_model(model, valid_loader, train_dataset.part_to_idx, device)
             parts = list(train_dataset.part_to_idx.values())
