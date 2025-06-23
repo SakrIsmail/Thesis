@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=MobileTileNet
-#SBATCH --output=outputs/yolo/output_MobileTileNet
-#SBATCH --error=outputs/yolo/error_MobileTileNet
+#SBATCH --output=outputs/output_MobileTileNet
+#SBATCH --error=outputs/error_MobileTileNet
 #SBATCH --time=24:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=8
