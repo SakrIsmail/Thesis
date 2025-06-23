@@ -27,7 +27,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
 import matplotlib.pyplot as plt
 
-TILE_SIZE = 64
+TILE_SIZE = 128
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
