@@ -527,9 +527,11 @@ if __name__ == "__main__":
 
         print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
+
     print("Training complete.")
     if torch.cuda.is_available():
         nvmlShutdown()
+    model.load_state_dict(torch.load("/var/scratch/sismail/models/MobileTileNet_model.pth"))
 
     evaluate(model, val_loader, criterion)
     evaluate(model, test_loader, criterion)
