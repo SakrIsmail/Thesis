@@ -513,14 +513,14 @@ if __name__ == "__main__":
         else:
             no_improve += 1
             if no_improve >= patience:
-                print(f"Early stopping at epoch {epoch}")
+                print(f"Early stopping at epoch {epoch+1}")
                 break
 
         max_gpu_mem = max(gpu_memories) if gpu_memories else 0
         max_cpu_mem = max(cpu_memories)
 
         table = [
-            ["Epoch", epoch],
+            ["Epoch", f"{epoch+1:.2f}"],
             ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
             ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
         ]
