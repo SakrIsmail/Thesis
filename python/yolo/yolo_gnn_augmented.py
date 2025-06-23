@@ -33,6 +33,11 @@ logging.getLogger("ultralytics.yolo").setLevel(logging.ERROR)
 
 
 def set_seed(seed: int = 42):
+    """
+    Set random seed for reproducibility.
+    Args:
+        seed (int): Seed value to set for random number generators.
+    """
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
@@ -45,6 +50,11 @@ set_seed(42)
 
 
 def seed_worker(worker_id):
+    """
+    Set the seed for each worker to ensure reproducibility.
+    Args:
+        worker_id (int): The ID of the worker.
+    """
     worker_seed = torch.initial_seed() % (2**32)
     np.random.seed(worker_seed)
     random.seed(worker_seed)
@@ -55,6 +65,7 @@ final_output_json = (
 )
 image_directory = "/var/scratch/sismail/data/images"
 
+# Split the dataset into train, validation, and test sets
 test_ratio = 0.2
 valid_ratio = 0.1
 random_seed = 42
@@ -91,6 +102,15 @@ test_annotations = {
 
 
 class BikePartsDetectionDataset(Dataset):
+    """
+    Custom dataset for bike parts detection.
+    Args:
+        annotations_dict (dict): Dictionary containing annotations with keys 'all_parts' and 'images'.
+        image_dir (str): Directory containing the images.
+        transform (callable, optional): A function/transform to apply to the images.
+        augment (bool): Whether to apply data augmentation.
+        target_size (tuple): The target size for resizing images.
+    """
     def __init__(
         self,
         annotations_dict,
@@ -113,6 +133,15 @@ class BikePartsDetectionDataset(Dataset):
         return len(self.image_filenames) * (2 if self.augment else 1)
 
     def apply_augmentation(self, image, boxes):
+        """
+        Apply random augmentations to the image and bounding boxes.
+        Args:
+            image (PIL.Image): The input image.
+            boxes (torch.Tensor): Bounding boxes in the format [x_min, y_min, x_max, y_max].
+        Returns:
+            PIL.Image: Augmented image.
+            torch.Tensor: Augmented bounding boxes.
+        """
         if random.random() < 0.5:
             image = transforms.functional.hflip(image)
             w = image.width
@@ -135,6 +164,13 @@ class BikePartsDetectionDataset(Dataset):
         return image, boxes
 
     def __getitem__(self, idx):
+        """
+        Get an item from the dataset.
+        Args:
+            idx (int): Index of the item to retrieve.
+        Returns:
+            tuple: A tuple containing the image and its corresponding target dictionary.
+        """
         real_idx = idx % len(self.image_filenames)
         do_augment = self.augment and (idx >= len(self.image_filenames))
 
@@ -229,6 +265,15 @@ test_loader = DataLoader(
 
 
 class SpatialGNN(torch.nn.Module):
+    """
+    A Graph Neural Network (GNN) for spatial reasoning in bike parts detection.
+    This GNN uses Graph Convolutional Networks (GCN) to process features extracted from
+    a YOLO model and predict the presence of bike parts.
+    Args:
+        feat_dim (int): Dimension of the input features.
+        hidden_dim (int): Dimension of the hidden layers in the GNN.
+        num_parts (int): Number of bike parts to classify.
+    """
     def __init__(self, feat_dim=256, hidden_dim=512, num_parts=22):
         super().__init__()
         in_dim = feat_dim + 6
@@ -244,6 +289,15 @@ class SpatialGNN(torch.nn.Module):
 
 
 def construct_graph_inputs(fmap_batch, predictions, device):
+    """    
+    Construct graph inputs from the feature map and predictions.
+    Args:
+        fmap_batch (torch.Tensor): Feature map batch of shape (B, C, Hf, Wf).
+        predictions (list): List of YOLO detection results for each image in the batch.
+        device (torch.device): Device to which the tensors should be moved.
+    Returns:
+        list: A list of tuples, each containing node features, edge indices, and edge weights.
+    """
     B, C, Hf, Wf = fmap_batch.shape
     sigma_spatial, gamma_appear = 20.0, 5.0
     alpha = 1.0 / (2 * sigma_spatial**2)
@@ -335,6 +389,11 @@ patience = 8
 
 
 def on_train_start(trainer):
+    """
+    Callback function to initialize the YOLO scheduler and other variables at the start of training.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global yolo_scheduler
     optim = trainer.optimizer
 
@@ -350,6 +409,11 @@ def on_train_start(trainer):
 
 
 def on_train_epoch_start(trainer):
+    """
+    Callback function to initialize variables at the start of each training epoch.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global batch_times, gpu_memories, cpu_memories, nvml_handle, em_tracker, batch_count
     batch_times.clear()
     gpu_memories.clear()
@@ -363,12 +427,22 @@ def on_train_epoch_start(trainer):
 
 
 def on_train_batch_start(trainer):
+    """
+    Callback function to initialize variables at the start of each training batch.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global start_time
 
     start_time = time.time()
 
 
 def on_train_batch_end(trainer):
+    """
+    Callback function to log metrics at the end of each training batch.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global batch_count, start_time
     batch_count += 1
     end_time = time.time()
@@ -390,6 +464,11 @@ def on_train_batch_end(trainer):
 
 
 def on_train_epoch_end(trainer):
+    """
+    Callback function to log metrics at the end of each training epoch.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global nvml_handle, em_tracker, best_macro_f1, no_improve_epochs, patience, valid_loader, device
 
     em_tracker.__exit__(None, None, None)
@@ -411,6 +490,11 @@ def on_train_epoch_end(trainer):
 
 
 def on_model_save(trainer):
+    """
+    Callback function to evaluate the model and save the best weights based on macro F1 score.
+    Args:
+        trainer (YOLO): The YOLO trainer instance.
+    """
     global best_macro_f1, no_improve_epochs, yolo_scheduler, patience, valid_loader, device
 
     wdir = os.path.join(trainer.args.project, trainer.args.name, "weights")
@@ -453,6 +537,17 @@ def on_model_save(trainer):
 
 
 def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
+    """
+    Run inference on the YOLO model and collect results.
+    Args:
+        model (YOLO): The YOLO model instance.
+        loader (DataLoader): DataLoader for the dataset.
+        part_to_idx (dict): Mapping from part names to indices.
+        idx_to_part (dict): Mapping from indices to part names.
+        device (torch.device): Device to run the model on.
+    Returns:
+        list: List of dictionaries containing inference results.
+    """
     model.model.to(device).eval()
     results = []
 
@@ -480,7 +575,18 @@ def run_yolo_inference(model, loader, part_to_idx, idx_to_part, device):
 
 
 def evaluate_gnn(yolo_model, gnn, data_loader, part_to_idx, device, K=22):
-
+    """
+    Evaluate the GNN model on the dataset.
+    Args:
+        yolo_model (YOLO): The YOLO model instance.
+        gnn (SpatialGNN): The GNN model instance.
+        data_loader (DataLoader): DataLoader for the dataset.
+        part_to_idx (dict): Mapping from part names to indices.
+        device (torch.device): Device to run the model on.
+        K (int): Number of parts to classify.
+    Returns:
+        list: List of dictionaries containing evaluation results for each image.
+    """
     yolo_model.to(device).eval()
     gnn.to(device).eval()
 
@@ -537,6 +643,13 @@ def evaluate_gnn(yolo_model, gnn, data_loader, part_to_idx, device, K=22):
 
 
 def part_level_evaluation(results, part_to_idx, idx_to_part):
+    """
+    Evaluate the model's performance on a per-part basis.
+    Args:
+        results (list): List of dictionaries containing evaluation results for each image.
+        part_to_idx (dict): Mapping from part names to indices.
+        idx_to_part (dict): Mapping from indices to part names.
+    """
     parts = list(part_to_idx.values())
 
     Y_true = np.array(
@@ -627,7 +740,6 @@ for p in yolo.model.parameters():
     p.requires_grad = False
 
 features = []
-
 
 def hook_fn(m, i, o):
     features.append(o)
