@@ -14,5 +14,4 @@ DelftBikes/
 depricated/
 models/
 ultralytics/
-notebooks/
-# outputs/
+outputs/
