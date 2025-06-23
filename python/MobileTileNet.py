@@ -466,7 +466,7 @@ if __name__ == "__main__":
         optimizer, mode="max", factor=0.5, patience=3, min_lr=1e-6, verbose=True
     )
 
-    epochs = 5
+    epochs = 100
     patience = 8
     best_macro_f1 = 0
     no_improve = 0
