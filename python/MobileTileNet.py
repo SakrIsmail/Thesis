@@ -343,9 +343,9 @@ def train(model, dataloader, optimizer, criterion):
         cpu_mem_used = psutil.virtual_memory().used / (1024**2)
         cpu_memories.append(cpu_mem_used)
 
-    pixels_saved = (
-        total_pixels / (640**2 * len(dataloader.dataset)) * 100
-    )
+    full_img_pixels = 640 * 640 * 3
+    total_full_image_pixels = full_img_pixels * len(dataloader.dataset)
+    pixels_saved = 100 * (1 - total_pixels / total_full_image_pixels)
     avg_loss = total_loss / len(dataloader)
     print(
         f"Train Loss: {avg_loss:.4f}, Time: {total_time:.2f}s, Saved pixels: {pixels_saved:.2f}%"
