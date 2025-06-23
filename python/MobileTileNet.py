@@ -344,7 +344,7 @@ def train(model, dataloader, optimizer, criterion):
         cpu_memories.append(cpu_mem_used)
 
     pixels_saved = (
-        total_pixels / ((TILE_SIZE * TILE_SIZE) * len(dataloader)) * 100
+        total_pixels / (640**2 * len(dataloader.dataset)) * 100
     )
     avg_loss = total_loss / len(dataloader)
     print(
