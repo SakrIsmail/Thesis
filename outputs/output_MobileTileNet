@@ -3,304 +3,265 @@ Anchor part: back_pedal
 Average anchor position: [323.4758003 289.5394436]
 Average offsets for parts (example): {'back_pedal': array([0., 0.]), 'back_hand_break': array([ -41.00623624, -164.98789435]), 'front_pedal': array([28.69489194, 19.22082515])}
 Epoch 1
-Train Loss: 0.4777, Time: 10.28s, Saved pixels: 65.62%
-Loss: 0.4438
+Train Loss: 0.4777, Time: 11.12s, Saved pixels: 65.62%
+Loss: 0.4441
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    1.00    |
-|    Average Batch Time (s)     |   0.0286   |
+|    Average Batch Time (s)     |   0.0310   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1964.14   |
-|   Energy Consumption (kWh)    | 0.0044 kWh |
+| Maximum CPU Memory Usage (MB) |  3143.62   |
+|   Energy Consumption (kWh)    | 0.0046 kWh |
 |      CO₂ Emissions (kg)       | 0.0012 kg  |
 +-------------------------------+------------+
 Epoch 2
-Train Loss: 0.4294, Time: 9.75s, Saved pixels: 65.62%
+Train Loss: 0.4293, Time: 10.56s, Saved pixels: 65.62%
 Loss: 0.4260
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    2.00    |
-|    Average Batch Time (s)     |   0.0272   |
+|    Average Batch Time (s)     |   0.0294   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1986.59   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3189.10   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 3
-Train Loss: 0.4031, Time: 10.26s, Saved pixels: 65.62%
-Loss: 0.4135
+Train Loss: 0.4032, Time: 10.69s, Saved pixels: 65.62%
+Loss: 0.4123
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    3.00    |
-|    Average Batch Time (s)     |   0.0286   |
+|    Average Batch Time (s)     |   0.0298   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1978.42   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3180.56   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 4
-Train Loss: 0.3760, Time: 10.25s, Saved pixels: 65.62%
-Loss: 0.4079
+Train Loss: 0.3764, Time: 10.63s, Saved pixels: 65.62%
+Loss: 0.4100
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    4.00    |
-|    Average Batch Time (s)     |   0.0286   |
+|    Average Batch Time (s)     |   0.0296   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1976.79   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3201.29   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 5
-Train Loss: 0.3505, Time: 10.01s, Saved pixels: 65.62%
-Loss: 0.4126
+Train Loss: 0.3513, Time: 10.35s, Saved pixels: 65.62%
+Loss: 0.4124
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    5.00    |
-|    Average Batch Time (s)     |   0.0279   |
+|    Average Batch Time (s)     |   0.0288   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1977.00   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3099.10   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 6
-Train Loss: 0.3252, Time: 10.02s, Saved pixels: 65.62%
-Loss: 0.4139
+Train Loss: 0.3260, Time: 10.62s, Saved pixels: 65.62%
+Loss: 0.4274
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    6.00    |
-|    Average Batch Time (s)     |   0.0279   |
+|    Average Batch Time (s)     |   0.0296   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1970.15   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3087.18   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 7
-Train Loss: 0.3002, Time: 10.36s, Saved pixels: 65.62%
-Loss: 0.4186
+Train Loss: 0.3003, Time: 10.77s, Saved pixels: 65.62%
+Loss: 0.4216
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    7.00    |
-|    Average Batch Time (s)     |   0.0289   |
+|    Average Batch Time (s)     |   0.0300   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1965.96   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3140.58   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 8
-Train Loss: 0.2764, Time: 10.44s, Saved pixels: 65.62%
-Loss: 0.4287
+Train Loss: 0.2766, Time: 10.78s, Saved pixels: 65.62%
+Loss: 0.4326
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    8.00    |
-|    Average Batch Time (s)     |   0.0291   |
+|    Average Batch Time (s)     |   0.0300   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1975.09   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3129.75   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 9
-Train Loss: 0.2516, Time: 9.67s, Saved pixels: 65.62%
-Loss: 0.4518
+Train Loss: 0.2519, Time: 10.76s, Saved pixels: 65.62%
+Loss: 0.4546
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |    9.00    |
-|    Average Batch Time (s)     |   0.0269   |
+|    Average Batch Time (s)     |   0.0300   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1972.86   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3150.68   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 10
-Train Loss: 0.2283, Time: 9.78s, Saved pixels: 65.62%
-Loss: 0.4640
+Train Loss: 0.2292, Time: 11.09s, Saved pixels: 65.62%
+Loss: 0.4763
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   10.00    |
-|    Average Batch Time (s)     |   0.0272   |
+|    Average Batch Time (s)     |   0.0309   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1970.85   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3152.53   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 11
-Train Loss: 0.2112, Time: 9.54s, Saved pixels: 65.62%
-Loss: 0.4715
+Train Loss: 0.2098, Time: 10.49s, Saved pixels: 65.62%
+Loss: 0.4781
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   11.00    |
-|    Average Batch Time (s)     |   0.0266   |
+|    Average Batch Time (s)     |   0.0292   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1973.07   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3134.99   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 12
-Train Loss: 0.1944, Time: 9.77s, Saved pixels: 65.62%
-Loss: 0.4977
+Train Loss: 0.1779, Time: 10.70s, Saved pixels: 65.62%
+Loss: 0.4815
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   12.00    |
-|    Average Batch Time (s)     |   0.0272   |
+|    Average Batch Time (s)     |   0.0298   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1942.21   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3170.18   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 13
-Train Loss: 0.1623, Time: 9.62s, Saved pixels: 65.62%
-Loss: 0.4942
+Train Loss: 0.1602, Time: 10.70s, Saved pixels: 65.62%
+Loss: 0.4872
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   13.00    |
-|    Average Batch Time (s)     |   0.0268   |
+|    Average Batch Time (s)     |   0.0298   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1969.43   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3141.12   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 14
-Train Loss: 0.1470, Time: 9.69s, Saved pixels: 65.62%
-Loss: 0.5034
+Train Loss: 0.1501, Time: 11.02s, Saved pixels: 65.62%
+Loss: 0.4998
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   14.00    |
-|    Average Batch Time (s)     |   0.0270   |
+|    Average Batch Time (s)     |   0.0307   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1970.73   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3201.85   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 15
-Train Loss: 0.1379, Time: 9.36s, Saved pixels: 65.62%
-Loss: 0.5122
+Train Loss: 0.1424, Time: 10.76s, Saved pixels: 65.62%
+Loss: 0.5124
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   15.00    |
-|    Average Batch Time (s)     |   0.0261   |
+|    Average Batch Time (s)     |   0.0300   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1958.61   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3186.05   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 16
-Train Loss: 0.1291, Time: 9.88s, Saved pixels: 65.62%
-Loss: 0.5319
+Train Loss: 0.1329, Time: 10.66s, Saved pixels: 65.62%
+Loss: 0.5369
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   16.00    |
-|    Average Batch Time (s)     |   0.0275   |
+|    Average Batch Time (s)     |   0.0297   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1967.96   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3160.51   |
+|   Energy Consumption (kWh)    | 0.0048 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 17
-Train Loss: 0.1210, Time: 10.17s, Saved pixels: 65.62%
-Loss: 0.5286
+Train Loss: 0.1192, Time: 10.30s, Saved pixels: 65.62%
+Loss: 0.5223
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   17.00    |
-|    Average Batch Time (s)     |   0.0283   |
+|    Average Batch Time (s)     |   0.0287   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1946.51   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3124.08   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 18
-Train Loss: 0.1135, Time: 9.73s, Saved pixels: 65.62%
-Loss: 0.5499
+Train Loss: 0.1110, Time: 10.55s, Saved pixels: 65.62%
+Loss: 0.5327
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   18.00    |
-|    Average Batch Time (s)     |   0.0271   |
+|    Average Batch Time (s)     |   0.0294   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1941.09   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3142.58   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 19
-Train Loss: 0.1052, Time: 9.72s, Saved pixels: 65.62%
-Loss: 0.5579
+Train Loss: 0.1050, Time: 10.44s, Saved pixels: 65.62%
+Loss: 0.5437
 +-------------------------------+------------+
 |            Metric             |   Value    |
 +-------------------------------+------------+
 |             Epoch             |   19.00    |
-|    Average Batch Time (s)     |   0.0271   |
+|    Average Batch Time (s)     |   0.0291   |
 | Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1965.84   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
+| Maximum CPU Memory Usage (MB) |  3130.24   |
+|   Energy Consumption (kWh)    | 0.0047 kWh |
+|      CO₂ Emissions (kg)       | 0.0013 kg  |
 +-------------------------------+------------+
 Epoch 20
-Train Loss: 0.0959, Time: 9.95s, Saved pixels: 65.62%
-Loss: 0.5496
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |   20.00    |
-|    Average Batch Time (s)     |   0.0277   |
-| Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1965.22   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
-+-------------------------------+------------+
-Epoch 21
-Train Loss: 0.0901, Time: 9.61s, Saved pixels: 65.62%
-Loss: 0.5654
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |   21.00    |
-|    Average Batch Time (s)     |   0.0268   |
-| Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  2109.48   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
-+-------------------------------+------------+
-Epoch 22
-Train Loss: 0.0866, Time: 9.59s, Saved pixels: 65.62%
-Loss: 0.5726
-+-------------------------------+------------+
-|            Metric             |   Value    |
-+-------------------------------+------------+
-|             Epoch             |   22.00    |
-|    Average Batch Time (s)     |   0.0267   |
-| Maximum GPU Memory Usage (MB) |  4202.69   |
-| Maximum CPU Memory Usage (MB) |  1987.36   |
-|   Energy Consumption (kWh)    | 0.0045 kWh |
-|      CO₂ Emissions (kg)       | 0.0012 kg  |
-+-------------------------------+------------+
-Epoch 23
-Train Loss: 0.0842, Time: 9.63s, Saved pixels: 65.62%
-Loss: 0.5816
-Early stopping at epoch 23
+Train Loss: 0.1023, Time: 10.52s, Saved pixels: 65.62%
+Loss: 0.5477
+Early stopping at epoch 20
 Training complete.
 Evaluating on validation set:
-Loss: 0.5122
-Micro F1: 0.7017, Macro F1: 0.5442
-Miss Rate: 0.3088, FPPI: 2.0549
-Overall Acc: 0.8032, Precision: 0.7124, Recall: 0.6912, F1: 0.7017
+Loss: 0.4815
+Micro F1: 0.7040, Macro F1: 0.5480
+Miss Rate: 0.3088, FPPI: 2.0063
+Overall Acc: 0.8054, Precision: 0.7173, Recall: 0.6912, F1: 0.7040
 
 Final evaluation on test set:
-Loss: 0.5175
-Micro F1: 0.6989, Macro F1: 0.5324
-Miss Rate: 0.3103, FPPI: 2.0764
-Overall Acc: 0.8025, Precision: 0.7083, Recall: 0.6897, F1: 0.6989
+Loss: 0.4782
+Micro F1: 0.7048, Macro F1: 0.5410
+Miss Rate: 0.3047, FPPI: 2.0307
+Overall Acc: 0.8064, Precision: 0.7145, Recall: 0.6953, F1: 0.7048
