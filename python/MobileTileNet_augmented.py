@@ -517,7 +517,7 @@ if __name__ == "__main__":
     )
 
     train_dataset = BikeTileDataset(
-        annotations, image_dir, train_ids, all_parts, average_offsets, augment=False
+        annotations, image_dir, train_ids, all_parts, average_offsets, augment=True
     )
     val_dataset = BikeTileDataset(
         annotations, image_dir, val_ids, all_parts, average_offsets, augment=False
@@ -580,7 +580,7 @@ if __name__ == "__main__":
                 no_improve = 0
                 torch.save(
                     model.state_dict(),
-                    "/var/scratch/sismail/models/MobileTileNet_model.pth",
+                    "/var/scratch/sismail/models/MobileTileNet_augmented_model.pth",
                 )
             else:
                 no_improve += 1
@@ -610,7 +610,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         nvmlShutdown()
     model.load_state_dict(
-        torch.load("/var/scratch/sismail/models/MobileTileNet_model.pth")
+        torch.load("/var/scratch/sismail/models/MobileTileNet_augmented_model.pth")
     )
     print("Evaluating on validation set:")
     evaluate(model, val_loader, criterion)
