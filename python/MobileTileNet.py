@@ -236,17 +236,16 @@ class BikeTileDataset(Dataset):
         self.augment = augment
 
     def __len__(self):
-        return len(self.images)
+        return len(self.images) * (2 if self.augment else 1)
 
     def apply_augmentation(self, image, boxes):
         """
         Apply random augmentations to the image and bounding boxes.
         Args:
             image (PIL.Image): The input image.
-            boxes (torch.Tensor): Bounding boxes in the format [x_min, y_min, x_max, y_max].
+            boxes (torch.Tensor): Bounding boxes in [x_min, y_min, x_max, y_max] format.
         Returns:
-            PIL.Image: Augmented image.
-            torch.Tensor: Augmented bounding boxes.
+            PIL.Image, torch.Tensor: Augmented image and updated bounding boxes.
         """
         if random.random() < 0.5:
             image = transforms.functional.hflip(image)
@@ -270,7 +269,11 @@ class BikeTileDataset(Dataset):
         return image, boxes
 
     def __getitem__(self, idx):
-        img_name = self.images[idx]
+        # Support augmented & original mode
+        real_idx = idx % len(self.images)
+        do_augment = self.augment and (idx >= len(self.images))
+
+        img_name = self.images[real_idx]
         img_path = os.path.join(self.image_dir, img_name)
         image = Image.open(img_path).convert("RGB")
 
@@ -278,7 +281,7 @@ class BikeTileDataset(Dataset):
         annotation = self.annotations[img_name]
         parts = annotation.get("available_parts", [])
 
-        # Convert bounding boxes to [xmin, ymin, xmax, ymax] format
+        # Prepare bounding boxes
         boxes = []
         for part in parts:
             bbox = part["absolute_bounding_box"]
@@ -289,8 +292,8 @@ class BikeTileDataset(Dataset):
             boxes.append([xmin, ymin, xmax, ymax])
         boxes = torch.tensor(boxes, dtype=torch.float32)
 
-        # Apply augmentations before resizing
-        if self.augment:
+        # Apply augmentation before resizing
+        if do_augment:
             image, boxes = self.apply_augmentation(image, boxes)
 
         # Resize image and scale boxes
@@ -301,7 +304,7 @@ class BikeTileDataset(Dataset):
         boxes[:, [0, 2]] *= scale_x
         boxes[:, [1, 3]] *= scale_y
 
-        # Update parts with scaled bbox values
+        # Update annotation bounding boxes after resizing
         for i, part in enumerate(parts):
             part["absolute_bounding_box"] = {
                 "left": boxes[i][0].item(),
@@ -310,13 +313,11 @@ class BikeTileDataset(Dataset):
                 "height": (boxes[i][3] - boxes[i][1]).item(),
             }
 
-        # Estimate tile centers
+        # Estimate tile centers from anchor
         cx, cy = resized_w // 2, resized_h // 2
-        tile_centers = estimate_other_tiles(
-            (cx, cy), self.all_parts, self.average_offsets
-        )
+        tile_centers = estimate_other_tiles((cx, cy), self.all_parts, self.average_offsets)
 
-        # Crop and transform tiles
+        # Crop tiles around estimated centers
         tiles = [crop_tile(image, center) for center in tile_centers]
         if self.transform:
             tiles = [self.transform(tile) for tile in tiles]
