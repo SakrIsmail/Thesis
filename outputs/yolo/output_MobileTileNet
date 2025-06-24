@@ -1,0 +1,45 @@
+Train: 5742, Val: 638, Test: 1596
+Anchor part: back_pedal
+Average anchor position: [323.4758003 289.5394436]
+Average offsets for parts (example): {'back_pedal': array([0., 0.]), 'back_hand_break': array([ -41.00623624, -164.98789435]), 'front_pedal': array([28.69489194, 19.22082515])}
+Epoch 1
+Train Loss: 0.4870, Time: 10.33s, Saved pixels: 6600.00%
+Loss: 0.4578
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |    0    |
+| Maximum GPU Memory Usage (MB) | 2786.69 |
+| Maximum CPU Memory Usage (MB) | 1903.12 |
++-------------------------------+---------+
+Epoch 2
+Train Loss: 0.4432, Time: 10.03s, Saved pixels: 6600.00%
+Loss: 0.4411
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |    1    |
+| Maximum GPU Memory Usage (MB) | 2786.69 |
+| Maximum CPU Memory Usage (MB) | 1942.22 |
++-------------------------------+---------+
+Epoch 3
+Train Loss: 0.4181, Time: 9.28s, Saved pixels: 6600.00%
+Loss: 0.4337
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |    2    |
+| Maximum GPU Memory Usage (MB) | 2786.69 |
+| Maximum CPU Memory Usage (MB) | 1954.65 |
++-------------------------------+---------+
+Epoch 4
+Train Loss: 0.3938, Time: 9.50s, Saved pixels: 6600.00%
+Loss: 0.4294
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |    3    |
+| Maximum GPU Memory Usage (MB) | 2788.69 |
+| Maximum CPU Memory Usage (MB) | 1919.89 |
++-------------------------------+---------+
+Epoch 5

@@ -1,0 +1,217 @@
+Train: 5742, Val: 638, Test: 1596
+Anchor part: back_pedal
+Average anchor position: [323.4758003 289.5394436]
+Average offsets for parts (example): {'back_pedal': array([0., 0.]), 'back_hand_break': array([ -41.00623624, -164.98789435]), 'front_pedal': array([28.69489194, 19.22082515])}
+Epoch 1
+Train Loss: 0.4776, Time: 10.78s, Saved pixels: 65.62%
+Loss: 0.4436
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  1.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3222.41 |
++-------------------------------+---------+
+Epoch 2
+Train Loss: 0.4294, Time: 10.12s, Saved pixels: 65.62%
+Loss: 0.4252
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  2.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3284.32 |
++-------------------------------+---------+
+Epoch 3
+Train Loss: 0.4030, Time: 9.90s, Saved pixels: 65.62%
+Loss: 0.4137
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  3.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3034.04 |
++-------------------------------+---------+
+Epoch 4
+Train Loss: 0.3759, Time: 9.82s, Saved pixels: 65.62%
+Loss: 0.4081
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  4.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3076.92 |
++-------------------------------+---------+
+Epoch 5
+Train Loss: 0.3508, Time: 10.34s, Saved pixels: 65.62%
+Loss: 0.4125
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  5.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3010.46 |
++-------------------------------+---------+
+Epoch 6
+Train Loss: 0.3257, Time: 10.40s, Saved pixels: 65.62%
+Loss: 0.4159
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  6.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3054.77 |
++-------------------------------+---------+
+Epoch 7
+Train Loss: 0.3008, Time: 9.98s, Saved pixels: 65.62%
+Loss: 0.4239
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  7.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3034.21 |
++-------------------------------+---------+
+Epoch 8
+Train Loss: 0.2765, Time: 9.85s, Saved pixels: 65.62%
+Loss: 0.4329
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  8.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3046.41 |
++-------------------------------+---------+
+Epoch 9
+Train Loss: 0.2517, Time: 10.03s, Saved pixels: 65.62%
+Loss: 0.4588
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  9.00   |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3040.75 |
++-------------------------------+---------+
+Epoch 10
+Train Loss: 0.2297, Time: 10.32s, Saved pixels: 65.62%
+Loss: 0.4632
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  10.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3105.50 |
++-------------------------------+---------+
+Epoch 11
+Train Loss: 0.1948, Time: 9.90s, Saved pixels: 65.62%
+Loss: 0.4636
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  11.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3123.58 |
++-------------------------------+---------+
+Epoch 12
+Train Loss: 0.1770, Time: 9.77s, Saved pixels: 65.62%
+Loss: 0.4726
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  12.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3198.22 |
++-------------------------------+---------+
+Epoch 13
+Train Loss: 0.1651, Time: 9.96s, Saved pixels: 65.62%
+Loss: 0.4865
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  13.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3067.44 |
++-------------------------------+---------+
+Epoch 14
+Train Loss: 0.1552, Time: 10.20s, Saved pixels: 65.62%
+Loss: 0.4959
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  14.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3085.13 |
++-------------------------------+---------+
+Epoch 15
+Train Loss: 0.1473, Time: 10.35s, Saved pixels: 65.62%
+Loss: 0.5072
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  15.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3040.65 |
++-------------------------------+---------+
+Epoch 16
+Train Loss: 0.1378, Time: 9.81s, Saved pixels: 65.62%
+Loss: 0.5219
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  16.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3071.93 |
++-------------------------------+---------+
+Epoch 17
+Train Loss: 0.1301, Time: 10.18s, Saved pixels: 65.62%
+Loss: 0.5223
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  17.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3057.69 |
++-------------------------------+---------+
+Epoch 18
+Train Loss: 0.1157, Time: 10.31s, Saved pixels: 65.62%
+Loss: 0.5313
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  18.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3056.71 |
++-------------------------------+---------+
+Epoch 19
+Train Loss: 0.1068, Time: 9.89s, Saved pixels: 65.62%
+Loss: 0.5399
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  19.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3101.24 |
++-------------------------------+---------+
+Epoch 20
+Train Loss: 0.1042, Time: 9.69s, Saved pixels: 65.62%
+Loss: 0.5458
++-------------------------------+---------+
+|            Metric             |  Value  |
++-------------------------------+---------+
+|             Epoch             |  20.00  |
+| Maximum GPU Memory Usage (MB) | 4202.69 |
+| Maximum CPU Memory Usage (MB) | 3112.40 |
++-------------------------------+---------+
+Epoch 21
+Train Loss: 0.0999, Time: 10.04s, Saved pixels: 65.62%
+Loss: 0.5516
+Early stopping at epoch 21
+Training complete.
+Loss: 0.4865
+Micro F1: 0.7055, Macro F1: 0.5494
+Miss Rate: 0.3013, FPPI: 2.0768
+Overall Acc: 0.8047, Precision: 0.7125, Recall: 0.6987, F1: 0.7055
+Loss: 0.4906
+Micro F1: 0.7085, Macro F1: 0.5385
+Miss Rate: 0.2941, FPPI: 2.0965
+Overall Acc: 0.8070, Precision: 0.7111, Recall: 0.7059, F1: 0.7085
