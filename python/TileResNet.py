@@ -474,7 +474,7 @@ if __name__ == "__main__":
         optimizer, mode="max", factor=0.5, patience=3, min_lr=1e-6, verbose=True
     )
 
-    epochs = 1
+    epochs = 100
     patience = 8
     best_macro_f1 = 0
     no_improve = 0
@@ -516,7 +516,7 @@ if __name__ == "__main__":
             no_improve = 0
             torch.save(
                 model.state_dict(),
-                "/var/scratch/sismail/models/MobileTileNet_model.pth",
+                "/var/scratch/sismail/models/TileResNet_model.pth",
             )
         else:
             no_improve += 1
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         nvmlShutdown()
     model.load_state_dict(
-        torch.load("/var/scratch/sismail/models/MobileTileNet_model.pth")
+        torch.load("/var/scratch/sismail/models/TileResNet_model.pth")
     )
 
     evaluate(model, val_loader, criterion)
