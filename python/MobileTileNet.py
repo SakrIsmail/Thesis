@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
-import matplotlib.pyplot as plt
+from codecarbon import EmissionsTracker
 
 TILE_SIZE = 80
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,7 +78,7 @@ def part_in_center_tile(part_bbox, image_size, tile_size=TILE_SIZE):
 
 
 def find_anchor_part(images_subset, all_parts, image_dir):
-    """    
+    """
     Find the part that appears most frequently in the center tile of images.
     Args:
         images_subset (dict): Subset of images with their annotations.
@@ -212,7 +212,8 @@ class BikeTileDataset(Dataset):
     This dataset crops tiles around estimated centers based on the average offsets
     from a specified anchor part, and returns the tiles along with labels indicating
     the presence or absence of parts in the center tile.
-    """ 
+    """
+
     def __init__(
         self,
         annotations,
@@ -277,6 +278,7 @@ class TileMobileNet(nn.Module):
     applies adaptive average pooling, and then classifies the aggregated features into
     the specified number of parts.
     """
+
     def __init__(self, num_parts=22):
         super().__init__()
         backbone = models.mobilenet_v2(pretrained=True)
@@ -304,7 +306,7 @@ if torch.cuda.is_available():
 
 
 def train(model, dataloader, optimizer, criterion):
-    """ Train the model for one epoch.
+    """Train the model for one epoch.
     Args:
         model (nn.Module): The model to train.
         dataloader (DataLoader): DataLoader for the training dataset.
@@ -313,9 +315,11 @@ def train(model, dataloader, optimizer, criterion):
     """
     model.train()
     total_loss, total_time, total_pixels = 0, 0, 0
-    global gpu_memories, cpu_memories
-    gpu_memories, cpu_memories = [], []
-
+    global gpu_memories, cpu_memories, batch_times
+    batch_times = []
+    gpu_memories = []
+    cpu_memories = []
+    
     for tiles, labels in tqdm(dataloader):
         tiles = tiles.to(DEVICE)
         labels = labels.to(DEVICE)
@@ -329,6 +333,7 @@ def train(model, dataloader, optimizer, criterion):
         optimizer.step()
 
         batch_time = time.time() - start_time
+        batch_times.append(batch_time)
         total_loss += loss.item()
         total_time += batch_time
         total_pixels += tiles.numel()
@@ -353,7 +358,7 @@ def train(model, dataloader, optimizer, criterion):
 
 
 def evaluate(model, dataloader, criterion):
-    """ 
+    """
     Evaluate the model on the validation or test dataset.
     Args:
         model (nn.Module): The model to evaluate.
@@ -410,7 +415,9 @@ def evaluate(model, dataloader, criterion):
 
 
 if __name__ == "__main__":
-    json_path = "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+    json_path = (
+        "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+    )
     image_dir = "/var/scratch/sismail/data/images"
 
     with open(json_path) as f:
@@ -472,66 +479,77 @@ if __name__ == "__main__":
     no_improve = 0
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}")
-        train(model, train_loader, optimizer, criterion)
-        model.eval()
-        total_loss = 0
+        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+            train(model, train_loader, optimizer, criterion)
+            model.eval()
+            total_loss = 0
 
-        all_preds = []
-        all_labels = []
+            all_preds = []
+            all_labels = []
 
-        with torch.no_grad():
-            for tiles, labels in tqdm(val_loader):
-                tiles = tiles.to(DEVICE)
-                labels = labels.to(DEVICE)
-                preds = model(tiles)
-                loss = criterion(preds, labels)
-                total_loss += loss.item()
+            with torch.no_grad():
+                for tiles, labels in tqdm(val_loader):
+                    tiles = tiles.to(DEVICE)
+                    labels = labels.to(DEVICE)
+                    preds = model(tiles)
+                    loss = criterion(preds, labels)
+                    total_loss += loss.item()
 
-                preds_bin = (torch.sigmoid(preds) > 0.5).cpu().numpy()
-                labels_np = labels.cpu().numpy()
+                    preds_bin = (torch.sigmoid(preds) > 0.5).cpu().numpy()
+                    labels_np = labels.cpu().numpy()
 
-                all_preds.append(preds_bin)
-                all_labels.append(labels_np)
+                    all_preds.append(preds_bin)
+                    all_labels.append(labels_np)
 
-        avg_loss = total_loss / len(val_loader)
-        print(f"Loss: {avg_loss:.4f}")
+            avg_loss = total_loss / len(val_loader)
+            print(f"Loss: {avg_loss:.4f}")
 
-        Y_pred = np.vstack(all_preds)
-        Y_true = np.vstack(all_labels)
+            Y_pred = np.vstack(all_preds)
+            Y_true = np.vstack(all_labels)
 
-        macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
+            macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
 
-        sched.step(macro_f1)
+            sched.step(macro_f1)
 
-        if macro_f1 > best_macro_f1:
-            best_macro_f1 = macro_f1
-            no_improve = 0
-            torch.save(
-                model.state_dict(),
-                "/var/scratch/sismail/models/MobileTileNet_model.pth",
-            )
-        else:
-            no_improve += 1
-            if no_improve >= patience:
-                print(f"Early stopping at epoch {epoch+1}")
-                break
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve = 0
+                torch.save(
+                    model.state_dict(),
+                    "/var/scratch/sismail/models/MobileTileNet_model.pth",
+                )
+            else:
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch+1}")
+                    break
 
+        energy_consumption = tracker.final_emissions_data.energy_consumed
+        co2_emissions = tracker.final_emissions
+
+        avg_time = np.mean(batch_times)
         max_gpu_mem = max(gpu_memories) if gpu_memories else 0
         max_cpu_mem = max(cpu_memories)
 
         table = [
             ["Epoch", f"{epoch+1:.2f}"],
+            ["Average Batch Time (s)", f"{avg_time:.4f}"],
             ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
             ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+            ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
+            ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
         ]
 
         print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
 
-
     print("Training complete.")
     if torch.cuda.is_available():
         nvmlShutdown()
-    model.load_state_dict(torch.load("/var/scratch/sismail/models/MobileTileNet_model.pth"))
-
+    model.load_state_dict(
+        torch.load("/var/scratch/sismail/models/MobileTileNet_model.pth")
+    )
+    print("Evaluating on validation set:")
     evaluate(model, val_loader, criterion)
+
+    print("\nFinal evaluation on test set:")
     evaluate(model, test_loader, criterion)
