@@ -481,9 +481,9 @@ def evaluate(model, dataloader, criterion):
 
 if __name__ == "__main__":
     json_path = (
-        "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+        "data/processed/final_annotations_without_occluded.json"
     )
-    image_dir = "/var/scratch/sismail/data/images"
+    image_dir = "data/images"
 
     with open(json_path) as f:
         annotations = json.load(f)
@@ -518,7 +518,7 @@ if __name__ == "__main__":
     )
 
     train_dataset = BikeTileDataset(
-        annotations, image_dir, train_ids, all_parts, average_offsets, augment=True
+        annotations, image_dir, train_ids, all_parts, average_offsets, augment=False
     )
     val_dataset = BikeTileDataset(
         annotations, image_dir, val_ids, all_parts, average_offsets, augment=False
@@ -581,7 +581,7 @@ if __name__ == "__main__":
                 no_improve = 0
                 torch.save(
                     model.state_dict(),
-                    "/var/scratch/sismail/models/MobileTileNet_augmented_model.pth",
+                    "models/MobileTileNet_model.pth",
                 )
             else:
                 no_improve += 1
@@ -611,7 +611,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         nvmlShutdown()
     model.load_state_dict(
-        torch.load("/var/scratch/sismail/models/MobileTileNet_augmented_model.pth")
+        torch.load("models/MobileTileNet_model.pth")
     )
     print("Evaluating on validation set:")
     evaluate(model, val_loader, criterion)

@@ -18,6 +18,6 @@ eval "$(conda shell.bash hook)"
 conda activate /var/scratch/sismail/my_env
 
 # Run your Python script
-python python/TileResNet.py
+python python/MobileTileNet/TileResNet.py
 
 conda deactivate

@@ -25,9 +25,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, models
-import matplotlib.pyplot as plt
+from codecarbon import EmissionsTracker
 
-TILE_SIZE = 64
+TILE_SIZE = 80
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -221,6 +221,8 @@ class BikeTileDataset(Dataset):
         image_ids,
         all_parts,
         average_offsets,
+        transform=None,
+        augment=True,
         target_size=(640, 640),
     ):
         self.image_dir = image_dir
@@ -230,39 +232,102 @@ class BikeTileDataset(Dataset):
         self.all_parts = all_parts
         self.average_offsets = average_offsets
         self.target_size = target_size
+        self.transform = transform
+        self.augment = augment
 
     def __len__(self):
-        return len(self.images)
+        return len(self.images) * (2 if self.augment else 1)
+
+    def apply_augmentation(self, image, boxes):
+        """
+        Apply random augmentations to the image and bounding boxes.
+        Args:
+            image (PIL.Image): The input image.
+            boxes (torch.Tensor): Bounding boxes in [x_min, y_min, x_max, y_max] format.
+        Returns:
+            PIL.Image, torch.Tensor: Augmented image and updated bounding boxes.
+        """
+        if random.random() < 0.5:
+            image = transforms.functional.hflip(image)
+            w = image.width
+            boxes = boxes.clone()
+            boxes[:, [0, 2]] = w - boxes[:, [2, 0]]
+
+        if random.random() < 0.8:
+            image = transforms.functional.adjust_brightness(
+                image, brightness_factor=random.uniform(0.6, 1.4)
+            )
+        if random.random() < 0.8:
+            image = transforms.functional.adjust_contrast(
+                image, contrast_factor=random.uniform(0.6, 1.4)
+            )
+        if random.random() < 0.5:
+            image = transforms.functional.adjust_saturation(
+                image, saturation_factor=random.uniform(0.7, 1.3)
+            )
+
+        return image, boxes
 
     def __getitem__(self, idx):
-        img_name = self.images[idx]
+        # Support augmented & original mode
+        real_idx = idx % len(self.images)
+        do_augment = self.augment and (idx >= len(self.images))
+
+        img_name = self.images[real_idx]
         img_path = os.path.join(self.image_dir, img_name)
         image = Image.open(img_path).convert("RGB")
 
         original_w, original_h = image.size
-        image = image.resize(self.target_size, Image.BILINEAR)
-        resized_w, resized_h = self.target_size
+        annotation = self.annotations[img_name]
+        parts = annotation.get("available_parts", [])
 
-        scale_x = resized_w / original_w
-        scale_y = resized_h / original_h
-
-        parts = self.annotations[img_name].get("available_parts", [])
+        # Prepare bounding boxes
+        boxes = []
         for part in parts:
             bbox = part["absolute_bounding_box"]
-            bbox["left"] *= scale_x
-            bbox["top"] *= scale_y
-            bbox["width"] *= scale_x
-            bbox["height"] *= scale_y
+            xmin = bbox["left"]
+            ymin = bbox["top"]
+            xmax = xmin + bbox["width"]
+            ymax = ymin + bbox["height"]
+            boxes.append([xmin, ymin, xmax, ymax])
+        boxes = torch.tensor(boxes, dtype=torch.float32)
 
+        # Apply augmentation before resizing
+        if do_augment:
+            image, boxes = self.apply_augmentation(image, boxes)
+
+        # Resize image and scale boxes
+        image = image.resize(self.target_size, Image.BILINEAR)
+        resized_w, resized_h = self.target_size
+        scale_x = resized_w / original_w
+        scale_y = resized_h / original_h
+        boxes[:, [0, 2]] *= scale_x
+        boxes[:, [1, 3]] *= scale_y
+
+        # Update annotation bounding boxes after resizing
+        for i, part in enumerate(parts):
+            part["absolute_bounding_box"] = {
+                "left": boxes[i][0].item(),
+                "top": boxes[i][1].item(),
+                "width": (boxes[i][2] - boxes[i][0]).item(),
+                "height": (boxes[i][3] - boxes[i][1]).item(),
+            }
+
+        # Estimate tile centers from anchor
         cx, cy = resized_w // 2, resized_h // 2
-        tile_centers = estimate_other_tiles(
-            (cx, cy), self.all_parts, self.average_offsets
-        )
+        tile_centers = estimate_other_tiles((cx, cy), self.all_parts, self.average_offsets)
 
-        tiles = [transform(crop_tile(image, center)) for center in tile_centers]
+        # Crop tiles around estimated centers
+        tiles = [crop_tile(image, center) for center in tile_centers]
+        if self.transform:
+            tiles = [self.transform(tile) for tile in tiles]
+        else:
+            tiles = [transforms.functional.to_tensor(tile) for tile in tiles]
+
         tiles = torch.stack(tiles)
 
-        missing_parts = self.annotations[img_name].get("missing_parts", [])
+        # Create label vector
+        missing_parts = annotation.get("missing_parts", [])
         label = torch.zeros(len(self.all_parts))
         for part in missing_parts:
             idx_part = self.part_to_idx[part]
@@ -271,36 +336,32 @@ class BikeTileDataset(Dataset):
         return tiles, label
 
 
-class TileResNet50(nn.Module):
+class TileMobileNet(nn.Module):
+    """
+    MobileNet model for processing bike tiles.
+    This model uses a MobileNetV2 backbone to extract features from the input tiles,
+    applies adaptive average pooling, and then classifies the aggregated features into
+    the specified number of parts.
+    """
+
     def __init__(self, num_parts=22):
         super().__init__()
-        backbone = models.resnet50(pretrained=True)
-
-        self.features = nn.Sequential(
-            backbone.conv1,
-            backbone.bn1,
-            backbone.relu,
-            backbone.maxpool,
-            backbone.layer1,
-            backbone.layer2,
-            backbone.layer3,
-            backbone.layer4,
-        )
+        backbone = models.mobilenet_v2(pretrained=True)
+        self.feature_extractor = backbone.features
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
-
         self.classifier = nn.Sequential(
-            nn.Linear(2048, 512),
-            nn.ReLU(inplace=True),
+            nn.Linear(1280, 512),
+            nn.ReLU(),
             nn.Linear(512, num_parts),
         )
 
     def forward(self, x):
         B, T, C, H, W = x.shape
         x = x.view(B * T, C, H, W)
-        f = self.features(x)
-        p = self.pool(f).view(B, T, -1)
-        agg = p.mean(dim=1)
-        out = self.classifier(agg)
+        feats = self.feature_extractor(x)
+        pooled = self.pool(feats).view(B, T, -1)
+        aggregated = pooled.mean(dim=1)
+        out = self.classifier(aggregated)
         return out
 
 
@@ -319,9 +380,11 @@ def train(model, dataloader, optimizer, criterion):
     """
     model.train()
     total_loss, total_time, total_pixels = 0, 0, 0
-    global gpu_memories, cpu_memories
-    gpu_memories, cpu_memories = [], []
-
+    global gpu_memories, cpu_memories, batch_times
+    batch_times = []
+    gpu_memories = []
+    cpu_memories = []
+    
     for tiles, labels in tqdm(dataloader):
         tiles = tiles.to(DEVICE)
         labels = labels.to(DEVICE)
@@ -335,6 +398,7 @@ def train(model, dataloader, optimizer, criterion):
         optimizer.step()
 
         batch_time = time.time() - start_time
+        batch_times.append(batch_time)
         total_loss += loss.item()
         total_time += batch_time
         total_pixels += tiles.numel()
@@ -417,9 +481,9 @@ def evaluate(model, dataloader, criterion):
 
 if __name__ == "__main__":
     json_path = (
-        "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+        "data/processed/final_annotations_without_occluded.json"
     )
-    image_dir = "/var/scratch/sismail/data/images"
+    image_dir = "data/images"
 
     with open(json_path) as f:
         annotations = json.load(f)
@@ -454,20 +518,20 @@ if __name__ == "__main__":
     )
 
     train_dataset = BikeTileDataset(
-        annotations, image_dir, train_ids, all_parts, average_offsets
+        annotations, image_dir, train_ids, all_parts, average_offsets, augment=True
     )
     val_dataset = BikeTileDataset(
-        annotations, image_dir, val_ids, all_parts, average_offsets
+        annotations, image_dir, val_ids, all_parts, average_offsets, augment=False
     )
     test_dataset = BikeTileDataset(
-        annotations, image_dir, test_ids, all_parts, average_offsets
+        annotations, image_dir, test_ids, all_parts, average_offsets, augment=False
     )
 
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
     val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=4)
 
-    model = TileResNet50().to(DEVICE)
+    model = TileMobileNet().to(DEVICE)
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
     sched = ReduceLROnPlateau(
@@ -480,57 +544,65 @@ if __name__ == "__main__":
     no_improve = 0
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}")
-        train(model, train_loader, optimizer, criterion)
-        model.eval()
-        total_loss = 0
+        with EmissionsTracker(log_level="critical", save_to_file=False) as tracker:
+            train(model, train_loader, optimizer, criterion)
+            model.eval()
+            total_loss = 0
 
-        all_preds = []
-        all_labels = []
+            all_preds = []
+            all_labels = []
 
-        with torch.no_grad():
-            for tiles, labels in tqdm(val_loader):
-                tiles = tiles.to(DEVICE)
-                labels = labels.to(DEVICE)
-                preds = model(tiles)
-                loss = criterion(preds, labels)
-                total_loss += loss.item()
+            with torch.no_grad():
+                for tiles, labels in tqdm(val_loader):
+                    tiles = tiles.to(DEVICE)
+                    labels = labels.to(DEVICE)
+                    preds = model(tiles)
+                    loss = criterion(preds, labels)
+                    total_loss += loss.item()
 
-                preds_bin = (torch.sigmoid(preds) > 0.5).cpu().numpy()
-                labels_np = labels.cpu().numpy()
+                    preds_bin = (torch.sigmoid(preds) > 0.5).cpu().numpy()
+                    labels_np = labels.cpu().numpy()
 
-                all_preds.append(preds_bin)
-                all_labels.append(labels_np)
+                    all_preds.append(preds_bin)
+                    all_labels.append(labels_np)
 
-        avg_loss = total_loss / len(val_loader)
-        print(f"Loss: {avg_loss:.4f}")
+            avg_loss = total_loss / len(val_loader)
+            print(f"Loss: {avg_loss:.4f}")
 
-        Y_pred = np.vstack(all_preds)
-        Y_true = np.vstack(all_labels)
+            Y_pred = np.vstack(all_preds)
+            Y_true = np.vstack(all_labels)
 
-        macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
+            macro_f1 = f1_score(Y_true, Y_pred, average="macro", zero_division=0)
 
-        sched.step(macro_f1)
+            sched.step(macro_f1)
 
-        if macro_f1 > best_macro_f1:
-            best_macro_f1 = macro_f1
-            no_improve = 0
-            torch.save(
-                model.state_dict(),
-                "/var/scratch/sismail/models/TileResNet_model.pth",
-            )
-        else:
-            no_improve += 1
-            if no_improve >= patience:
-                print(f"Early stopping at epoch {epoch+1}")
-                break
+            if macro_f1 > best_macro_f1:
+                best_macro_f1 = macro_f1
+                no_improve = 0
+                torch.save(
+                    model.state_dict(),
+                    "models/MobileTileNet_augmented_model.pth",
+                )
+            else:
+                no_improve += 1
+                if no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch+1}")
+                    break
 
+        energy_consumption = tracker.final_emissions_data.energy_consumed
+        co2_emissions = tracker.final_emissions
+
+        avg_time = np.mean(batch_times)
         max_gpu_mem = max(gpu_memories) if gpu_memories else 0
         max_cpu_mem = max(cpu_memories)
 
         table = [
             ["Epoch", f"{epoch+1:.2f}"],
+            ["Average Batch Time (s)", f"{avg_time:.4f}"],
             ["Maximum GPU Memory Usage (MB)", f"{max_gpu_mem:.2f}"],
             ["Maximum CPU Memory Usage (MB)", f"{max_cpu_mem:.2f}"],
+            ["Energy Consumption (kWh)", f"{energy_consumption:.4f} kWh"],
+            ["CO₂ Emissions (kg)", f"{co2_emissions:.4f} kg"],
         ]
 
         print(tabulate(table, headers=["Metric", "Value"], tablefmt="pretty"))
@@ -539,8 +611,10 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         nvmlShutdown()
     model.load_state_dict(
-        torch.load("/var/scratch/sismail/models/TileResNet_model.pth")
+        torch.load("models/MobileTileNet_augmented_model.pth")
     )
-
+    print("Evaluating on validation set:")
     evaluate(model, val_loader, criterion)
+
+    print("\nFinal evaluation on test set:")
     evaluate(model, test_loader, criterion)

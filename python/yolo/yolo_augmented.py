@@ -59,9 +59,9 @@ def seed_worker(worker_id):
 
 
 final_output_json = (
-    "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+    "data/processed/final_annotations_without_occluded.json"
 )
-image_directory = "/var/scratch/sismail/data/images"
+image_directory = "data/images"
 
 # Split the dataset into train, validation, and test sets
 test_ratio = 0.2
@@ -535,7 +535,7 @@ model.add_callback("on_model_save", on_model_save)
 model.to(device)
 
 model.train(
-    data="/var/scratch/sismail/data/yolo_format/aug/data.yaml",
+    data="data/yolo_format/aug/data.yaml",
     epochs=100,
     batch=16,
     imgsz=640,
@@ -547,14 +547,14 @@ model.train(
     seed=42,
     verbose=False,
     plots=False,
-    project="/var/scratch/sismail/models/yolo/runs",
+    project="models/yolo/runs",
     name="bikeparts_experiment_augmented",
     exist_ok=True,
 )
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = YOLO(
-    "/var/scratch/sismail/models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt"
+    "models/yolo/runs/bikeparts_experiment_augmented/weights/best.pt"
 )
 model.to(device)
 

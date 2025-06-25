@@ -61,9 +61,9 @@ def seed_worker(worker_id):
 
 
 final_output_json = (
-    "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+    "data/processed/final_annotations_without_occluded.json"
 )
-image_directory = "/var/scratch/sismail/data/images"
+image_directory = "data/images"
 
 # Split the dataset into train, validation, and test sets
 test_ratio = 0.2
@@ -713,7 +713,7 @@ yolo.add_callback("on_train_epoch_end", on_train_epoch_end)
 yolo.add_callback("on_model_save", on_model_save)
 
 yolo.train(
-    data="/var/scratch/sismail/data/yolo_format/aug/data.yaml",
+    data="data/yolo_format/aug/data.yaml",
     epochs=50,
     batch=16,
     imgsz=640,
@@ -725,14 +725,14 @@ yolo.train(
     seed=42,
     verbose=False,
     plots=False,
-    project="/var/scratch/sismail/models/yolo/runs",
+    project="models/yolo/runs",
     name="bikeparts_gnn_augmented",
     exist_ok=True,
 )
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 yolo = YOLO(
-    "/var/scratch/sismail/models/yolo/runs/bikeparts_gnn_augmented/weights/best.pt"
+    "models/yolo/runs/bikeparts_gnn_augmented/weights/best.pt"
 ).eval()
 yolo.to(device)
 
@@ -859,7 +859,7 @@ for epoch in range(1, num_epochs + 1):
             no_improve = 0
             torch.save(
                 gnn.state_dict(),
-                "/var/scratch/sismail/models/yolo/yolo_gnn_augmented_model.pth",
+                "models/yolo/yolo_gnn_augmented_model.pth",
             )
         else:
             no_improve += 1

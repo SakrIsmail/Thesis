@@ -61,8 +61,8 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
 
 
-final_output_json = "/var/scratch/sismail/data/processed/final_direct_missing.json"
-image_directory = "/var/scratch/sismail/data/images"
+final_output_json = "data/processed/final_direct_missing.json"
+image_directory = "data/images"
 
 # Split the dataset into train, validation, and test sets
 test_ratio = 0.2
@@ -901,7 +901,7 @@ for epoch in range(1, epochs + 1):
                 no_improve = 0
                 torch.save(
                     model.state_dict(),
-                    "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
+                    "models/graph_rcnn/graphrcnn_MobileNet_missing_baseline_model.pth",
                 )
             else:
                 no_improve += 1

@@ -57,9 +57,9 @@ def seed_worker(worker_id):
 
 
 final_output_json = (
-    "/var/scratch/sismail/data/processed/final_annotations_without_occluded.json"
+    "data/processed/final_annotations_without_occluded.json"
 )
-image_directory = "/var/scratch/sismail/data/images"
+image_directory = "data/images"
 
 # Split the dataset into train, validation, and test sets
 test_ratio = 0.2
@@ -729,7 +729,7 @@ for epoch in range(1, epochs + 1):
             detector_no_improve = 0
             torch.save(
                 model.detector.state_dict(),
-                "/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth",
+                "models/graph_rcnn/graphrcnn_detector_augmented_model.pth",
             )
         else:
             detector_no_improve += 1
@@ -742,7 +742,7 @@ for epoch in range(1, epochs + 1):
     # Load the best detector model from the first stage and freeze its parameters
     model.detector.load_state_dict(
         torch.load(
-            "/var/scratch/sismail/models/graph_rcnn/graphrcnn_detector_augmented_model.pth"
+            "models/graph_rcnn/graphrcnn_detector_augmented_model.pth"
         )
     )
 
@@ -842,7 +842,7 @@ for epoch in range(1, epochs + 1):
         joint_no_improve = 0
         torch.save(
             model.state_dict(),
-            f"/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
+            f"models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
         )
     else:
         joint_no_improve += 1
@@ -857,7 +857,7 @@ if torch.cuda.is_available():
 
 model.load_state_dict(
     torch.load(
-        "/var/scratch/sismail/models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
+        "models/graph_rcnn/graphrcnn_MobileNet_augmented_model.pth",
         map_location=device,
     )
 )

@@ -6,9 +6,9 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 
-json_file = "/var/scratch/sismail/data/raw/train_annotations.json"
-image_directory = "/var/scratch/sismail/data/images"
-final_output_json = "/var/scratch/sismail/data/processed/final_direct_missing.json"
+json_file = "data/raw/train_annotations.json"
+image_directory = "data/images"
+final_output_json = "data/processed/final_direct_missing.json"
 
 with open(json_file, "r") as f:
     annotations = json.load(f)
